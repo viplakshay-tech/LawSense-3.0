@@ -10,6 +10,7 @@ import type {
   TwinNodeData,
   TwinPosition,
   TwinSnapshotData,
+  TwinEvidenceStatus,
   TwinTemporalValue,
 } from './types';
 
@@ -306,6 +307,17 @@ function lerp(from: number, to: number, amount: number) {
   return from + (to - from) * amount;
 }
 
+function formatEvidenceStatus(status: TwinEvidenceStatus | undefined): string {
+  switch (status) {
+    case 'supported': return 'Evidence-supported';
+    case 'user_reported': return 'User-reported';
+    case 'uncertain': return 'Uncertain';
+    case 'conflict': return 'Conflicting';
+    case 'unknown':
+    default: return 'Unknown';
+  }
+}
+
 function easeInOutCubic(value: number) {
   return value < 0.5
     ? 4 * value * value * value
@@ -377,6 +389,8 @@ export function TwinCanvas({
 
   const animationFrameRef =
     useRef<number | null>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [labelScale, setLabelScale] = useState(1);
 
   const [animatedProjection, setAnimatedProjection] =
     useState<Map<string, TwinProjectedPosition>>(
@@ -398,6 +412,20 @@ export function TwinCanvas({
     return () => {
       mediaQuery.removeEventListener('change', update);
     };
+  }, []);
+
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg || typeof ResizeObserver === 'undefined') return;
+
+    const resizeObserver = new ResizeObserver(([entry]) => {
+      const width = entry?.contentRect.width ?? svg.clientWidth;
+      if (!width) return;
+      setLabelScale(Math.max(1, Math.min(4, WIDTH / width)));
+    });
+
+    resizeObserver.observe(svg);
+    return () => resizeObserver.disconnect();
   }, []);
 
   const snapshotAtTime = useMemo(() => {
@@ -728,20 +756,20 @@ export function TwinCanvas({
           </p>
 
           <div className="mt-2 flex flex-wrap gap-1.5">
-            <span className="rounded-full border border-emerald-400/15 bg-emerald-400/[0.05] px-2 py-0.5 text-[10px] text-emerald-300">
-              {statusCounts.supported} supported
+            <span className="rounded-full border border-emerald-400/20 bg-emerald-400/[0.08] px-2.5 py-1 text-xs text-emerald-100">
+              {statusCounts.supported} evidence-supported
             </span>
 
-            <span className="rounded-full border border-blue-400/15 bg-blue-400/[0.05] px-2 py-0.5 text-[10px] text-blue-300">
-              {statusCounts.userReported} user reported
+            <span className="rounded-full border border-blue-400/20 bg-blue-400/[0.08] px-2.5 py-1 text-xs text-blue-100">
+              {statusCounts.userReported} user-reported
             </span>
-            <span className="rounded-full border border-amber-400/20 bg-amber-400/[0.05] px-2 py-0.5 text-[10px] text-amber-300">
+            <span className="rounded-full border border-amber-400/25 bg-amber-400/[0.08] px-2.5 py-1 text-xs text-amber-100">
               {statusCounts.uncertain} uncertain
             </span>
-            <span className="rounded-full border border-rose-400/20 bg-rose-400/[0.05] px-2 py-0.5 text-[10px] text-rose-300">
+            <span className="rounded-full border border-rose-400/25 bg-rose-400/[0.08] px-2.5 py-1 text-xs text-rose-100">
               {statusCounts.conflict + statusCounts.safety} conflicting
             </span>
-            <span className="rounded-full border border-slate-400/15 bg-slate-400/[0.05] px-2 py-0.5 text-[10px] text-slate-400">
+            <span className="rounded-full border border-slate-400/20 bg-slate-400/[0.07] px-2.5 py-1 text-xs text-slate-200">
               {statusCounts.unknown} unknown
             </span>
           </div>
@@ -753,7 +781,7 @@ export function TwinCanvas({
         >
           <button
             type="button"
-            className="rounded-lg border border-white/10 px-2.5 py-1.5 text-xs text-slate-300 transition hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400"
+            className="min-h-11 min-w-11 rounded-lg border border-white/10 px-3 py-2 text-sm text-slate-200 transition hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400"
             onClick={() =>
               setYaw(
                 (value) =>
@@ -768,7 +796,7 @@ export function TwinCanvas({
 
           <button
             type="button"
-            className="rounded-lg border border-white/10 px-2.5 py-1.5 text-xs text-slate-300 transition hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400"
+            className="min-h-11 min-w-11 rounded-lg border border-white/10 px-3 py-2 text-sm text-slate-200 transition hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400"
             onClick={() =>
               setYaw(
                 (value) =>
@@ -783,7 +811,7 @@ export function TwinCanvas({
 
           <button
             type="button"
-            className="rounded-lg border border-white/10 px-2.5 py-1.5 text-xs text-slate-300 transition hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400"
+            className="min-h-11 min-w-11 rounded-lg border border-white/10 px-3 py-2 text-sm text-slate-200 transition hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400"
             onClick={() =>
               setZoom((value) =>
                 Math.max(
@@ -799,7 +827,7 @@ export function TwinCanvas({
 
           <button
             type="button"
-            className="rounded-lg border border-white/10 px-2.5 py-1.5 text-xs text-slate-300 transition hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400"
+            className="min-h-11 min-w-11 rounded-lg border border-white/10 px-3 py-2 text-sm text-slate-200 transition hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400"
             onClick={() =>
               setZoom((value) =>
                 Math.min(
@@ -815,7 +843,7 @@ export function TwinCanvas({
 
           <button
             type="button"
-            className="rounded-lg border border-white/10 px-2.5 py-1.5 text-xs text-slate-300 transition hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400"
+            className="min-h-11 min-w-11 rounded-lg border border-white/10 px-3 py-2 text-sm text-slate-200 transition hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400"
             onClick={() => {
               setYaw(0.52);
               setZoom(1);
@@ -839,6 +867,7 @@ export function TwinCanvas({
           </div>
         ) : (
           <svg
+            ref={svgRef}
             viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
             role="group"
             aria-label={ariaLabel}
@@ -950,6 +979,7 @@ export function TwinCanvas({
                       selected={isSelected}
                       highlighted={isHighlighted}
                       dimmed={isDimmed}
+                      labelScale={labelScale}
                       confirmed={!prefersReducedMotion && node.status === 'supported' && highlightedRecordIds.has(`node:${node.id}`)}
                       onHover={(hovered) => setHoveredNodeId(hovered?.id ?? null)}
                       onSelect={(nextNode) => {
@@ -973,23 +1003,23 @@ export function TwinCanvas({
               transition={{ duration: prefersReducedMotion ? 0 : 0.18 }}
               className="pointer-events-none absolute bottom-3 left-3 z-10 max-w-[min(26rem,calc(100%-1.5rem))] rounded-xl border border-white/10 bg-[#101827]/95 px-3.5 py-3 shadow-xl backdrop-blur"
             >
-              <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.12em] text-slate-400">
+              <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-slate-200">
                 <span className="h-2 w-2 rounded-full" style={{ backgroundColor: nodeColor(hoveredNode.category, hoveredNode.status) }} />
-                {hoveredNode.category.replace('_', ' ')} · {hoveredNode.status?.replace('_', ' ') ?? 'unknown'}
+                {hoveredNode.category.replaceAll('_', ' ')} · {formatEvidenceStatus(hoveredNode.status)}
               </div>
-              <p className="mt-1 text-xs font-semibold text-slate-100">{hoveredNode.label}</p>
-              {hoveredNode.description && <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-slate-400">{hoveredNode.description}</p>}
+              <p className="mt-1 text-sm font-semibold text-slate-100">{hoveredNode.label}</p>
+              {hoveredNode.description && <p className="mt-1 line-clamp-3 text-sm leading-5 text-slate-300">{hoveredNode.description}</p>}
             </motion.div>
           )}
         </AnimatePresence>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/[0.07] px-4 py-2.5 text-[11px] text-slate-500">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/[0.07] px-4 py-3 text-sm leading-5 text-slate-300">
         <span>
           Only recorded CaseState records are shown. Position is for readability and does not imply legal weight.
         </span>
 
-        {currentTimeLabel && <span className="font-mono text-[10px] text-slate-400">Temporal view · {currentTimeLabel}</span>}
+        {currentTimeLabel && <span className="font-mono text-xs text-slate-300">Temporal view · {currentTimeLabel}</span>}
 
         {currentTime !== null &&
           currentTime !== undefined &&

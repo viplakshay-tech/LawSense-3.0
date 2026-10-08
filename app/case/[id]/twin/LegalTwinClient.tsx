@@ -39,9 +39,11 @@ import type { GuideAction } from '@/components/guide-runtime';
 import { createGuideActionBridge, type GuideActionCommand } from '@/components/guide-actions';
 import { LegalSourceCandidates } from '@/components/LegalSourceCandidates';
 import { TrustNotice } from '@/components/TrustNotice';
+import { InformationStatusPill } from '@/components/design-system/InformationStatusPill';
 import {
   TwinCanvas,
   TwinGuideCompanion,
+  TwinLegend,
   type TwinEdgeData,
   type TwinEvidenceStatus,
   type TwinGuideEdgeContext,
@@ -146,10 +148,10 @@ const STATUS_STYLES: Record<InformationStatus, string> = {
 };
 
 const STATUS_LABELS: Record<InformationStatus, string> = {
-  user_reported: 'User reported',
-  evidence_supported: 'Evidence supported',
-  system_inferred: 'System inferred',
-  assumption: 'Assumption',
+  user_reported: 'User-reported',
+  evidence_supported: 'Evidence-supported',
+  system_inferred: 'Uncertain · inferred',
+  assumption: 'Uncertain · assumption',
   conflicting: 'Conflicting',
   unknown: 'Unknown',
 };
@@ -1322,6 +1324,8 @@ export default function LegalTwinClient({ id }: { id: string }) {
             })}
           </div>
 
+          <TwinLegend className="border-white/[0.06] bg-[#111722]" />
+
           {selectedNode && snapshotMatchesDate && (
             <motion.div
               key={selectedNode.id}
@@ -1339,15 +1343,13 @@ export default function LegalTwinClient({ id }: { id: string }) {
                     })()}
                   </div>
                   <div className="min-w-0">
-                    <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-[#f59e0b]">Selected record · {KIND_LABELS[selectedNode.kind]}</span>
-                    <h3 className="mt-0.5 truncate font-serif text-lg text-[#dee2f6]">{selectedNode.title}</h3>
-                    <p className="mt-0.5 text-xs text-[#aeb9d0]">{selectedNode.subtitle}</p>
+                    <span className="font-mono text-xs font-semibold uppercase tracking-[0.08em] text-[#f4c983]">Selected record · {KIND_LABELS[selectedNode.kind]}</span>
+                    <h3 className="mt-0.5 break-words font-serif text-lg leading-6 text-[#dee2f6]">{selectedNode.title}</h3>
+                    <p className="mt-1 text-sm leading-5 text-[#c1cadd]">{selectedNode.subtitle}</p>
                   </div>
                 </div>
                 {selectedNode.status && (
-                  <span className={`rounded border px-2 py-1 text-[10px] ${STATUS_STYLES[selectedNode.status]}`}>
-                    {STATUS_LABELS[selectedNode.status]}
-                  </span>
+                  <InformationStatusPill status={selectedNode.status} />
                 )}
               </div>
               <p className="mt-4 text-sm leading-6 text-[#d8e3fb]">{selectedNode.summary}</p>
@@ -1377,7 +1379,7 @@ export default function LegalTwinClient({ id }: { id: string }) {
                           <span className="text-[#aeb9d0]">{edge.relation}</span>
                           <span className="mx-1 text-[#8e9ab1]">·</span>
                           {other?.title || 'Linked CaseState record'}
-                          <span className={`ml-2 rounded border px-1 py-0.5 text-[8px] ${STATUS_STYLES[edge.status]}`}>{STATUS_LABELS[edge.status]}</span>
+                          <span className={`ml-2 inline-flex min-h-7 items-center rounded border px-2 py-1 text-xs ${STATUS_STYLES[edge.status]}`}>{STATUS_LABELS[edge.status]}</span>
                         </li>
                       );
                     })}
@@ -1627,7 +1629,7 @@ export default function LegalTwinClient({ id }: { id: string }) {
                       <FileText className="h-4 w-4 shrink-0 text-[#38bdf8]" />
                       <span className="truncate text-sm font-semibold text-[#dee2f6]">{item.title}</span>
                     </div>
-                    <span className={`shrink-0 rounded border px-1.5 py-0.5 text-[8px] ${STATUS_STYLES[item.status]}`}>{humanize(item.status)}</span>
+                    <span className={`shrink-0 rounded border px-2 py-1 text-xs ${STATUS_STYLES[item.status]}`}>{STATUS_LABELS[item.status]}</span>
                   </div>
                   <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-[10px] text-[#aeb9d0]">
                     <span>{humanize(item.type)} · {sourceLabel(item.source)}</span>
@@ -1660,7 +1662,7 @@ export default function LegalTwinClient({ id }: { id: string }) {
                     <div key={fact.id} className="rounded-lg bg-[#1a1f2e] px-3 py-2.5">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <span className="text-xs font-semibold text-[#dee2f6]">{humanize(fact.key)}</span>
-                        <span className={`rounded border px-1.5 py-0.5 text-[9px] ${STATUS_STYLES[fact.status]}`}>{STATUS_LABELS[fact.status]}</span>
+                        <span className={`inline-flex min-h-8 items-center rounded border px-2 py-1 text-xs ${STATUS_STYLES[fact.status]}`}>{STATUS_LABELS[fact.status]}</span>
                       </div>
                       <p className="mt-1.5 text-sm leading-5 text-[#d8e3fb]">{safeValue(fact.value)}</p>
                     </div>
@@ -1721,7 +1723,7 @@ export default function LegalTwinClient({ id }: { id: string }) {
                         <p className="truncate text-xs font-semibold text-[#dee2f6]">{item.title}</p>
                         <p className="mt-0.5 text-[10px] text-[#aeb9d0]">{humanize(item.type)} · {sourceLabel(item.source)}</p>
                       </div>
-                      <span className={`shrink-0 rounded border px-1.5 py-0.5 text-[8px] ${STATUS_STYLES[item.status]}`}>{humanize(item.status)}</span>
+                      <span className={`shrink-0 rounded border px-2 py-1 text-xs ${STATUS_STYLES[item.status]}`}>{STATUS_LABELS[item.status]}</span>
                     </div>
                   ))}
                   {caseData.evidence.length > 4 && <p className="px-1 text-[10px] text-[#8e9ab1]">{caseData.evidence.length - 4} more evidence records are available in the graph.</p>}

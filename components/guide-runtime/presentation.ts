@@ -113,8 +113,8 @@ function chooseNextAction(caseState: CaseState, state: GuideStateName, unknowns:
   if (caseState.evidence.length > 0 || caseState.documents.length > 0) {
     return {
       actionType: 'SHOW_EVIDENCE',
-      label: 'Review the evidence record',
-      detail: 'Open the documents and evidence currently attached to this case.',
+      label: 'Open the Evidence Map',
+      detail: 'Trace recorded links from claims and facts to evidence, documents, and page-level sources.',
     };
   }
   const journey = caseState.analysis?.journey;

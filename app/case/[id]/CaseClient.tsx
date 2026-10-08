@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   type CaseFact,
@@ -13,8 +14,11 @@ import { useCaseState } from './CaseStateProvider';
 import { EvidenceWorkspace } from '@/components/EvidenceWorkspace';
 import { LegalSourceCandidates } from '@/components/LegalSourceCandidates';
 import { TrustNotice } from '@/components/TrustNotice';
+import { InformationStatusPill } from '@/components/design-system/InformationStatusPill';
 import { ClarificationPanel } from '@/components/clarification/ClarificationPanel';
 import { JourneyPlan } from '@/components/journey/JourneyPlan';
+import { CaseContextLink } from '@/components/case-shell/CaseContextLink';
+import { buildCaseSurfaceHref } from '@/lib/case-context';
 import {
   CalendarDays,
   CircleHelp,
@@ -24,13 +28,13 @@ import {
   ShieldAlert,
   Loader2,
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 
 const STATUS_LABELS: Record<InformationStatus, string> = {
-  user_reported: 'User reported',
-  evidence_supported: 'User-confirmed document extraction',
-  system_inferred: 'System inferred',
-  assumption: 'Assumption',
+  user_reported: 'User-reported',
+  evidence_supported: 'Evidence-supported',
+  system_inferred: 'Uncertain · inferred',
+  assumption: 'Uncertain · assumption',
   conflicting: 'Conflicting',
   unknown: 'Unknown',
 };
@@ -84,7 +88,16 @@ function SourceReferences({
           ? `${evidence.title} · ${evidenceSourceLabel(evidence.source)} · ${STATUS_LABELS[evidence.status]}`
           : `Source reference ${id.slice(0, 8)}`;
 
-        return (
+        return evidence ? (
+          <CaseContextLink
+            key={id}
+            kind="evidence"
+            recordId={id}
+            className="rounded-full border border-zinc-200 px-2.5 py-1 text-xs text-zinc-600 transition hover:border-amber-300 hover:bg-amber-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-white/[0.06]"
+          >
+            {label}
+          </CaseContextLink>
+        ) : (
           <span
             key={id}
             className="rounded-full border border-zinc-200 px-2.5 py-1 text-xs text-zinc-600 dark:border-zinc-700 dark:text-zinc-300"
@@ -100,9 +113,11 @@ function SourceReferences({
 function FactCard({
   fact,
   evidenceById,
+  caseId,
 }: {
   fact: CaseFact;
   evidenceById: Map<string, EvidenceItem>;
+  caseId: string;
 }) {
   return (
     <article className="rounded-2xl border border-zinc-200 dark:border-zinc-800 p-5">
@@ -116,10 +131,8 @@ function FactCard({
       </p>
       <dl className="mt-4 grid gap-3 text-xs sm:grid-cols-2">
         <div>
-          <dt className="font-semibold uppercase tracking-wide text-zinc-400">Status</dt>
-          <dd className="mt-1 font-medium text-zinc-700 dark:text-zinc-300">
-            {STATUS_LABELS[fact.status].toUpperCase()}
-          </dd>
+          <dt className="font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-300">Status</dt>
+          <dd className="mt-1"><InformationStatusPill status={fact.status} /></dd>
         </div>
         <div>
           <dt className="font-semibold uppercase tracking-wide text-zinc-400">Confidence</dt>
@@ -139,6 +152,17 @@ function FactCard({
           {fact.notes}
         </p>
       )}
+      <div className="mt-4 flex flex-wrap gap-2 border-t border-zinc-100 pt-3 dark:border-zinc-800">
+        <CaseContextLink kind="fact" recordId={fact.id} className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-zinc-200 px-3 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900">
+          Open fact context
+        </CaseContextLink>
+        <CaseContextLink kind="twin" recordId={`claim:fact:${fact.id}`} className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-zinc-200 px-3 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900">
+          View connected Twin records
+        </CaseContextLink>
+        <Link href={buildCaseSurfaceHref(caseId, 'twin', { focus: `claim:fact:${fact.id}` })} className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-zinc-200 px-3 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900">
+          Open full Living Twin
+        </Link>
+      </div>
     </article>
   );
 }
@@ -153,6 +177,7 @@ function EmptyState({ children }: { children: string }) {
 
 export default function CaseClient({ id }: { id: string }) {
   const router = useRouter();
+  const reducedMotion = useReducedMotion() ?? false;
   const {
     caseState: caseData,
     loading: isLoading,
@@ -276,8 +301,9 @@ export default function CaseClient({ id }: { id: string }) {
           <div className="lg:col-span-2 space-y-8">
             <motion.section
               id="overview"
-              initial={{ opacity: 0, y: 10 }}
+              initial={reducedMotion ? false : { opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: reducedMotion ? 0 : 0.24, ease: 'easeOut' }}
               className="scroll-mt-24 bg-white dark:bg-[#111] rounded-3xl border border-zinc-200 dark:border-zinc-800/80 p-8 shadow-sm"
             >
               <h2 className="text-2xl font-semibold mb-6">Situation Overview</h2>
@@ -326,6 +352,14 @@ export default function CaseClient({ id }: { id: string }) {
                     <p className="mt-2 text-xs leading-5 text-zinc-500">
                       This is a safety prompt based on the information provided. It does not establish that abuse or an offence occurred, and it does not contact anyone.
                     </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <CaseContextLink kind="safety" className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-current/20 px-3 text-xs font-semibold text-zinc-700 transition hover:bg-white/50 dark:text-zinc-200 dark:hover:bg-white/[0.05]">
+                        Review safety support in context
+                      </CaseContextLink>
+                      <Link href={buildCaseSurfaceHref(caseData.id, 'safety')} className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-current/20 px-3 text-xs font-semibold text-zinc-700 transition hover:bg-white/50 dark:text-zinc-200 dark:hover:bg-white/[0.05]">
+                        Open safety options
+                      </Link>
+                    </div>
                   </div>
                 </div>
               </section>
@@ -349,7 +383,7 @@ export default function CaseClient({ id }: { id: string }) {
               {caseData.facts.length > 0 ? (
                 <div className="space-y-3">
                   {caseData.facts.map((fact) => (
-                    <FactCard key={fact.id} fact={fact} evidenceById={evidenceById} />
+                    <FactCard key={fact.id} fact={fact} evidenceById={evidenceById} caseId={caseData.id} />
                   ))}
                 </div>
               ) : (
@@ -454,6 +488,14 @@ export default function CaseClient({ id }: { id: string }) {
                           Processing status: {humanize(item.processingStatus)}
                         </p>
                       )}
+                      <div className="mt-4 flex flex-wrap gap-2 border-t border-zinc-100 pt-3 dark:border-zinc-800">
+                        <CaseContextLink kind="evidence" recordId={item.id} className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-zinc-200 px-3 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900">
+                          Open evidence context
+                        </CaseContextLink>
+                        {item.documentId && <Link href={buildCaseSurfaceHref(caseData.id, 'documents', { documentId: item.documentId })} className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-zinc-200 px-3 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900">Open source page</Link>}
+                        <CaseContextLink kind="twin" recordId={`evidence:${item.id}`} className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-zinc-200 px-3 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900">View connected Twin records</CaseContextLink>
+                        <Link href={buildCaseSurfaceHref(caseData.id, 'twin', { focus: `evidence:${item.id}` })} className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-zinc-200 px-3 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900">Open full Living Twin</Link>
+                      </div>
                     </article>
                   ))}
                 </div>
@@ -575,6 +617,11 @@ export default function CaseClient({ id }: { id: string }) {
                       <p className="mt-3 text-xs text-zinc-500">
                         Confidence: {humanize(issue.confidence)}
                       </p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <CaseContextLink kind="issue" recordId={issue.id} className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-zinc-200 px-3 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900">Open issue context</CaseContextLink>
+                        <CaseContextLink kind="twin" recordId={`legal_issue:${issue.id}`} className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-zinc-200 px-3 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900">View connected Twin records</CaseContextLink>
+                        <Link href={buildCaseSurfaceHref(caseData.id, 'twin', { focus: `legal_issue:${issue.id}` })} className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-zinc-200 px-3 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900">Open full Living Twin</Link>
+                      </div>
                       {issue.rationale.length > 0 && (
                         <div className="mt-3">
                           <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">

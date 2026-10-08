@@ -17,6 +17,7 @@ import {
   Waypoints,
 } from 'lucide-react';
 import type { CaseFact, CaseState, LegalIssue, LegalKnowledgeRecordSummary } from '@/lib/api';
+import { CaseContextLink } from '@/components/case-shell/CaseContextLink';
 
 type LegalSourceCandidatesProps = {
   caseData: CaseState;
@@ -155,7 +156,7 @@ function LinkedFact({ fact, caseId, dark }: { fact: CaseFact; caseId: string; da
   const tone = dark ? 'text-cyan-100 hover:text-white' : 'text-cyan-800 hover:text-cyan-950 dark:text-cyan-200';
   return (
     <a
-      href={twinHref(caseId, fact.id)}
+      href={twinHref(caseId, `claim:fact:${fact.id}`)}
       className={`group inline-flex min-h-9 items-center gap-2 rounded-lg border border-cyan-300/15 bg-cyan-300/[0.04] px-2.5 py-2 text-left text-[11px] transition hover:border-cyan-200/35 hover:bg-cyan-300/[0.08] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-200 ${tone}`}
     >
       <FileText aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
@@ -375,9 +376,12 @@ export function LegalSourceCandidates({
               <h4 className={`mt-1 text-sm font-semibold ${heading}`}>{issueLabel(selectedIssue)}</h4>
               <p className={`mt-1 text-[10px] ${muted}`}>Candidate · confidence {humanize(selectedIssue.confidence)}</p>
             </div>
-            <a href={twinHref(caseData.id, selectedIssue.id)} className={`inline-flex min-h-9 items-center gap-1.5 rounded-lg border px-2.5 text-[10px] font-semibold transition hover:bg-white/[0.05] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-300 ${dark ? 'border-white/10 text-slate-300' : 'border-zinc-200 text-zinc-600 dark:border-zinc-700 dark:text-zinc-300'}`}>
+            <a href={twinHref(caseData.id, `legal_issue:${selectedIssue.id}`)} className={`inline-flex min-h-9 items-center gap-1.5 rounded-lg border px-2.5 text-[10px] font-semibold transition hover:bg-white/[0.05] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-300 ${dark ? 'border-white/10 text-slate-300' : 'border-zinc-200 text-zinc-600 dark:border-zinc-700 dark:text-zinc-300'}`}>
               <Network aria-hidden="true" className="h-3.5 w-3.5" /> Open issue in Twin <ArrowUpRight aria-hidden="true" className="h-3 w-3" />
             </a>
+            <CaseContextLink kind="issue" recordId={selectedIssue.id} className={`inline-flex min-h-9 items-center gap-1.5 rounded-lg border px-2.5 text-[10px] font-semibold transition hover:bg-white/[0.05] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-300 ${dark ? 'border-white/10 text-slate-300' : 'border-zinc-200 text-zinc-600 dark:border-zinc-700 dark:text-zinc-300'}`}>
+              Review issue in context
+            </CaseContextLink>
           </div>
           {issueRationales.length === 0 && <p className={`mt-3 text-xs leading-5 ${muted}`}>No rationale was returned for this issue, so the case information that caused it to appear is not available here.</p>}
         </section>
@@ -533,7 +537,7 @@ export function LegalSourceCandidates({
                                       <FileText aria-hidden="true" className="h-3.5 w-3.5" /> {item.title} <ArrowUpRight aria-hidden="true" className="h-3 w-3" />
                                     </a>
                                   ) : (
-                                    <a key={item.id} href={twinHref(caseData.id, item.id)} className={`inline-flex min-h-9 items-center gap-1.5 rounded-lg border px-2.5 py-2 text-[10px] font-semibold transition hover:bg-white/[0.05] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-300 ${dark ? 'border-white/10 text-cyan-100' : 'border-cyan-300 text-cyan-800 dark:border-white/10 dark:text-cyan-100'}`}>
+                                    <a key={item.id} href={twinHref(caseData.id, `evidence:${item.id}`)} className={`inline-flex min-h-9 items-center gap-1.5 rounded-lg border px-2.5 py-2 text-[10px] font-semibold transition hover:bg-white/[0.05] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-300 ${dark ? 'border-white/10 text-cyan-100' : 'border-cyan-300 text-cyan-800 dark:border-white/10 dark:text-cyan-100'}`}>
                                       <FileText aria-hidden="true" className="h-3.5 w-3.5" /> {item.title} <ArrowUpRight aria-hidden="true" className="h-3 w-3" />
                                     </a>
                                   );
@@ -542,11 +546,22 @@ export function LegalSourceCandidates({
                                   const document = caseData.documents.find((item) => item.id === documentId)!;
                                   return <a key={documentId} href={documentHref(caseData.id, documentId)} className={`inline-flex min-h-9 items-center gap-1.5 rounded-lg border px-2.5 py-2 text-[10px] font-semibold transition hover:bg-white/[0.05] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-300 ${dark ? 'border-white/10 text-cyan-100' : 'border-cyan-300 text-cyan-800 dark:border-white/10 dark:text-cyan-100'}`}><FileText aria-hidden="true" className="h-3.5 w-3.5" />{document.filename}<ArrowUpRight aria-hidden="true" className="h-3 w-3" /></a>;
                                 })}
-                                {!evidence.length && !documentIds.some((documentId) => caseData.documents.some((document) => document.id === documentId)) && (
+                                {evidence.map((item) => <CaseContextLink key={`context-${item.id}`} kind="evidence" recordId={item.id} className={`inline-flex min-h-9 items-center gap-1.5 rounded-lg border px-2.5 py-2 text-[10px] font-semibold transition hover:bg-white/[0.05] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-300 ${dark ? 'border-white/10 text-cyan-100' : 'border-cyan-300 text-cyan-800 dark:border-white/10 dark:text-cyan-100'}`}><FileText aria-hidden="true" className="h-3.5 w-3.5" />Review {item.title} in context</CaseContextLink>)}
+                                {evidence.length === 0 && !documentIds.some((documentId) => caseData.documents.some((document) => document.id === documentId)) && (
                                   <p className={`text-[10px] leading-5 ${muted}`}>No evidence or document ID was returned with this source.</p>
                                 )}
                               </div>
                             </div>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <CaseContextLink kind="source" recordId={record.id} className={`inline-flex min-h-9 items-center gap-1.5 rounded-lg border px-2.5 text-[10px] font-semibold transition hover:bg-white/[0.05] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-300 ${dark ? 'border-white/10 text-slate-300' : 'border-zinc-200 text-zinc-600 dark:border-zinc-700 dark:text-zinc-300'}`}>
+                              Follow source context
+                            </CaseContextLink>
+                            {['authority', 'legal_authority', 'procedure', 'legal_procedure'].includes(record.type.toLocaleLowerCase()) && (
+                              <a href={twinHref(caseData.id, `${['authority', 'legal_authority'].includes(record.type.toLocaleLowerCase()) ? 'authority' : 'procedure'}:${record.id}`)} className={`inline-flex min-h-9 items-center gap-1.5 rounded-lg border px-2.5 text-[10px] font-semibold transition hover:bg-white/[0.05] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-300 ${dark ? 'border-white/10 text-slate-300' : 'border-zinc-200 text-zinc-600 dark:border-zinc-700 dark:text-zinc-300'}`}>
+                                <Network aria-hidden="true" className="h-3.5 w-3.5" /> Open source in Twin
+                              </a>
+                            )}
                           </div>
                           {firstProvenance?.pageSectionReference && (
                             <p className={`text-[10px] leading-4 ${muted}`}>

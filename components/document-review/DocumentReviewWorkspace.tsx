@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent, DragEvent, KeyboardEvent, ReactNode } from 'react';
 import Link from 'next/link';
 import {
@@ -34,6 +34,7 @@ import { OCRStatus, type OCRProcessingStatus } from './OCRStatus';
 import { StatusBadge } from './StatusBadge';
 import type { DocumentReviewApiFinding, DocumentReviewApiResponse, DocumentReviewStatus } from './types';
 import { useCaseState } from '@/app/case/[id]/CaseStateProvider';
+import type { EvidenceMapFocusRequest } from '@/components/evidence-map/types';
 
 const API_BASE_URL = 'http://127.0.0.1:8000';
 const MAX_FILE_SIZE = 25 * 1024 * 1024;
@@ -477,7 +478,7 @@ function EvidenceMapping({
   );
 }
 
-export function DocumentReviewWorkspace({ caseId, embedded = false }: { caseId: string; embedded?: boolean }) {
+export function DocumentReviewWorkspace({ caseId, embedded = false, focusRequest = null }: { caseId: string; embedded?: boolean; focusRequest?: EvidenceMapFocusRequest | null }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const {
     caseState: caseData,
@@ -487,6 +488,7 @@ export function DocumentReviewWorkspace({ caseId, embedded = false }: { caseId: 
     replaceCaseState,
   } = useCaseState();
   const initialReviewLoadedRef = useRef(false);
+  const handledFocusRequestRef = useRef(0);
   const reviewRequestSequenceRef = useRef(0);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -649,7 +651,7 @@ export function DocumentReviewWorkspace({ caseId, embedded = false }: { caseId: 
     }
   }
 
-  async function loadReview(documentId: string) {
+  const loadReview = useCallback(async (documentId: string) => {
     const requestSequence = ++reviewRequestSequenceRef.current;
     setReview(null);
     setReviewError(null);
@@ -669,7 +671,7 @@ export function DocumentReviewWorkspace({ caseId, embedded = false }: { caseId: 
       });
       setPhase('complete');
     }
-  }
+  }, [caseId]);
 
   async function submitDocument() {
     if (!selectedFile || phase === 'uploading' || phase === 'processing' || reviewIsActive) return;
@@ -822,6 +824,34 @@ export function DocumentReviewWorkspace({ caseId, embedded = false }: { caseId: 
       block: 'center',
     });
   }
+
+  useEffect(() => {
+    if (!focusRequest || handledFocusRequestRef.current === focusRequest.requestId) return;
+    const targetDocument = documents.find((document) => document.id === focusRequest.documentId);
+    if (!targetDocument) return;
+    let scrollFrame: number | null = null;
+    const frame = window.requestAnimationFrame(() => {
+      if (handledFocusRequestRef.current === focusRequest.requestId) return;
+      handledFocusRequestRef.current = focusRequest.requestId;
+      setRequestedEvidenceId(focusRequest.evidenceId ?? null);
+      setSelectedDocumentId(targetDocument.id);
+      setActiveFindingId(null);
+      setCurrentPage(focusRequest.pageNumber ?? 1);
+      if (selectedDocument?.id !== targetDocument.id) void loadReview(targetDocument.id);
+      scrollFrame = window.requestAnimationFrame(() => {
+        const preview = document.getElementById('document-preview');
+        preview?.scrollIntoView({
+          behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+          block: 'start',
+        });
+        preview?.focus({ preventScroll: true });
+      });
+    });
+    return () => {
+      window.cancelAnimationFrame(frame);
+      if (scrollFrame != null) window.cancelAnimationFrame(scrollFrame);
+    };
+  }, [documents, focusRequest, loadReview, selectedDocument?.id]);
 
   if (isLoading) {
     return (
@@ -1080,7 +1110,7 @@ export function DocumentReviewWorkspace({ caseId, embedded = false }: { caseId: 
         {selectedDocument && (
           <>
             <section className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1.3fr)_minmax(310px,0.7fr)]">
-              <div id="document-preview" className="min-w-0 scroll-mt-5">
+              <div id="document-preview" tabIndex={-1} className="min-w-0 scroll-mt-5 outline-none focus-visible:ring-2 focus-visible:ring-blue-200/50">
                 <DocumentViewer
                   document={{
                     id: selectedDocument.id,

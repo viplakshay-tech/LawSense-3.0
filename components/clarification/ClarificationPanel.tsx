@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { ArrowRight, Check, CircleHelp, CornerDownRight, LoaderCircle, MessageCircle, SkipForward } from 'lucide-react';
 import {
   answerClarificationQuestion,
@@ -51,6 +51,7 @@ function ClarificationSession({
   skippedClarificationIds: string[];
   onCaseUpdate: (caseState: CaseState) => void;
 }) {
+  const reducedMotion = useReducedMotion() ?? false;
   const [queue, setQueue] = useState<ClarificationQuestions | null>(null);
   const [answer, setAnswer] = useState('');
   const [loadedVersion, setLoadedVersion] = useState<{
@@ -196,10 +197,10 @@ function ClarificationSession({
           <motion.article
             key={question.id}
             className={styles.questionCard}
-            initial={{ opacity: 0, y: 12, scale: 0.99 }}
+            initial={reducedMotion ? false : { opacity: 0, y: 12, scale: 0.99 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -8, scale: 0.99 }}
-            transition={{ duration: 0.22, ease: 'easeOut' }}
+            exit={reducedMotion ? undefined : { opacity: 0, y: -8, scale: 0.99 }}
+            transition={{ duration: reducedMotion ? 0 : 0.22, ease: 'easeOut' }}
           >
             <div className={styles.cardTopline}>
               <span className={styles.category}>{question.category.replaceAll('_', ' ')}</span>

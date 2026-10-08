@@ -1,19 +1,19 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, BookOpen, Loader2, Scale, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, BookOpen, Loader2, ShieldAlert } from 'lucide-react';
 import { type CaseState, type JourneySummary } from '@/lib/api';
 import { useCaseState } from '../CaseStateProvider';
+import { useGuideRuntime } from '@/components/guide-runtime';
+import type { GuideAction, GuideStateSnapshot } from '@/components/guide-runtime';
 import { LegalGuide } from '@/components/legal-guide';
 import { LEGAL_GUIDE_STATES, type GuideActionEvent, type GuideStateName } from '@/components/legal-guide/types';
-import { deriveGuideState as deriveRuntimeGuideState } from '@/components/guide-runtime/state';
 import { TrustNotice } from '@/components/TrustNotice';
 
 const completedStatuses = new Set(['complete', 'completed', 'done', 'finished']);
 
-function guidePageStateFromRuntime(snapshot: ReturnType<typeof deriveRuntimeGuideState>): GuideStateName {
+function guidePageStateFromRuntime(snapshot: GuideStateSnapshot): GuideStateName {
   switch (snapshot.name) {
     case 'idle':
       return snapshot.reason === 'initial_account_missing' || snapshot.reason === 'analysis_unavailable'
@@ -29,8 +29,8 @@ function guidePageStateFromRuntime(snapshot: ReturnType<typeof deriveRuntimeGuid
     case 'action': return 'journey_action';
     case 'safety': return 'safety_warning';
     case 'completion': return 'completion';
-    case 'explaining':
-    case 'speaking': return 'idle';
+    case 'explaining': return 'explaining';
+    case 'speaking': return 'speaking';
     case 'error': return 'error';
     default: {
       const exhaustiveState: never = snapshot.name;
@@ -39,92 +39,28 @@ function guidePageStateFromRuntime(snapshot: ReturnType<typeof deriveRuntimeGuid
   }
 }
 
+function guideActionLabel(action: GuideAction): string {
+  switch (action.type) {
+    case 'ASK_CLARIFICATION': return 'Answer an open case question';
+    case 'SHOW_EVIDENCE': return 'Open the Evidence Map';
+    case 'SHOW_LEGAL_GROUNDING': return 'Review legal grounding';
+    case 'OPEN_JOURNEY': return 'Open the Journey plan';
+    case 'SHOW_TWIN': return 'Open the Living Twin';
+    case 'START_VOICE': return 'Add information by voice';
+    case 'SPEAK_RESPONSE': return 'Speak the Guide response';
+    case 'OPEN_SAFETY': return 'Open safety resources';
+    case 'NAVIGATE': return action.payload.target === 'case'
+      ? 'Open the case overview'
+      : `Open ${action.payload.target}`;
+    default: {
+      const exhaustiveAction: never = action;
+      return exhaustiveAction;
+    }
+  }
+}
+
 function humanize(value: string): string {
   return value.replace(/[_-]+/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase());
-}
-
-function getUnknowns(caseData: CaseState) {
-  const journeyUnknowns = caseData.analysis?.journey?.unknowns ?? [];
-  const unknowns = journeyUnknowns.map((item) => ({
-    id: `journey-${item.id}`,
-    question: item.question,
-    priority: item.priority,
-  }));
-  const knownQuestions = new Set(unknowns.map((item) => item.question.trim().toLocaleLowerCase()));
-
-  caseData.unknowns.forEach((question, index) => {
-    const key = question.trim().toLocaleLowerCase();
-    if (key && !knownQuestions.has(key)) {
-      unknowns.push({ id: `case-${index}`, question, priority: '' });
-      knownQuestions.add(key);
-    }
-  });
-
-  return unknowns;
-}
-
-function deriveGuideDetail(caseData: CaseState, guideState: GuideStateName): string | undefined {
-  const safety = caseData.analysis?.safetyContext;
-  if (guideState === 'safety_warning' && safety && safety.context !== 'none') {
-    return `${humanize(safety.context)} · ${humanize(safety.urgency)} urgency`;
-  }
-
-  const journey = caseData.analysis?.journey;
-  switch (guideState) {
-    case 'listening':
-      return caseData.initialStatement?.trim() ? 'Case analysis is not available yet' : 'Waiting for the initial case account';
-    case 'extracting': {
-      const count = caseData.evidence.filter((item) => item.processingStatus === 'processing').length;
-      return `${count} evidence item${count === 1 ? '' : 's'} processing`;
-    }
-    case 'asking': {
-      const count = getUnknowns(caseData).length;
-      return `${count} open question${count === 1 ? '' : 's'} in the case record`;
-    }
-    case 'evidence_review':
-      return `${caseData.documents.length} document${caseData.documents.length === 1 ? '' : 's'} · ${caseData.evidence.length} evidence record${caseData.evidence.length === 1 ? '' : 's'}`;
-    case 'legal_verification':
-      return journey?.legalKnowledgeStatus || 'The journey marks legal verification as required';
-    case 'journey_action':
-      return `${journey?.nextActions.length ?? 0} next step${journey?.nextActions.length === 1 ? '' : 's'} recorded`;
-    case 'completion':
-      return 'All recorded journey steps are complete';
-    case 'idle':
-      return journey?.currentSituation.trim() || `${caseData.facts.length} facts recorded`;
-    default:
-      return undefined;
-  }
-}
-
-function deriveGuideMessage(caseData: CaseState, guideState: GuideStateName): string | undefined {
-  const safety = caseData.analysis?.safetyContext;
-  const journey = caseData.analysis?.journey;
-  switch (guideState) {
-    case 'listening':
-      return caseData.initialStatement?.trim()
-        ? 'This case has no analysis snapshot yet. The guide is waiting for case details to be recorded.'
-        : 'No initial account is recorded for this case yet.';
-    case 'extracting':
-      return 'The case record marks evidence processing as underway. Extracted details will remain tied to their source.';
-    case 'asking':
-      return getUnknowns(caseData).find((item) => item.question.trim())?.question;
-    case 'evidence_review':
-      return 'Review the recorded source and status for each item. User-reported, uncertain, and conflicting information remains identified in the case record.';
-    case 'safety_warning':
-      return safety?.recommendedSafetyPrompt?.trim() || 'The case record contains a safety context that needs attention.';
-    case 'legal_verification':
-      return caseData.analysis?.legalKnowledge.status === 'empty'
-        ? 'No legal knowledge records are attached to this case. The journey keeps legal and procedural steps marked for verification.'
-        : 'The journey marks legal verification as pending. Check the recorded sources and jurisdiction before treating a procedural option as established.';
-    case 'journey_action':
-      return journey?.nextActions[0]?.action || journey?.currentSituation.trim() || undefined;
-    case 'completion':
-      return 'Every recorded journey step is complete, with no open questions or next actions remaining.';
-    case 'idle':
-      return journey?.currentSituation.trim() || undefined;
-    default:
-      return undefined;
-  }
 }
 
 function GuideHeader({ id, title, onBack }: { id: string; title?: string; onBack: () => void }) {
@@ -214,7 +150,7 @@ function SafetySummary({ caseData }: { caseData: CaseState }) {
   );
 }
 
-function JourneySummary({ journey, caseId }: { journey: JourneySummary; caseId: string }) {
+function JourneySummary({ journey }: { journey: JourneySummary }) {
   const currentStep = journey.steps.find((step) => ['active', 'current', 'in_progress', 'started'].includes(step.status.toLocaleLowerCase()))
     ?? journey.steps.find((step) => !completedStatuses.has(step.status.toLocaleLowerCase()));
   const completedCount = journey.steps.filter((step) => completedStatuses.has(step.status.toLocaleLowerCase())).length;
@@ -239,12 +175,6 @@ function JourneySummary({ journey, caseId }: { journey: JourneySummary; caseId: 
             Next recorded action · {journey.nextActions[0].action}
           </p>
         )}
-        <Link
-          href={`/case/${encodeURIComponent(caseId)}#journey`}
-          className="mt-3 inline-flex min-h-9 items-center gap-2 rounded-lg border border-[#8C9EFF]/25 bg-[#8C9EFF]/[0.06] px-3 text-xs font-semibold text-[#b7c2ff] transition hover:bg-[#8C9EFF]/[0.12] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8C9EFF] motion-reduce:transition-none"
-        >
-          Open the live Journey plan <span aria-hidden="true">→</span>
-        </Link>
       </div>
     </section>
   );
@@ -267,17 +197,11 @@ function LegalVerificationSummary({ caseData }: { caseData: CaseState }) {
       <p className="mt-2 text-xs leading-5 text-slate-400">
         Issue candidates and source details are kept together in the case overview. Returned records remain subject to jurisdiction and applicability checks.
       </p>
-      <Link
-        href={`/case/${encodeURIComponent(caseData.id)}#analysis`}
-        className="mt-3 inline-flex min-h-9 items-center gap-2 rounded-lg border border-violet-200/20 bg-violet-200/[0.04] px-3 text-xs font-semibold text-violet-100 transition hover:bg-violet-200/[0.09] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-200 motion-reduce:transition-none"
-      >
-        Open legal issues and source records <span aria-hidden="true">→</span>
-      </Link>
     </section>
   );
 }
 
-function UnknownsSummary({ items }: { items: ReturnType<typeof getUnknowns> }) {
+function UnknownsSummary({ items }: { items: readonly string[] }) {
   if (items.length === 0) return null;
 
   return (
@@ -286,13 +210,10 @@ function UnknownsSummary({ items }: { items: ReturnType<typeof getUnknowns> }) {
         Information still unknown
       </h2>
       <ul className="mt-3 space-y-2">
-        {items.map((item) => (
-          <li key={item.id} className="flex gap-2 text-xs leading-5 text-slate-300">
+        {items.map((question, index) => (
+          <li key={`${question}-${index}`} className="flex gap-2 text-xs leading-5 text-slate-300">
             <span aria-hidden="true" className="mt-[5px] h-1.5 w-1.5 shrink-0 rounded-full bg-amber-300/60" />
-            <span>
-              {item.question}
-              {item.priority && <span className="ml-2 text-[10px] text-slate-500">{humanize(item.priority)} priority</span>}
-            </span>
+            <span>{question}</span>
           </li>
         ))}
       </ul>
@@ -327,12 +248,6 @@ function EvidenceSummary({ caseData, journey }: { caseData: CaseState; journey?:
           The journey lists {requestedEvidence.length} evidence item{requestedEvidence.length === 1 ? '' : 's'} and {requestedDocuments.length} document{requestedDocuments.length === 1 ? '' : 's'} to consider.
         </p>
       )}
-      <Link
-        href={`/case/${encodeURIComponent(caseData.id)}/documents`}
-        className="mt-3 inline-flex min-h-9 items-center gap-2 rounded-lg border border-white/[0.09] bg-white/[0.025] px-3 text-xs font-semibold text-slate-200 transition hover:bg-white/[0.06] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8C9EFF] motion-reduce:transition-none"
-      >
-        Open the evidence workspace <span aria-hidden="true">→</span>
-      </Link>
     </section>
   );
 }
@@ -340,10 +255,12 @@ function EvidenceSummary({ caseData, journey }: { caseData: CaseState; journey?:
 export default function GuidePage({ id }: { id: string }) {
   const router = useRouter();
   const { caseState: caseData, loading, error, refreshCaseState } = useCaseState();
+  const { snapshot, presentation, runAction } = useGuideRuntime();
   const [previewState, setPreviewState] = useState<GuideStateName | undefined>();
 
   const isDevelopment = process.env.NODE_ENV === 'development';
-  const runtimeState = caseData ? deriveRuntimeGuideState(caseData) : null;
+  const runtimeReady = Boolean(caseData && snapshot.caseState === caseData);
+  const runtimeState = runtimeReady ? snapshot.state : null;
 
   if (loading) {
     return (
@@ -403,28 +320,51 @@ export default function GuidePage({ id }: { id: string }) {
     );
   }
 
-  const derivedState = runtimeState ? guidePageStateFromRuntime(runtimeState) : 'listening';
+  if (!runtimeReady || !runtimeState) {
+    return (
+      <div className="min-h-screen bg-[#070A0F] text-slate-100">
+        <GuideHeader id={id} title={caseData.title ?? undefined} onBack={() => router.push(`/case/${encodeURIComponent(id)}`)} />
+        <main className="mx-auto max-w-2xl px-4 py-8 sm:px-6">
+          <TrustNotice variant="dark" />
+          <LegalGuide
+            state="listening"
+            label="Legal guide"
+            busy
+            detail="Updating from the current case record"
+            message="The Guide is waiting for the shared runtime to receive the latest case state."
+            messageKind="notice"
+          />
+        </main>
+      </div>
+    );
+  }
+
+  const derivedState = guidePageStateFromRuntime(runtimeState);
   // Development previews change only the visual preview; the safety state returned
   // by the shared Guide Runtime always keeps priority.
-  const guideState = runtimeState?.name === 'safety'
+  const guideState = runtimeState.name === 'safety'
     ? 'safety_warning'
     : isDevelopment && previewState
       ? previewState
       : derivedState;
   const journey = caseData.analysis?.journey;
-  const unknowns = getUnknowns(caseData);
-  const safetyActive = guideState === 'safety_warning';
-  const message = deriveGuideMessage(caseData, guideState);
+  const safetyActive = runtimeState.name === 'safety';
   const hasGuideDetails =
     safetyActive ||
     Boolean(journey) ||
-    unknowns.length > 0 ||
+    presentation.unknowns.length > 0 ||
     caseData.evidence.length > 0 ||
     caseData.documents.length > 0 ||
     caseData.facts.length > 0 ||
     caseData.events.length > 0 ||
     caseData.legalIssues.length > 0 ||
     isDevelopment;
+  const availableActions = new Map(snapshot.availableActions.map((action) => [JSON.stringify(action), action]));
+  const guideActions = snapshot.availableActions.map((action) => ({
+    id: JSON.stringify(action),
+    label: guideActionLabel(action),
+    variant: 'secondary' as const,
+  }));
 
   return (
     <div className="min-h-screen bg-[#070A0F] text-slate-100">
@@ -446,15 +386,14 @@ export default function GuidePage({ id }: { id: string }) {
         <LegalGuide
           state={guideState}
           label="Legal guide"
-          detail={deriveGuideDetail(caseData, guideState)}
-          message={message}
+          detail={runtimeState.reason.replaceAll('_', ' ')}
+          message={presentation.whyItMatters}
           messageKind={safetyActive ? 'notice' : 'guide'}
           messageSpeaker={safetyActive ? 'Safety context' : 'Case record'}
-          actions={safetyActive ? [{ id: 'open-safety', label: 'Open safety resources', variant: 'secondary' }] : []}
+          actions={guideActions}
           onAction={(event: GuideActionEvent) => {
-            if (event.actionId === 'open-safety') {
-              router.push(`/case/${encodeURIComponent(id)}/safety`);
-            }
+            const action = availableActions.get(event.actionId);
+            if (action) void runAction(action);
           }}
         >
           {hasGuideDetails && (
@@ -463,8 +402,8 @@ export default function GuidePage({ id }: { id: string }) {
                 <SafetySummary caseData={caseData} />
               ) : (
                 <>
-                  {journey && <JourneySummary journey={journey} caseId={id} />}
-                  <UnknownsSummary items={unknowns} />
+                  {journey && <JourneySummary journey={journey} />}
+                  <UnknownsSummary items={presentation.unknowns} />
                   <EvidenceSummary caseData={caseData} journey={journey} />
                   {(guideState === 'legal_verification' || caseData.legalIssues.length > 0) && <LegalVerificationSummary caseData={caseData} />}
                 </>
@@ -494,21 +433,6 @@ export default function GuidePage({ id }: { id: string }) {
           )}
         </LegalGuide>
 
-        {!safetyActive && (
-          <section aria-label="Legal Twin navigation" className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/[0.07] bg-[#101722] px-4 py-3">
-            <div className="flex items-center gap-2.5 text-sm text-slate-300">
-              <Scale aria-hidden="true" className="h-4 w-4 text-[#8C9EFF]" />
-              View the full Legal Twin
-            </div>
-            <button
-              type="button"
-              onClick={() => router.push(`/case/${encodeURIComponent(id)}/twin`)}
-              className="min-h-10 rounded-lg border border-[#8C9EFF]/30 bg-[#8C9EFF]/10 px-3 text-xs font-semibold text-[#b7c2ff] transition hover:bg-[#8C9EFF]/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8C9EFF]"
-            >
-              Open Twin <span aria-hidden="true">→</span>
-            </button>
-          </section>
-        )}
       </main>
     </div>
   );

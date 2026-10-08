@@ -102,7 +102,7 @@ export function SafetyExperience({ caseId }: { caseId: string }) {
   function focusSection(id: string) {
     const section = document.getElementById(id);
     if (!section) return;
-    section.focus();
+    section.focus({ preventScroll: true });
     section.scrollIntoView({
       block: 'start',
       behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',

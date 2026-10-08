@@ -3,6 +3,8 @@ import type { ReactNode } from 'react';
 export const LEGAL_GUIDE_STATES = [
   'idle',
   'listening',
+  'explaining',
+  'speaking',
   'extracting',
   'asking',
   'evidence_review',
@@ -18,6 +20,8 @@ export type GuideStateName = (typeof LEGAL_GUIDE_STATES)[number];
 export const GUIDE_STATE_LABELS: Record<GuideStateName, string> = {
   idle: 'Idle',
   listening: 'Listening',
+  explaining: 'Explaining',
+  speaking: 'Speaking',
   extracting: 'Extracting details',
   asking: 'Clarifying information',
   evidence_review: 'Evidence review',

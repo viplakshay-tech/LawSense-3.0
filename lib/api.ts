@@ -450,6 +450,11 @@ export interface VoiceCommitResponse {
 export interface VoiceProviderAvailability {
   speechToTextAvailable: boolean;
   languageDetectorAvailable: boolean;
+  speechToTextProvider?: string | null;
+  processingLocation?: 'local' | 'server' | 'none';
+  textToSpeechAvailable?: boolean;
+  textToSpeechProvider?: string | null;
+  textToSpeechProcessingLocation?: 'local' | 'server' | 'none';
   detail?: string | null;
 }
 
@@ -565,12 +570,13 @@ export async function addVoiceStatement(
   return body as VoiceCommitResponse;
 }
 
-export async function transcribeVoiceAudio(audio: Blob): Promise<VoiceTranscriptResponse> {
+export async function transcribeVoiceAudio(audio: Blob, signal?: AbortSignal): Promise<VoiceTranscriptResponse> {
   const form = new FormData();
   form.append('file', audio, 'voice-input.webm');
   const res = await fetch(`${BASE_URL}/cases/voice/transcribe`, {
     method: 'POST',
     body: form,
+    signal,
   });
   const body = await res.json().catch(() => null);
   if (!res.ok) {
@@ -578,6 +584,25 @@ export async function transcribeVoiceAudio(audio: Blob): Promise<VoiceTranscript
     throw new Error(`Failed to transcribe audio: ${detail}`);
   }
   return body as VoiceTranscriptResponse;
+}
+
+export async function synthesizeVoiceSpeech(
+  text: string,
+  language: 'english' | 'hindi' | 'hinglish',
+  signal?: AbortSignal,
+): Promise<Blob> {
+  const res = await fetch(`${BASE_URL}/cases/voice/synthesize`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text, language }),
+    signal,
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    const detail = typeof body?.detail === 'string' ? body.detail : res.statusText;
+    throw new Error(`Local speech output unavailable: ${detail}`);
+  }
+  return res.blob();
 }
 
 export async function getVoiceProviderAvailability(): Promise<VoiceProviderAvailability> {

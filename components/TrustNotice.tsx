@@ -17,7 +17,7 @@ export function TrustNotice({ variant = 'light' }: TrustNoticeProps) {
   return (
     <aside
       aria-label="LawSense limits and demo data storage"
-      className={`rounded-xl border px-4 py-3 text-xs leading-5 ${styles[variant]}`}
+      className={`rounded-xl border px-4 py-4 text-sm leading-6 ${styles[variant]}`}
     >
       <p>
         <strong className={dark ? styles.headingDark : styles.headingLight}>
@@ -36,10 +36,19 @@ export function TrustNotice({ variant = 'light' }: TrustNoticeProps) {
         </a>
         . If anyone is in immediate danger, contact local emergency services.
       </p>
-      <p className="mt-2">
+      <p className="mt-3">
+        <strong className={dark ? styles.headingDark : styles.headingLight}>How to read these records.</strong>{' '}
+        User-reported details are not independently confirmed. Evidence-supported means a source is linked
+        to a record; it does not prove the source is authentic or every statement is true. A user-confirmed
+        extraction records your review of the reading, not independent proof of the document or its contents.
+        Unknown, uncertain, and conflicting information stays unresolved. A source marked verified may still
+        need checking for your jurisdiction and facts; applicability is not established by retrieval alone.
+      </p>
+      <p className="mt-3">
         <strong className={dark ? styles.headingDark : styles.headingLight}>Demo data storage.</strong>{' '}
-        Case text and uploaded files are stored on the server running this LawSense instance. This demo
-        has no sign-in or per-case access controls; use synthetic data only.
+        Case text and uploaded files are stored on the server running this LawSense instance. This demo has
+        no sign-in or per-case access controls. Use synthetic information only; do not enter sensitive or
+        identifying details.
       </p>
     </aside>
   );

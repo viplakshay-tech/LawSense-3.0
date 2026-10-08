@@ -112,6 +112,7 @@ export default function VoiceCapture({ language, disabled = false, onTranscript,
   const animationFrame = useRef<number | null>(null);
   const operationId = useRef(0);
   const captureId = useRef<string | null>(null);
+  const transcriptionRequest = useRef<AbortController | null>(null);
   const cancelRequested = useRef(false);
   const lastCaptureBusy = useRef(false);
   const [providerMode, setProviderMode] = useState<'checking' | 'browser' | 'server' | 'unavailable'>('checking');
@@ -125,6 +126,7 @@ export default function VoiceCapture({ language, disabled = false, onTranscript,
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [unavailableDetail, setUnavailableDetail] = useState<string | null>(null);
+  const [serverProcessingLabel, setServerProcessingLabel] = useState('Audio is sent to LawSense for the configured speech provider.');
 
   const stopMeter = (stopTracks = true, updateState = true) => {
     if (animationFrame.current !== null) cancelAnimationFrame(animationFrame.current);
@@ -189,15 +191,20 @@ export default function VoiceCapture({ language, disabled = false, onTranscript,
       navigator.mediaDevices?.getUserMedia,
     );
 
-    // Prefer the browser speech API. The configured audio service is a fallback.
-    if (browserAvailable) setProviderMode('browser');
+    // Use a configured backend provider first. Local Whisper is optional and
+    // is selected only when the API reports that its runtime and model are ready.
     getVoiceProviderAvailability()
       .then((availability) => {
         if (!active) return;
-        if (browserAvailable) {
-          setProviderMode('browser');
-        } else if (canRecordAudio && availability.speechToTextAvailable && availability.languageDetectorAvailable) {
+        if (canRecordAudio && availability.speechToTextAvailable && availability.languageDetectorAvailable) {
           setProviderMode('server');
+          setServerProcessingLabel(
+            availability.processingLocation === 'local'
+              ? `Audio is processed locally by ${availability.speechToTextProvider || 'the configured speech provider'}.`
+              : 'Audio is sent to LawSense for the configured speech provider.',
+          );
+        } else if (browserAvailable) {
+          setProviderMode('browser');
         } else {
           setProviderMode('unavailable');
           setUnavailableDetail(
@@ -221,6 +228,8 @@ export default function VoiceCapture({ language, disabled = false, onTranscript,
       active = false;
       cancelRequested.current = true;
       operationId.current += 1;
+      transcriptionRequest.current?.abort();
+      transcriptionRequest.current = null;
       if (session.current) {
         session.current.onresult = null;
         session.current.onerror = null;
@@ -309,8 +318,12 @@ export default function VoiceCapture({ language, disabled = false, onTranscript,
           setProcessing(false);
           return;
         }
+        let requestController: AbortController | null = null;
         try {
-          const result = await transcribeVoiceAudio(audio);
+          requestController = new AbortController();
+          transcriptionRequest.current = requestController;
+          const result = await transcribeVoiceAudio(audio, requestController.signal);
+          if (transcriptionRequest.current === requestController) transcriptionRequest.current = null;
           if (currentOperation !== operationId.current || cancelRequested.current) return;
           if (result.transcript?.trim()) {
             setLiveTranscript(result.transcript.trim());
@@ -329,6 +342,7 @@ export default function VoiceCapture({ language, disabled = false, onTranscript,
             captureId.current = null;
           }
         } catch (cause) {
+          if (transcriptionRequest.current === requestController) transcriptionRequest.current = null;
           if (currentOperation === operationId.current && !cancelRequested.current) {
             const detail = cause instanceof Error ? cause.message : 'Speech processing failed. No transcript was created.';
             setError(detail);
@@ -450,6 +464,8 @@ export default function VoiceCapture({ language, disabled = false, onTranscript,
   const cancel = () => {
     cancelRequested.current = true;
     operationId.current += 1;
+    transcriptionRequest.current?.abort();
+    transcriptionRequest.current = null;
     if (captureId.current) {
       onCaptureEvent?.({ type: 'capture_cancelled', captureId: captureId.current });
       captureId.current = null;
@@ -483,7 +499,7 @@ export default function VoiceCapture({ language, disabled = false, onTranscript,
   const captureStatus = recording ? 'listening' : busy ? 'processing' : 'idle';
   const modeLabel = providerMode === 'browser'
     ? 'Speech recognition is provided by your browser.'
-    : 'Audio is sent to LawSense for the configured speech provider.';
+    : serverProcessingLabel;
 
   useEffect(() => {
     if (lastCaptureBusy.current === busy) return;
@@ -593,7 +609,7 @@ export default function VoiceCapture({ language, disabled = false, onTranscript,
       )}
       {providerMode === 'server' && (
         <p className="max-w-sm text-xs text-zinc-500 dark:text-zinc-400">
-          Audio is sent to LawSense for the configured speech provider. Review and edit the transcript before adding it to the case.
+          {serverProcessingLabel} Review and edit the transcript before adding it to the case.
         </p>
       )}
     </div>

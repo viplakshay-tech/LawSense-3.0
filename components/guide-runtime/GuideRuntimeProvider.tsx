@@ -31,6 +31,7 @@ export interface GuideTranscriptEntry {
 
 export interface GuideRuntimeContextValue {
   snapshot: GuideRuntimeSnapshot;
+  presentation: ReturnType<typeof createGuidePresentation>;
   messages: readonly GuideTranscriptEntry[];
   actionRunning: boolean;
   dispatch: (event: GuideEvent) => GuideRuntimeResult;
@@ -96,7 +97,7 @@ function commandForAction(action: GuideAction): GuideActionCommand {
 function actionLabel(action: GuideAction): string {
   switch (action.type) {
     case 'ASK_CLARIFICATION': return 'Clarification';
-    case 'SHOW_EVIDENCE': return 'Evidence';
+    case 'SHOW_EVIDENCE': return 'Evidence Map';
     case 'SHOW_LEGAL_GROUNDING': return 'Legal grounding';
     case 'OPEN_JOURNEY': return 'Journey';
     case 'SHOW_TWIN': return 'Living Twin';
@@ -120,6 +121,10 @@ export function GuideRuntimeProvider({ caseId, children }: { caseId: string; chi
   const [actionRunning, setActionRunning] = useState(false);
   const messageSequence = useRef(0);
   const lastCaseRevision = useRef(0);
+  const presentation = useMemo(
+    () => createGuidePresentation(snapshot.caseState, snapshot.state.name),
+    [snapshot.caseState, snapshot.state.name],
+  );
 
   const appendMessage = useCallback((kind: GuideTranscriptEntry['kind'], text: string) => {
     const id = `guide-message-${++messageSequence.current}`;
@@ -229,12 +234,13 @@ export function GuideRuntimeProvider({ caseId, children }: { caseId: string; chi
 
   const value = useMemo<GuideRuntimeContextValue>(() => ({
     snapshot,
+    presentation,
     messages,
     actionRunning,
     dispatch,
     runAction,
     dismissError,
-  }), [actionRunning, dismissError, dispatch, messages, runAction, snapshot]);
+  }), [actionRunning, dismissError, dispatch, messages, presentation, runAction, snapshot]);
 
   return <GuideRuntimeContext.Provider value={value}>{children}</GuideRuntimeContext.Provider>;
 }

@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import type { KeyboardEvent } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Activity, ArrowLeft, ChevronDown, ChevronUp, CircleHelp, Mic2, Radio, ShieldAlert, Volume2 } from 'lucide-react';
 import { useGuideRuntime } from '@/components/guide-runtime';
-import { createGuidePresentation, guideStateLabel } from '@/components/guide-runtime/presentation';
+import { guideStateLabel } from '@/components/guide-runtime/presentation';
 import type { GuideAction } from '@/components/guide-runtime/types';
 import { GuidePresence } from './GuidePresence';
 import type { GuidePresenceState } from './types';
@@ -32,7 +33,7 @@ function presenceState(state: GuideAction['type'] | string): GuidePresenceState 
 function actionLabel(action: GuideAction): string {
   switch (action.type) {
     case 'ASK_CLARIFICATION': return 'Open clarification';
-    case 'SHOW_EVIDENCE': return 'Review evidence';
+    case 'SHOW_EVIDENCE': return 'Open Evidence Map';
     case 'SHOW_LEGAL_GROUNDING': return 'Legal grounding';
     case 'OPEN_JOURNEY': return 'Open journey';
     case 'SHOW_TWIN': return 'Open Living Twin';
@@ -56,14 +57,22 @@ function statusLabel(value: string): string {
 export function GuideControlSurface() {
   const pathname = usePathname();
   const router = useRouter();
-  const { snapshot, messages, actionRunning, runAction, dismissError } = useGuideRuntime();
+  const { snapshot, presentation: model, messages, actionRunning, runAction, dismissError } = useGuideRuntime();
   const [expanded, setExpanded] = useState(false);
+  const expandedRef = useRef(expanded);
   const toggleRef = useRef<HTMLButtonElement>(null);
   const previousPathnameRef = useRef(pathname);
+
+  function updateExpanded(next: boolean) {
+    expandedRef.current = next;
+    setExpanded(next);
+  }
+
   useEffect(() => {
     if (previousPathnameRef.current === pathname) return;
     previousPathnameRef.current = pathname;
-    const restoreFocus = expanded;
+    const restoreFocus = expandedRef.current;
+    expandedRef.current = false;
     setExpanded(false);
     if (!restoreFocus) return;
     const frame = window.requestAnimationFrame(() => {
@@ -77,17 +86,20 @@ export function GuideControlSurface() {
       heading.focus({ preventScroll: true });
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [expanded, pathname]);
-  const model = useMemo(
-    () => createGuidePresentation(snapshot.caseState, snapshot.state.name),
-    [snapshot.caseState, snapshot.state.name],
-  );
+  }, [pathname]);
   const primaryAction = model.nextAction
     ? snapshot.availableActions.find((action) => action.type === model.nextAction?.actionType)
     : undefined;
   const otherActions = snapshot.availableActions.filter((action) => action !== primaryAction);
   const stateText = guideStateLabel(snapshot.state.name);
   const safetyMode = pathname.split('/').filter(Boolean).at(-1) === 'safety';
+
+  function handleSurfaceKeyDown(event: KeyboardEvent<HTMLElement>) {
+    if (event.key !== 'Escape' || !expanded) return;
+    event.preventDefault();
+    updateExpanded(false);
+    window.requestAnimationFrame(() => toggleRef.current?.focus({ preventScroll: true }));
+  }
 
   if (safetyMode) {
     const caseId = snapshot.caseState?.id;
@@ -124,10 +136,12 @@ export function GuideControlSurface() {
   return (
     <aside
       aria-label="LawSense Guide control surface"
+      onKeyDown={handleSurfaceKeyDown}
       className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-3 z-[60] w-[min(25rem,calc(100vw-1.5rem))] overflow-hidden rounded-[1.35rem] border border-[#9daec3]/20 bg-[#0b1119]/[0.97] text-slate-100 shadow-[0_28px_90px_rgba(4,9,16,0.42)] ring-1 ring-white/[0.035] backdrop-blur-2xl sm:right-5 lg:bottom-5"
     >
-      <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
-        Guide state: {stateText}. {snapshot.state.reason.replaceAll('_', ' ')}.
+      <p className="sr-only" role="status" aria-live="polite" aria-atomic="true" aria-relevant="text">
+        Guide status: {stateText}. {snapshot.state.reason.replaceAll('_', ' ')}.
+        {actionRunning ? ' A Guide action is running.' : messages.at(-1) ? ` ${messages.at(-1)?.text}` : ''}
       </p>
       <div className="relative border-b border-white/[0.075] bg-[radial-gradient(ellipse_at_78%_0%,rgba(185,155,105,0.16),transparent_44%),linear-gradient(125deg,rgba(29,42,56,0.62),rgba(11,17,25,0.2)_64%)] p-3.5">
         <div className="flex items-center justify-between gap-2">
@@ -141,7 +155,7 @@ export function GuideControlSurface() {
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-[9px] font-semibold uppercase tracking-wide ${snapshot.state.name === 'safety' || snapshot.state.name === 'conflict' ? 'border-amber-200/20 bg-amber-200/[0.07] text-amber-100' : 'border-white/[0.09] bg-white/[0.035] text-slate-300'}`}>
+            <span className={`inline-flex min-h-9 items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${snapshot.state.name === 'safety' || snapshot.state.name === 'conflict' ? 'border-amber-200/20 bg-amber-200/[0.07] text-amber-100' : 'border-white/[0.09] bg-white/[0.035] text-slate-200'}`}>
               <span className={`h-1.5 w-1.5 rounded-full ${snapshot.state.name === 'processing' || snapshot.state.name === 'listening' || snapshot.state.name === 'speaking' ? 'animate-pulse bg-[#e9bd7b]' : snapshot.state.name === 'error' ? 'bg-rose-300' : 'bg-emerald-300'}`} />
               {stateText}
             </span>
@@ -151,8 +165,8 @@ export function GuideControlSurface() {
               aria-expanded={expanded}
               aria-controls="guide-control-content"
               aria-label={expanded ? 'Collapse Guide control surface' : 'Expand Guide control surface'}
-              onClick={() => setExpanded((current) => !current)}
-              className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-slate-400 transition hover:bg-white/[0.07] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e9bd7b] motion-reduce:transition-none"
+              onClick={() => updateExpanded(!expanded)}
+              className="grid h-11 w-11 shrink-0 place-items-center rounded-lg text-slate-300 transition hover:bg-white/[0.07] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e9bd7b] motion-reduce:transition-none"
             >
               {expanded ? <ChevronDown aria-hidden="true" className="h-4 w-4" /> : <ChevronUp aria-hidden="true" className="h-4 w-4" />}
             </button>
@@ -290,7 +304,7 @@ export function GuideControlSurface() {
                     type="button"
                     disabled={actionRunning}
                     onClick={() => void runAction(action)}
-                    className="inline-flex min-h-8 items-center justify-between gap-1 rounded-lg border border-white/[0.075] bg-white/[0.025] px-2.5 text-left text-[9px] font-medium text-slate-300 transition hover:border-white/[0.14] hover:bg-white/[0.06] hover:text-white disabled:cursor-wait disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#e9bd7b] motion-reduce:transition-none"
+                    className="inline-flex min-h-11 items-center justify-between gap-1 rounded-lg border border-white/[0.075] bg-white/[0.025] px-2.5 text-left text-[9px] font-medium text-slate-300 transition hover:border-white/[0.14] hover:bg-white/[0.06] hover:text-white disabled:cursor-wait disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#e9bd7b] motion-reduce:transition-none"
                   >
                     <span className="truncate">{actionLabel(action)}</span>
                     {action.type === 'SPEAK_RESPONSE' && <Volume2 aria-hidden="true" className="h-3 w-3 shrink-0 text-slate-500" />}

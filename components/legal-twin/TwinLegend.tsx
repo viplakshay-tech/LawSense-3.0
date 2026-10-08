@@ -1,6 +1,7 @@
 import { useId } from 'react';
-import { categoryColor, TWIN_COLORS } from './semantics';
+import { categoryColor } from './semantics';
 import { TWIN_NODE_CATEGORIES, type TwinNodeCategory } from './types';
+import { InformationStatusPill, type InformationDisplayStatus } from '@/components/design-system/InformationStatusPill';
 
 const CATEGORY_LABELS: Record<TwinNodeCategory, string> = {
   PERSON: 'Person',
@@ -15,12 +16,14 @@ const CATEGORY_LABELS: Record<TwinNodeCategory, string> = {
   ACTION: 'Action',
 };
 
-const STATUS_ITEMS = [
-  { label: 'Supported', color: TWIN_COLORS.supported },
-  { label: 'User reported', color: TWIN_COLORS.userReported },
-  { label: 'Uncertain', color: TWIN_COLORS.uncertain },
-  { label: 'Conflicting', color: TWIN_COLORS.conflict },
-  { label: 'Unknown', color: TWIN_COLORS.unknown },
+const STATUS_ITEMS: Array<{ status: InformationDisplayStatus; detail: string }> = [
+  { status: 'user_reported', detail: 'Reported by the user; not independently confirmed.' },
+  { status: 'evidence_supported', detail: 'A source is linked; authenticity and truth are not established by the label.' },
+  { status: 'uncertain', detail: 'Available information does not establish this detail.' },
+  { status: 'conflicting', detail: 'Recorded information disagrees; the conflict is unresolved.' },
+  { status: 'unknown', detail: 'Not supplied or not established.' },
+  { status: 'verification_required', detail: 'Check the source identity and current text before relying on it.' },
+  { status: 'applicability_not_established', detail: 'A source match does not establish fit to these facts or jurisdiction.' },
 ] as const;
 
 export function TwinLegend({ className = '' }: { className?: string }) {
@@ -35,7 +38,7 @@ export function TwinLegend({ className = '' }: { className?: string }) {
       </h2>
       <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-2.5">
         {TWIN_NODE_CATEGORIES.map((category) => (
-          <li key={category} className="flex items-center gap-2 text-xs text-slate-300">
+          <li key={category} className="flex items-center gap-2 text-sm text-slate-200">
             <span
               aria-hidden="true"
               className="h-2.5 w-2.5 rounded-full ring-2 ring-white/10"
@@ -46,18 +49,14 @@ export function TwinLegend({ className = '' }: { className?: string }) {
         ))}
       </ul>
       <div className="mt-4 border-t border-white/[0.07] pt-3">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-300">
           Evidence and review status
         </p>
-        <ul className="mt-2 flex flex-wrap gap-x-5 gap-y-2.5">
-          {STATUS_ITEMS.map((item) => (
-            <li key={item.label} className="flex items-center gap-2 text-xs text-slate-300">
-              <span
-                aria-hidden="true"
-                className="h-2.5 w-2.5 rounded-full ring-2 ring-white/10"
-                style={{ backgroundColor: item.color }}
-              />
-              {item.label}
+        <ul className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {STATUS_ITEMS.map(({ status, detail }) => (
+            <li key={status} className="min-w-0 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
+              <InformationStatusPill status={status} />
+              <p className="mt-2 text-sm leading-5 text-slate-300">{detail}</p>
             </li>
           ))}
         </ul>

@@ -449,6 +449,8 @@ export default function HomeExperience() {
             <p className={'sectionNote'}>You can type it, speak it, or show me a document. Start with whatever feels easiest.</p>
           </div>
 
+          {!intakeReview && <div className="mb-4"><TrustNotice variant="dark" /></div>}
+
           <form className={'storyCard'} onSubmit={handleSubmit}>
             <div className={'cardTopline'}>
               <div className={'cardTopIdentity'}><span className={'cardSignal'} /> A PLACE TO BEGIN</div>
@@ -579,11 +581,14 @@ export default function HomeExperience() {
                 placeholder={entryMode === 'upload'
                   ? 'For example, when you received it and what you are unsure about…'
                   : 'Start anywhere. What happened, and what would you like to understand?'}
-                aria-describedby="statement-hint"
+                aria-describedby="statement-hint storage-hint"
                 disabled={isSubmitting || !!createdCaseId}
               />
               <div className={'inputMeta'}>
-                <p id="statement-hint">Your words stay yours. You can edit a voice transcript before saving.</p>
+                <div className="inputHints">
+                  <p id="statement-hint">You can review and edit your account or transcript before saving.</p>
+                  <p id="storage-hint">This demo stores case text and uploaded files on its server. Use synthetic details only.</p>
+                </div>
                 <label className={'languageLabel'} htmlFor="statement-language">
                   LANGUAGE
                   <select
@@ -746,7 +751,6 @@ export default function HomeExperience() {
             <div><p className={'sectionEyebrow'}>A NOTE ON TRUST</p><h2 id="trust-title">Clear about what this is.</h2></div>
           </div>
           <p className={'trustLead'}>LawSense helps organize information and show available sources. It is not a lawyer and does not provide individualized legal advice.</p>
-          <TrustNotice variant="dark" />
         </section>
       </main>
 

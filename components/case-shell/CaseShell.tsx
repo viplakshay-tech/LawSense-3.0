@@ -8,6 +8,7 @@ import {
   ArrowUpRight,
   CircleHelp,
   ClipboardList,
+  FilePenLine,
   FileStack,
   MapPin,
   Mic,
@@ -19,13 +20,16 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { Suspense } from 'react';
 import type { ReactNode } from 'react';
 import type { JourneyStageName } from '@/lib/api';
 import { rememberSessionCase } from '@/lib/case-continuity';
 import { useCaseState } from '../../app/case/[id]/CaseStateProvider';
 import { GuideControlSurface } from '@/components/guide-presence';
+import { StatusPill, type StatusTone } from '@/components/design-system/StatusPill';
+import { CaseContextPanel } from './CaseContextPanel';
 
-type CaseSectionId = 'understand' | 'evidence' | 'grounding' | 'journey' | 'twin' | 'safety';
+type CaseSectionId = 'understand' | 'evidence' | 'grounding' | 'journey' | 'twin' | 'drafting' | 'safety';
 
 type CaseSection = {
   id: CaseSectionId;
@@ -54,6 +58,17 @@ function isComplete(status: string): boolean {
 
 function isActive(status: string): boolean {
   return ACTIVE_STATUSES.has(status.toLowerCase());
+}
+
+function getActiveSection(pathname: string, hash: string, basePath: string): CaseSectionId | null {
+  if (pathname.startsWith(`${basePath}/documents`) || pathname.startsWith(`${basePath}/voice`)) return 'evidence';
+  if (pathname.startsWith(`${basePath}/guide`)) return 'grounding';
+  if (pathname.startsWith(`${basePath}/twin`)) return 'twin';
+  if (pathname.startsWith(`${basePath}/draft`)) return 'drafting';
+  if (pathname.startsWith(`${basePath}/safety`)) return 'safety';
+  if (pathname === basePath && hash.startsWith('#journey')) return 'journey';
+  if (pathname === basePath || pathname === `${basePath}/`) return 'understand';
+  return null;
 }
 
 function getFallbackStage({
@@ -109,19 +124,7 @@ function CaseNavigation({
 }) {
   const shouldReduceMotion = useReducedMotion();
   const basePath = sections[0].href;
-  const activeSection: CaseSectionId | null = pathname.startsWith(`${basePath}/documents`) || pathname.startsWith(`${basePath}/voice`)
-    ? 'evidence'
-    : pathname.startsWith(`${basePath}/guide`)
-      ? 'grounding'
-      : pathname.startsWith(`${basePath}/twin`)
-        ? 'twin'
-        : pathname.startsWith(`${basePath}/safety`)
-          ? 'safety'
-          : pathname === basePath && hash.startsWith('#journey')
-            ? 'journey'
-            : pathname === basePath || pathname === `${basePath}/`
-              ? 'understand'
-              : null;
+  const activeSection = getActiveSection(pathname, hash, basePath);
   const safetyMode = activeSection === 'safety';
 
   const safetySelectedStyle = safetyTone === 'urgent'
@@ -136,11 +139,11 @@ function CaseNavigation({
       : 'text-rose-200/80 hover:bg-rose-400/[0.06] hover:text-rose-100';
 
   return (
-    <nav aria-label="Case workspace" className={mobile ? 'relative grid h-[4.15rem] grid-cols-6' : 'space-y-1'}>
+    <nav aria-label="Case workspace" className={mobile ? 'ls-case-mobile-nav relative flex h-[4.7rem] w-full min-w-0 gap-1' : 'ls-case-navigation space-y-1'}>
       {mobile && activeSection === 'evidence' && (
         <Link
           href={pathname.startsWith(`${basePath}/voice`) ? `${basePath}/documents` : `${basePath}/voice`}
-          className="absolute -top-9 right-2 inline-flex h-7 items-center gap-1.5 rounded-full border border-white/[0.12] bg-[#1b2636] px-3 text-[10px] font-semibold text-slate-100 shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e9bd7b]"
+          className="absolute -top-10 right-2 inline-flex min-h-9 items-center gap-2 rounded-full border border-white/[0.12] bg-[#1b2636] px-3 text-xs font-semibold text-slate-100 shadow-lg"
         >
           <Mic className="h-3 w-3 text-[#f0c987]" aria-hidden="true" />
           {pathname.startsWith(`${basePath}/voice`) ? 'View documents' : 'Add by voice'}
@@ -151,7 +154,7 @@ function CaseNavigation({
         const Icon = section.icon;
         const isSafety = section.safety;
         return (
-          <div key={section.id} className={`${isSafety && !mobile ? 'mt-3 border-t border-white/[0.08] pt-3' : ''} ${mobile ? 'min-w-0' : ''}`}>
+          <div key={section.id} className={`${isSafety && !mobile ? 'mt-3 border-t border-white/[0.08] pt-3' : ''} ${mobile ? 'ls-case-mobile-item' : ''}`}>
             <Link
               href={section.href}
               aria-label={mobile ? section.label : undefined}
@@ -159,8 +162,8 @@ function CaseNavigation({
               className={[
                 'group relative flex outline-none transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-[#e9bd7b] focus-visible:ring-offset-2 focus-visible:ring-offset-[#111824] motion-reduce:transition-none',
                 mobile
-                  ? 'h-full min-w-0 flex-col items-center justify-center gap-1 px-0.5 text-center'
-                  : 'min-h-10 items-center gap-3 rounded-xl px-3 py-2 text-[13px]',
+                  ? 'relative h-full min-w-[4.75rem] flex-col items-center justify-center gap-1 px-1.5 text-center'
+                  : 'min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm',
                 selected && !isSafety ? 'text-white' : '',
                 selected && isSafety ? safetySelectedStyle : '',
                 !selected && !isSafety ? 'text-slate-400 hover:bg-white/[0.045] hover:text-slate-100' : '',
@@ -189,11 +192,11 @@ function CaseNavigation({
               <span className={`relative z-[1] flex shrink-0 items-center justify-center ${mobile ? 'h-5 w-5' : 'h-5 w-5'} ${isSafety && safetyTone === 'urgent' ? 'text-rose-300' : isSafety && safetyTone === 'caution' ? 'text-amber-300' : selected ? 'text-[#f2c98f]' : 'text-current'}`}>
                 <Icon className={mobile ? 'h-[17px] w-[17px]' : 'h-[17px] w-[17px]'} strokeWidth={selected ? 2 : 1.8} aria-hidden="true" />
               </span>
-              <span className={`relative z-[1] min-w-0 truncate ${mobile ? 'max-w-full text-[9px] leading-3' : 'flex-1 font-medium'} ${selected && !isSafety ? 'font-semibold' : ''}`}>
+              <span className={`relative z-[1] min-w-0 truncate ${mobile ? 'max-w-full whitespace-nowrap text-[11px] leading-4' : 'flex-1 font-medium'} ${selected && !isSafety ? 'font-semibold' : ''}`}>
                 {mobile ? section.mobileLabel : section.label}
               </span>
               {!mobile && isSafety && safetyTone === 'urgent' && (
-                <span className="relative z-[1] ml-auto rounded-full bg-rose-400/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-rose-200">
+                <span className="relative z-[1] ml-auto rounded-full bg-rose-400/15 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-rose-200">
                   Urgent
                 </span>
               )}
@@ -206,7 +209,7 @@ function CaseNavigation({
                 <Link
                   href={`${basePath}/voice`}
                   aria-current={pathname.startsWith(`${basePath}/voice`) ? 'page' : undefined}
-                  className={`block rounded-md px-2 py-1.5 text-[11px] transition hover:text-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e9bd7b] ${pathname.startsWith(`${basePath}/voice`) ? 'font-medium text-[#f2c98f]' : 'text-slate-500'}`}
+                  className={`block rounded-md px-2 py-1.5 text-xs transition hover:text-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e9bd7b] ${pathname.startsWith(`${basePath}/voice`) ? 'font-medium text-[#f2c98f]' : 'text-slate-500'}`}
                 >
                   Add by voice
                 </Link>
@@ -245,6 +248,7 @@ export function CaseShell({ caseId, children }: { caseId: string; children: Reac
     { id: 'grounding', label: 'Legal Grounding', mobileLabel: 'Grounding', href: `${basePath}/guide`, icon: Scale },
     { id: 'journey', label: 'Journey', mobileLabel: 'Journey', href: `${basePath}#journey`, icon: Route },
     { id: 'twin', label: 'Living Twin', mobileLabel: 'Twin', href: `${basePath}/twin`, icon: Network },
+    { id: 'drafting', label: 'Document Drafting', mobileLabel: 'Draft', href: `${basePath}/draft`, icon: FilePenLine },
     { id: 'safety', label: 'Safety', mobileLabel: 'Safety', href: `${basePath}/safety`, icon: ShieldAlert, safety: true },
   ];
 
@@ -307,11 +311,18 @@ export function CaseShell({ caseId, children }: { caseId: string; children: Reac
   const caseTitle = caseState?.title?.trim() || 'Active case';
   const jurisdictionLabel = caseState ? getJurisdictionLabel(caseState) : 'Case workspace';
   const caseShortId = caseId.length > 13 ? `${caseId.slice(0, 8)}…${caseId.slice(-3)}` : caseId;
+  const activeSection = getActiveSection(pathname, hash, basePath);
+  const currentArea = sections.find((section) => section.id === activeSection)?.label ?? 'Case workspace';
+  const progressTone: StatusTone = safetyOverride
+    ? activeSafetyTone === 'urgent' ? 'danger' : 'caution'
+    : progressLabel === 'Complete' ? 'success' : currentStep ? 'info' : 'neutral';
+  const contextualHref = safetyMode ? `${basePath}#journey` : recommendedHref;
+  const contextualAction = safetyMode ? 'Return to case journey' : 'Continue to next step';
 
   return (
-    <div className="min-h-screen bg-[#f3f5f8] text-slate-900 selection:bg-[#e7c99c]/40">
-      <div className="min-h-screen lg:grid lg:grid-cols-[256px_minmax(0,1fr)]">
-        <aside className="sticky top-0 z-40 hidden h-dvh flex-col border-r border-white/[0.06] bg-[#111824] px-4 pb-4 pt-5 text-slate-100 lg:flex">
+    <div className="ls-case-shell min-h-screen bg-[#090d13] text-slate-100 selection:bg-[#e7c99c]/40">
+      <div className="ls-case-grid min-h-screen lg:grid lg:grid-cols-[280px_minmax(0,1fr)]">
+        <aside className="ls-case-rail sticky top-0 z-40 hidden h-dvh flex-col border-r border-white/[0.06] bg-[#101722] px-4 pb-5 pt-5 text-slate-100 lg:flex">
           <Link href="/" className="group mb-6 flex items-center gap-3 rounded-lg px-1 py-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e9bd7b]">
             <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#e9bd7b]/20 bg-[#e9bd7b]/[0.09] text-[#f1c98e] shadow-[0_0_22px_rgba(233,189,123,0.08)]">
               <Scale className="h-[18px] w-[18px]" strokeWidth={1.8} aria-hidden="true" />
@@ -322,7 +333,7 @@ export function CaseShell({ caseId, children }: { caseId: string; children: Reac
             </span>
           </Link>
 
-          <section aria-label="Current case" className={`rounded-2xl border border-white/[0.075] bg-white/[0.035] p-3.5 shadow-[0_12px_28px_rgba(0,0,0,0.12)] ${safetyMode ? 'opacity-45' : ''}`}>
+          <section aria-label="Current case" className={`ls-case-identity rounded-2xl border border-white/[0.075] bg-white/[0.035] p-3.5 shadow-[0_12px_28px_rgba(0,0,0,0.12)] ${safetyMode ? 'opacity-45' : ''}`}>
             <div className="flex items-center justify-between gap-2">
               <span className="inline-flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-[0.15em] text-slate-500">
                 <span className={`h-1.5 w-1.5 rounded-full ${loading ? 'animate-pulse bg-amber-300' : 'bg-emerald-400'}`} />
@@ -349,12 +360,10 @@ export function CaseShell({ caseId, children }: { caseId: string; children: Reac
             </div>
           </section>
 
-          <section aria-label="Case progress" className={`mt-3 rounded-2xl border border-white/[0.06] bg-[#151e2b] p-3.5 ${safetyMode ? 'opacity-40' : ''}`}>
+          <section aria-label="Case progress" className={`ls-case-focus mt-3 rounded-2xl border border-white/[0.06] bg-[#151e2b] p-3.5 ${safetyMode ? 'opacity-40' : ''}`}>
             <div className="flex items-center justify-between gap-2">
               <span className="text-[9px] font-semibold uppercase tracking-[0.15em] text-slate-500">Current focus</span>
-              <span className="rounded-full border border-[#e9bd7b]/15 bg-[#e9bd7b]/[0.06] px-2 py-0.5 text-[9px] font-medium text-[#e8c891]">
-                {progressLabel}
-              </span>
+              <StatusPill tone={progressTone} className="min-h-7 px-2.5">{progressLabel}</StatusPill>
             </div>
             <p className="mt-2 line-clamp-2 text-[12px] font-medium leading-[18px] text-slate-200">{stageTitle}</p>
             <Link
@@ -380,13 +389,13 @@ export function CaseShell({ caseId, children }: { caseId: string; children: Reac
             </p>
           </section>
 
-          <div className="mb-2 mt-6 flex items-center justify-between px-2">
+          <div className="ls-case-nav-heading mb-2 mt-6 flex items-center justify-between px-2">
             <span className="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-600">Navigate</span>
             <span className="text-[9px] text-slate-600">{journeySteps.length > 0 ? `${completedSteps.length}/${journeySteps.length}` : 'CASE'}</span>
           </div>
           <CaseNavigation sections={sections} pathname={pathname} hash={hash} safetyTone={activeSafetyTone} />
 
-          <section aria-label="Suggested next step" className={`mt-auto rounded-2xl border p-3.5 ${safetyOverride ? activeSafetyTone === 'urgent' ? 'border-rose-300/30 bg-gradient-to-br from-rose-300/[0.12] to-transparent' : 'border-amber-200/25 bg-gradient-to-br from-amber-200/[0.09] to-transparent' : 'border-[#e9bd7b]/15 bg-gradient-to-br from-[#e9bd7b]/[0.09] to-transparent'}`}>
+          <section aria-label="Suggested next step" className={`ls-case-next mt-auto rounded-2xl border p-3.5 ${safetyOverride ? activeSafetyTone === 'urgent' ? 'border-rose-300/30 bg-gradient-to-br from-rose-300/[0.12] to-transparent' : 'border-amber-200/25 bg-gradient-to-br from-amber-200/[0.09] to-transparent' : 'border-[#e9bd7b]/15 bg-gradient-to-br from-[#e9bd7b]/[0.09] to-transparent'}`}>
             <div className={`flex items-center gap-2 ${safetyOverride ? activeSafetyTone === 'urgent' ? 'text-rose-200' : 'text-amber-100' : 'text-[#e8c891]'}`}>
               <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
               <p className="text-[9px] font-semibold uppercase tracking-[0.14em]">A useful next step</p>
@@ -414,43 +423,60 @@ export function CaseShell({ caseId, children }: { caseId: string; children: Reac
           </Link>
         </aside>
 
-        <div className="min-w-0">
-          <header className="flex min-h-[66px] items-center justify-between gap-4 border-b border-slate-200/80 bg-white px-4 py-3 sm:px-6 lg:min-h-[54px] lg:bg-white/85 lg:px-8 lg:py-2">
+        <div className="ls-case-main min-w-0">
+          <header className="ls-case-topbar flex min-h-[68px] items-center justify-between gap-4 border-b border-white/[0.07] bg-[#0c121a]/95 px-4 py-3 sm:px-6 lg:min-h-[64px] lg:px-8 lg:py-2">
             <div className="min-w-0 lg:hidden">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Law Sense · {loading ? 'Reopening case' : caseState ? 'Active case' : 'Case unavailable'}</p>
-              <p className="mt-0.5 truncate text-sm font-semibold text-slate-800">{caseTitle}</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">LawSense · {loading ? 'Reopening case' : caseState ? 'Active case' : 'Case unavailable'}</p>
+              <p className="mt-0.5 truncate text-base font-semibold text-slate-100">{caseTitle}</p>
             </div>
-            <div className="hidden min-w-0 items-center gap-2 text-[10px] uppercase tracking-[0.14em] text-slate-400 lg:flex">
+            <div className="hidden min-w-0 items-center gap-2 text-xs uppercase tracking-[0.12em] text-slate-400 lg:flex">
               <span className="font-semibold text-slate-500">Case workspace</span>
               <span className="text-slate-300">/</span>
-              <span className="max-w-[28rem] truncate normal-case tracking-normal text-slate-600">{caseTitle}</span>
+              <span className="max-w-[28rem] truncate normal-case tracking-normal text-slate-200">{caseTitle}</span>
             </div>
             <div className="ml-auto flex shrink-0 items-center gap-2">
-              <span className="hidden items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-[10px] font-medium text-slate-500 sm:inline-flex">
-                <CircleHelp className="h-3 w-3" aria-hidden="true" />
+              <span className="hidden items-center gap-1.5 rounded-full border border-white/[0.09] bg-white/[0.035] px-3 py-1.5 text-xs font-medium text-slate-300 sm:inline-flex">
+                <CircleHelp className="h-3.5 w-3.5" aria-hidden="true" />
                 {openQuestions.length} open
               </span>
-              <Link href="/" aria-label="Choose a case from this session" className="inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 text-[10px] font-semibold text-slate-600 transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 motion-reduce:transition-none">
-                <ArrowLeft className="h-3 w-3" aria-hidden="true" />
+              <Link href="/" aria-label="Choose a case from this session" className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-white/[0.11] bg-white/[0.035] px-3 text-xs font-semibold text-slate-300 transition hover:bg-white/[0.07] hover:text-white motion-reduce:transition-none">
+                <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
                 <span className="hidden sm:inline">Cases this session</span>
                 <span className="sm:hidden">Cases</span>
               </Link>
             </div>
           </header>
 
+          <section className="ls-case-context" aria-label="Current case area and journey state">
+            <div className="ls-case-context-copy">
+              <p className="ls-eyebrow">{currentArea} <span aria-hidden="true">·</span> Case journey</p>
+              <p className="ls-case-context-stage">{stageTitle}</p>
+              <div className="ls-case-context-meta">
+                <StatusPill tone={progressTone}>{progressLabel}</StatusPill>
+                <span>{journeySteps.length > 0
+                  ? `${completedSteps.length} of ${journeySteps.length} steps complete`
+                  : 'Journey progress will appear as case details are recorded'}</span>
+              </div>
+            </div>
+            <Link href={contextualHref} className="ls-case-context-action">
+              {contextualAction}
+              <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          </section>
+
           <motion.div
             key={pathname}
             initial={shouldReduceMotion ? false : { opacity: 0, y: 7 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: shouldReduceMotion ? 0 : 0.24, ease: 'easeOut' }}
-            className="min-w-0 pb-24 lg:pb-20"
+            className="ls-case-content min-w-0 pb-28 lg:pb-12"
           >
-            {children}
+            <Suspense fallback={null}>{children}</Suspense>
           </motion.div>
         </div>
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-[70] border-t border-white/[0.09] bg-[#111824]/[0.97] px-1 pb-[env(safe-area-inset-bottom)] pt-0.5 shadow-[0_-10px_35px_rgba(10,16,26,0.18)] backdrop-blur-xl lg:hidden">
+      <div className="ls-case-mobile-dock fixed inset-x-0 bottom-0 z-[70] border-t border-white/[0.09] bg-[#0c121a]/[0.97] px-1 pb-[env(safe-area-inset-bottom)] pt-0.5 shadow-[0_-10px_35px_rgba(10,16,26,0.18)] backdrop-blur-xl lg:hidden">
         <CaseNavigation sections={sections} pathname={pathname} hash={hash} safetyTone={activeSafetyTone} mobile />
       </div>
 
@@ -460,6 +486,7 @@ export function CaseShell({ caseId, children }: { caseId: string; children: Reac
         </span>
       )}
       <GuideControlSurface />
+      <Suspense fallback={null}><CaseContextPanel caseId={caseId} /></Suspense>
     </div>
   );
 }

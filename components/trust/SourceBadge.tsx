@@ -7,7 +7,7 @@ import {
   TriangleAlert,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { formatTrustStatus, type TrustStatus } from './types';
+import type { TrustStatus } from './types';
 
 const statusStyles: Record<TrustStatus, string> = {
   USER_REPORTED: 'border-violet-300/25 bg-violet-300/[0.08] text-violet-100',
@@ -27,6 +27,24 @@ const statusIcons: Record<TrustStatus, LucideIcon> = {
   UNKNOWN: CircleHelp,
 };
 
+const statusLabels: Record<TrustStatus, string> = {
+  USER_REPORTED: 'User-reported',
+  EVIDENCE_SUPPORTED: 'Evidence-supported',
+  SYSTEM_INFERRED: 'System-inferred',
+  ASSUMPTION: 'Assumption',
+  CONFLICTING: 'Conflicting',
+  UNKNOWN: 'Unknown',
+};
+
+const statusExplanations: Record<TrustStatus, string> = {
+  USER_REPORTED: 'Reported by the user; not independently confirmed.',
+  EVIDENCE_SUPPORTED: 'A source is linked to this record; that alone does not prove authenticity or truth.',
+  SYSTEM_INFERRED: 'Inferred by the system; not confirmed.',
+  ASSUMPTION: 'An assumption that needs confirmation.',
+  CONFLICTING: 'Recorded information disagrees and remains unresolved.',
+  UNKNOWN: 'Not supplied or not established.',
+};
+
 export interface SourceBadgeProps {
   status: TrustStatus;
   className?: string;
@@ -34,14 +52,16 @@ export interface SourceBadgeProps {
 
 export function SourceBadge({ status, className = '' }: SourceBadgeProps) {
   const Icon = statusIcons[status];
+  const label = statusLabels[status];
 
   return (
     <span
-      aria-label={`Source status: ${formatTrustStatus(status)}`}
-      className={`inline-flex max-w-full items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold tracking-[0.08em] ${statusStyles[status]} ${className}`}
+      aria-label={`${label}: ${statusExplanations[status]}`}
+      title={statusExplanations[status]}
+      className={`inline-flex min-h-8 max-w-full items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${statusStyles[status]} ${className}`}
     >
-      <Icon aria-hidden="true" className="h-3 w-3 shrink-0" />
-      <span>{formatTrustStatus(status)}</span>
+      <Icon aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
+      <span>{label}</span>
     </span>
   );
 }

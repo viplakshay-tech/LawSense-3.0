@@ -1,21 +1,21 @@
 .page {
-  --ink: #f2efe8;
-  --muted: #9c9f9a;
-  --quiet: #737a76;
-  --line: rgb(226 226 211 / 10%);
-  --line-strong: rgb(226 226 211 / 17%);
-  --gold: #dec391;
-  --gold-bright: #eed4a2;
-  --teal: #9abbb1;
+  --ink: var(--ls-ink);
+  --muted: var(--ls-text-secondary);
+  --quiet: var(--ls-text-subtle);
+  --line: var(--ls-border);
+  --line-strong: var(--ls-border-strong);
+  --gold: var(--ls-accent);
+  --gold-bright: var(--ls-accent-bright);
+  --teal: var(--ls-teal);
   position: relative;
   isolation: isolate;
   min-height: 100vh;
   overflow: clip;
-  background: #0a0c0c;
+  background: var(--ls-canvas);
   color: var(--ink);
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
-  font-size: 15px;
-  line-height: 1.6;
+  font-family: var(--ls-font-body);
+  font-size: var(--ls-type-body);
+  line-height: var(--ls-leading-body);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -845,6 +845,22 @@
   margin: 0;
   color: #777f78;
   font-size: 9px;
+}
+
+.page .inputHints {
+  display: grid;
+  gap: 4px;
+}
+
+.page .inputHints p {
+  margin: 0;
+  color: #b6c0b8;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.page .inputHints p + p {
+  color: #d4c7ab;
 }
 
 .page .languageLabel {
@@ -2312,6 +2328,40 @@
   .page .pathTab > strong {
     font-size: 7px;
   }
+}
+
+@media (max-width: 640px) {
+  .page .headerNav { gap: 13px; font-size: 12px; }
+  .page .headerCta { min-height: 44px; padding-inline: 11px; font-size: 12px; }
+  .page .heroAssurances { flex-wrap: wrap; gap: 10px; font-size: 11px; }
+  .page .actionNote,
+  .page .sectionNote,
+  .page .networkCaption,
+  .page .pathwayFootnote,
+  .page .afterFormNote { font-size: 12px; line-height: 1.55; }
+  .page .networkTag { gap: 7px; padding: 8px 10px; font-size: 11px; }
+  .page .sectionEyebrow,
+  .page .eyebrow { font-size: 11px; }
+  .page .cardTopIdentity,
+  .page .cardStep { font-size: 10px; }
+  .page .modeText small { overflow: visible; font-size: 12px; line-height: 1.4; text-overflow: clip; white-space: normal; }
+  .page .modeButton { min-height: 72px; }
+  .page .dropzoneText span,
+  .page .attachmentRow > span,
+  .page .inputHints p,
+  .page .languageLabel,
+  .page .languageLabel select { font-size: 12px; }
+  .page .footer { font-size: 11px; }
+}
+
+@media (pointer: coarse) {
+  .page .voiceArea button { min-height: 44px !important; }
+  .page .uploadButton,
+  .page .attachmentButton,
+  .page .removeFile,
+  .page .scrollCue,
+  .page .pathTab,
+  .page .exampleCard button { min-height: 44px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

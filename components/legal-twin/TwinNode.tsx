@@ -15,6 +15,7 @@ export interface TwinNodeProps {
   highlighted?: boolean;
   dimmed?: boolean;
   confirmed?: boolean;
+  labelScale?: number;
   onHover?: (node: TwinNodeData | null) => void;
   onSelect?: (node: TwinNodeData) => void;
 }
@@ -33,12 +34,20 @@ export function TwinNode({
   highlighted = false,
   dimmed = false,
   confirmed = false,
+  labelScale = 1,
   onHover,
   onSelect,
 }: TwinNodeProps) {
   const color = nodeColor(node.category, node.status);
   const activate = () => onSelect?.(node);
-  const statusLabel = node.status?.replace('_', ' ') ?? 'unknown';
+  const statusLabel = {
+    supported: 'Evidence-supported',
+    user_reported: 'User-reported',
+    uncertain: 'Uncertain',
+    conflict: 'Conflicting',
+    unknown: 'Unknown',
+    safety: 'Safety context',
+  }[node.status ?? 'unknown'];
   const ariaLabel = `${node.category.replace('_', ' ')}: ${node.label}, ${statusLabel}${
     node.description ? `, ${node.description}` : ''
   }`;
@@ -68,6 +77,8 @@ export function TwinNode({
       }}
       onKeyDown={onSelect ? (event) => handleKeyDown(event, activate) : undefined}
     >
+      <g transform={`scale(${labelScale})`}>
+      {onSelect && <circle r={22} fill="transparent" pointerEvents="all" />}
       {onSelect && (
         <circle
           className="pointer-events-none opacity-0 group-focus-visible:opacity-100"
@@ -110,32 +121,33 @@ export function TwinNode({
         y={25}
         textAnchor="middle"
         fill={dimmed ? '#64748b' : '#e2e8f0'}
-        fontSize={12}
+        fontSize={14}
         fontWeight={selected ? 700 : 500}
         aria-hidden="true"
       >
-        {node.label.length > 22 ? `${node.label.slice(0, 20)}…` : node.label}
+        {node.label.length > 30 ? `${node.label.slice(0, 28)}…` : node.label}
       </text>
       <text
         y={39}
         textAnchor="middle"
         fill={color}
-        fontSize={8}
-        letterSpacing="0.08em"
+        fontSize={10}
+        letterSpacing="0.035em"
         aria-hidden="true"
       >
         {node.category.replace('_', ' ')}
       </text>
       <text
-        y={50}
+        y={52}
         textAnchor="middle"
         fill={color}
-        fontSize={7}
-        letterSpacing="0.03em"
+        fontSize={9}
+        letterSpacing="0.015em"
         aria-hidden="true"
       >
         {statusLabel}
       </text>
+      </g>
     </g>
   );
 }

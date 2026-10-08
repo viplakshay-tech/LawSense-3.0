@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import {
-  ArrowDownToLine,
   ArrowRight,
   BookOpenCheck,
   Check,
@@ -25,6 +24,7 @@ import type {
   JourneyStageName,
   JourneyStepSummary,
 } from '@/lib/api';
+import { buildCaseSurfaceHref } from '@/lib/case-context';
 
 const COMPLETE_STATUSES = new Set(['complete', 'completed', 'done', 'finished']);
 const ACTIVE_STATUSES = new Set(['active', 'current', 'in_progress', 'started']);
@@ -199,7 +199,7 @@ function StepActions({ caseState, step }: { caseState: CaseState; step: JourneyS
         <ActionLink href={officialResource.url} label="Open official resource" icon={ArrowRight} external />
       )}
       {(stage === 'NEXT_STEP' || (caseState.analysis?.journey.requiredDocuments.length ?? 0) > 0) && (
-        <Link href="#journey-draft" className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-[#a57845]/25 bg-[#a57845]/[0.07] px-3 py-2 text-xs font-semibold text-[#76552f] transition hover:bg-[#a57845]/[0.12] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#9a7448] motion-reduce:transition-none dark:border-[#e9bd7b]/20 dark:bg-[#e9bd7b]/[0.07] dark:text-[#f0d4a8] dark:hover:bg-[#e9bd7b]/[0.12]">
+        <Link href={`/case/${encodeURIComponent(caseState.id)}/draft`} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-[#a57845]/25 bg-[#a57845]/[0.07] px-3 py-2 text-xs font-semibold text-[#76552f] transition hover:bg-[#a57845]/[0.12] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#9a7448] motion-reduce:transition-none dark:border-[#e9bd7b]/20 dark:bg-[#e9bd7b]/[0.07] dark:text-[#f0d4a8] dark:hover:bg-[#e9bd7b]/[0.12]">
           Draft document <FileText aria-hidden="true" className="h-3.5 w-3.5" />
         </Link>
       )}
@@ -210,58 +210,23 @@ function StepActions({ caseState, step }: { caseState: CaseState; step: JourneyS
   );
 }
 
-function DraftComposer({ caseState }: { caseState: CaseState }) {
-  const [title, setTitle] = useState('My document draft');
-  const [body, setBody] = useState('');
-  const [downloaded, setDownloaded] = useState(false);
-  const reducedMotion = useReducedMotion();
-
-  function downloadDraft() {
-    if (!body.trim()) return;
-    const contents = `${title.trim() || 'My document draft'}\n\n${body.trim()}\n`;
-    const blob = new Blob([contents], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = `${(title.trim() || 'document-draft').replace(/[^a-z0-9-_]+/gi, '-').replace(/^-|-$/g, '').toLocaleLowerCase() || 'document-draft'}.txt`;
-    anchor.click();
-    URL.revokeObjectURL(url);
-    setDownloaded(true);
-  }
-
+function DraftEntry({ caseState }: { caseState: CaseState }) {
   return (
-    <section id="journey-draft" aria-labelledby="journey-draft-heading" className="scroll-mt-28 rounded-2xl border border-[#d8c4a6]/55 bg-[#fffdf9] p-5 dark:border-[#e9bd7b]/15 dark:bg-[#151a23]">
+    <section className="rounded-2xl border border-[#d8c4a6]/55 bg-[#fffdf9] p-5 dark:border-[#e9bd7b]/15 dark:bg-[#151a23]">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#96734c] dark:text-[#e9bd7b]">Work you control</p>
-          <h3 id="journey-draft-heading" className="mt-1 text-base font-semibold text-slate-900 dark:text-slate-100">Draft a document</h3>
+          <h3 className="mt-1 text-base font-semibold text-slate-900 dark:text-slate-100">Prepare a document draft</h3>
           <p className="mt-1 max-w-2xl text-xs leading-5 text-slate-600 dark:text-slate-400">
-            Write and download your own draft. Nothing is sent or saved to the case, and the Journey step stays at its CaseState status.
+            Choose a document type, review the case facts and their sources, edit the full draft, then confirm your review before export.
           </p>
         </div>
         <span className="rounded-full border border-slate-200 px-2.5 py-1 text-[10px] text-slate-500 dark:border-white/[0.08] dark:text-slate-400">Case {caseState.id.slice(0, 8)}</span>
       </div>
-      <div className="mt-4 grid gap-3">
-        <label className="grid gap-1.5 text-xs font-medium text-slate-700 dark:text-slate-300">
-          Draft title
-          <input value={title} onChange={(event) => { setTitle(event.target.value); setDownloaded(false); }} maxLength={160} className="min-h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-[#a57845] focus:ring-2 focus:ring-[#a57845]/15 dark:border-white/[0.1] dark:bg-[#0d121a] dark:text-slate-100" />
-        </label>
-        <label className="grid gap-1.5 text-xs font-medium text-slate-700 dark:text-slate-300">
-          Your draft text
-          <textarea value={body} onChange={(event) => { setBody(event.target.value); setDownloaded(false); }} rows={7} maxLength={50_000} placeholder="Write only the details you want included. Check names, dates, and any legal requirements before using a draft." className="resize-y rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm leading-6 text-slate-900 outline-none placeholder:text-slate-400 focus:border-[#a57845] focus:ring-2 focus:ring-[#a57845]/15 dark:border-white/[0.1] dark:bg-[#0d121a] dark:text-slate-100 dark:placeholder:text-slate-600" />
-        </label>
-        <div className="flex flex-wrap items-center gap-3">
-          <button type="button" onClick={downloadDraft} disabled={!body.trim()} className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-[#202a38] px-3.5 text-xs font-semibold text-white transition hover:bg-[#2b394c] disabled:cursor-not-allowed disabled:opacity-45 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#9a7448] dark:bg-[#e9bd7b] dark:text-[#251b0f] dark:hover:bg-[#f1cf9b]">
-            <ArrowDownToLine aria-hidden="true" className="h-3.5 w-3.5" /> Download draft
-          </button>
-          <AnimatePresence mode="wait" initial={false}>
-            {downloaded && (
-              <motion.p key="draft-downloaded" initial={reducedMotion ? false : { opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} role="status" aria-live="polite" className="inline-flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-300">
-                <Check aria-hidden="true" className="h-3.5 w-3.5" /> Draft downloaded · CaseState progress unchanged
-              </motion.p>
-            )}
-          </AnimatePresence>
-        </div>
+      <div className="mt-4">
+        <Link href={`/case/${encodeURIComponent(caseState.id)}/draft`} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[#202a38] px-4 text-xs font-semibold text-white transition hover:bg-[#2b394c] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#9a7448] motion-reduce:transition-none dark:bg-[#e9bd7b] dark:text-[#251b0f] dark:hover:bg-[#f1cf9b]">
+          Open document studio <FileText aria-hidden="true" className="h-3.5 w-3.5" />
+        </Link>
       </div>
     </section>
   );
@@ -399,18 +364,7 @@ export function JourneyPlan({ caseState, revision }: { caseState: CaseState; rev
               const blockers = blockedReasons(caseState, step, stepActions);
               const blocked = isBlocked(step.status);
               const complete = isComplete(step.status);
-              const documents = getStepDocuments(caseState, step);
-              const selectedLink = documents[0]
-                ? documentHref(caseState, documents[0].id)
-                : step.stage === 'LAW'
-                  ? `/case/${encodeURIComponent(caseState.id)}/guide#guide-legal-heading`
-                  : step.stage === 'EVIDENCE'
-                    ? documentHref(caseState)
-                    : step.stage === 'OPTIONS' || step.stage === 'NEXT_STEP'
-                      ? `/case/${encodeURIComponent(caseState.id)}/twin`
-                      : openUnknowns.length > 0
-                        ? caseHref(caseState, '#clarification')
-                        : caseHref(caseState, '#facts');
+              const selectedLink = `${buildCaseSurfaceHref(caseState.id, 'case', { context: 'journey', recordId: step.id })}#journey`;
               return (
                 <motion.li
                   key={step.id}
@@ -550,7 +504,7 @@ export function JourneyPlan({ caseState, revision }: { caseState: CaseState; rev
         )}
 
         {(steps.some((step) => step.stage === 'NEXT_STEP') || (journey?.requiredDocuments.length ?? 0) > 0) && (
-          <DraftComposer caseState={caseState} />
+          <DraftEntry caseState={caseState} />
         )}
       </div>
     </section>

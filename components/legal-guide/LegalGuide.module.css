@@ -1,18 +1,18 @@
 .root {
   --guide-accent: #95aaff;
-  --guide-surface: #111722;
-  --guide-ink: #f4f6fb;
-  --guide-muted: #9ba7ba;
+  --guide-surface: var(--ls-surface);
+  --guide-ink: var(--ls-ink);
+  --guide-muted: var(--ls-text-secondary);
   display: grid;
   gap: 1rem;
   width: 100%;
   padding: 1.15rem;
-  border: 1px solid rgb(255 255 255 / 9%);
-  border-radius: 1.25rem;
+  border: 1px solid var(--ls-border);
+  border-radius: var(--ls-radius-feature);
   background: var(--guide-surface);
   color: var(--guide-ink);
   font: inherit;
-  box-shadow: 0 16px 42px rgb(0 0 0 / 18%);
+  box-shadow: var(--ls-elevation-panel);
   transition: border-color 260ms ease, background-color 260ms ease, box-shadow 260ms ease;
 }
 
@@ -88,6 +88,7 @@
 }
 
 .indicator[data-state='listening'] .indicatorDot,
+.indicator[data-state='speaking'] .indicatorDot,
 .indicator[data-state='extracting'] .indicatorDot {
   animation: statusPulse 1.6s ease-out infinite;
 }
@@ -238,8 +239,8 @@
 
 .messageContent {
   color: inherit;
-  font-size: 0.9rem;
-  line-height: 1.6;
+  font-size: var(--ls-type-reading);
+  line-height: var(--ls-leading-reading);
   overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
