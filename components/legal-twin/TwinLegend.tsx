@@ -17,8 +17,10 @@ const CATEGORY_LABELS: Record<TwinNodeCategory, string> = {
 
 const STATUS_ITEMS = [
   { label: 'Supported', color: TWIN_COLORS.supported },
+  { label: 'User reported', color: TWIN_COLORS.userReported },
+  { label: 'Uncertain', color: TWIN_COLORS.uncertain },
+  { label: 'Conflicting', color: TWIN_COLORS.conflict },
   { label: 'Unknown', color: TWIN_COLORS.unknown },
-  { label: 'Conflict / safety', color: TWIN_COLORS.conflict },
 ] as const;
 
 export function TwinLegend({ className = '' }: { className?: string }) {

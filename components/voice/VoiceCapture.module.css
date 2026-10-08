@@ -1,0 +1,38 @@
+.recordingDot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 9999px;
+  background: #dc2626;
+  box-shadow: 0 0 0 0 rgb(220 38 38 / 35%);
+  animation: recording-pulse 1.25s ease-out infinite;
+}
+
+.waveBar {
+  width: 3px;
+  min-height: 3px;
+  flex: 1 1 0;
+  border-radius: 9999px;
+  background: #71717a;
+  transition: height 80ms linear;
+}
+
+.waveBarAnimated {
+  animation: listening-wave 780ms ease-in-out infinite alternate;
+}
+
+@keyframes recording-pulse {
+  70%, 100% { box-shadow: 0 0 0 8px rgb(220 38 38 / 0%); }
+}
+
+@keyframes listening-wave {
+  from { transform: scaleY(.28); opacity: .55; }
+  to { transform: scaleY(1); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recordingDot,
+  .waveBarAnimated {
+    animation: none;
+  }
+}

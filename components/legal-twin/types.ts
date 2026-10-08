@@ -13,7 +13,13 @@ export const TWIN_NODE_CATEGORIES = [
 
 export type TwinNodeCategory = (typeof TWIN_NODE_CATEGORIES)[number];
 export type TwinTemporalValue = string | number;
-export type TwinEvidenceStatus = 'supported' | 'unknown' | 'conflict' | 'safety';
+export type TwinEvidenceStatus =
+  | 'supported'
+  | 'user_reported'
+  | 'uncertain'
+  | 'unknown'
+  | 'conflict'
+  | 'safety';
 
 export interface TwinPosition {
   x: number;

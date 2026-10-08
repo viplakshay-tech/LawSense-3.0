@@ -4,7 +4,9 @@ export const TWIN_COLORS = {
   neutral: '#94a3b8',
   event: '#22d3ee',
   supported: '#34d399',
-  unknown: '#fbbf24',
+  userReported: '#60a5fa',
+  uncertain: '#fbbf24',
+  unknown: '#94a3b8',
   conflict: '#fb7185',
   procedure: '#818cf8',
   action: '#a3e635',
@@ -34,6 +36,10 @@ export function statusColor(status: TwinEvidenceStatus | undefined): string | un
   switch (status) {
     case 'supported':
       return TWIN_COLORS.supported;
+    case 'user_reported':
+      return TWIN_COLORS.userReported;
+    case 'uncertain':
+      return TWIN_COLORS.uncertain;
     case 'unknown':
       return TWIN_COLORS.unknown;
     case 'conflict':

@@ -1,23 +1,19 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import {
   type CaseFact,
   type CaseState,
   type EvidenceItem,
   type InformationStatus,
   type LegalKnowledgeRecordSummary,
-  type JourneyStageName,
 } from '@/lib/api';
 import { useCaseState } from './CaseStateProvider';
-import { JourneyIndicator, type JourneyStage } from '@/components/JourneyIndicator';
 import { EvidenceWorkspace } from '@/components/EvidenceWorkspace';
 import { LegalSourceCandidates } from '@/components/LegalSourceCandidates';
 import { TrustNotice } from '@/components/TrustNotice';
 import { ClarificationPanel } from '@/components/clarification/ClarificationPanel';
 import {
-  ArrowLeft,
   CalendarDays,
   CircleHelp,
   FileText,
@@ -25,7 +21,6 @@ import {
   Scale,
   ShieldAlert,
   Loader2,
-  Mic,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -62,78 +57,10 @@ function displayValue(value: unknown): string {
   }
 }
 
-function hasReviewedApplicableKnowledge(record: LegalKnowledgeRecordSummary): boolean {
-  return Boolean(
-    record.status === 'verified' &&
-      record.sourceVerificationStatus === 'verified' &&
-      record.sourceFreshnessStatus === 'current' &&
-      record.sourceApplicabilityStatus === 'applicable' &&
-      record.jurisdictionMatchStatus === 'matched' &&
-      (record.authority?.trim() ||
-        record.provenance.some(
-          (source) => source.provisionId || source.documentId || source.sourceUrl,
-        )),
-  );
-}
-
 function getRetrievedKnowledge(caseData: CaseState): LegalKnowledgeRecordSummary[] {
   const knowledge = caseData.analysis?.legalKnowledge;
   if (knowledge?.status !== 'records_found') return [];
   return knowledge.records;
-}
-
-function hasReviewedApplicableLegalKnowledge(caseData: CaseState): boolean {
-  return getRetrievedKnowledge(caseData).some(hasReviewedApplicableKnowledge);
-}
-
-function getActiveJourneyStage(
-  caseData: CaseState,
-  hasAuthoritativeKnowledge: boolean,
-): JourneyStage {
-  if (hasAuthoritativeKnowledge) return 'LAW';
-  if (caseData.evidence.length > 0) return 'EVIDENCE';
-  if (caseData.facts.length > 0) return 'FACTS';
-  return 'UNDERSTAND';
-}
-
-function getCompletedJourneyStages(
-  caseData: CaseState,
-  hasAuthoritativeKnowledge: boolean,
-): JourneyStage[] {
-  const completed: JourneyStage[] = [];
-  if (caseData.initialStatement?.trim()) completed.push('UNDERSTAND');
-  if (caseData.facts.length > 0) completed.push('FACTS');
-  if (caseData.evidence.length > 0) completed.push('EVIDENCE');
-  if (hasAuthoritativeKnowledge) completed.push('LAW');
-  return completed;
-}
-
-function getCanonicalJourneyProgress(caseData: CaseState, legalReviewPassed: boolean): {
-  activeStage: JourneyStage;
-  completedStages: JourneyStage[];
-} | null {
-  const steps = caseData.analysis?.journey?.steps ?? [];
-  const completedStatuses = new Set(['complete', 'completed', 'done', 'finished']);
-  const activeStatuses = new Set(['active', 'current', 'in_progress', 'started']);
-  const isComplete = (step: (typeof steps)[number]) =>
-    completedStatuses.has(step.status.toLowerCase()) &&
-    (step.stage !== 'LAW' || legalReviewPassed);
-  const completedSteps = steps.filter(isComplete);
-  const activeStep = steps.find((step) => activeStatuses.has(step.status.toLowerCase()));
-  if (!completedSteps.length && !activeStep) return null;
-
-  const completedStages = [...new Set(completedSteps.map((step) => step.stage as JourneyStageName))];
-  const nextStep = steps.find((step) => !isComplete(step));
-  const stageOrder: JourneyStageName[] = ['UNDERSTAND', 'FACTS', 'EVIDENCE', 'LAW', 'OPTIONS', 'NEXT_STEP'];
-  const proposedActiveStage = (activeStep?.stage ?? nextStep?.stage ?? 'NEXT_STEP') as JourneyStageName;
-  const activeStage = !legalReviewPassed &&
-      stageOrder.indexOf(proposedActiveStage) > stageOrder.indexOf('LAW')
-    ? 'LAW'
-    : proposedActiveStage;
-  return {
-    activeStage: activeStage as JourneyStage,
-    completedStages: completedStages as JourneyStage[],
-  };
 }
 
 function SourceReferences({
@@ -273,12 +200,6 @@ export default function CaseClient({ id }: { id: string }) {
 
   const evidenceById = new Map(caseData.evidence.map((evidence) => [evidence.id, evidence]));
   const retrievedKnowledge = getRetrievedKnowledge(caseData);
-  const legalReviewPassed = hasReviewedApplicableLegalKnowledge(caseData);
-  const canonicalJourneyProgress = getCanonicalJourneyProgress(caseData, legalReviewPassed);
-  const completedStages = canonicalJourneyProgress?.completedStages
-    ?? getCompletedJourneyStages(caseData, legalReviewPassed);
-  const activeStage = canonicalJourneyProgress?.activeStage
-    ?? getActiveJourneyStage(caseData, legalReviewPassed);
   const hasExtractedUnderstanding =
     caseData.facts.length > 0 || caseData.events.length > 0 || caseData.legalIssues.length > 0;
   const hasJurisdictionValues = Boolean(
@@ -297,27 +218,8 @@ export default function CaseClient({ id }: { id: string }) {
     Boolean(caseData.initialStatement?.trim()) && !hasInitialNarrativeEvidence;
   const safetyContext = caseData.analysis?.safetyContext;
   const journey = caseData.analysis?.journey;
-  const casePath = `/case/${encodeURIComponent(id)}`;
-
   return (
-    <div className="min-h-screen bg-[#fafafa] dark:bg-[#0a0a0a] text-zinc-900 dark:text-zinc-50 font-sans">
-      <header className="sticky top-0 z-50 bg-white/80 dark:bg-[#0a0a0a]/80 backdrop-blur-md border-b border-zinc-200 dark:border-zinc-800">
-        <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
-          <button
-            onClick={() => router.push('/')}
-            className="flex items-center gap-2 text-sm font-medium text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            New Situation
-          </button>
-          <div className="flex items-center gap-3 text-xs font-medium">
-            <span className="px-3 py-1 bg-zinc-100 dark:bg-zinc-900 rounded-full text-zinc-500 border border-zinc-200 dark:border-zinc-800">
-              ID: {caseData.id.slice(0, 8)}...
-            </span>
-          </div>
-        </div>
-      </header>
-
+    <div data-case-id={id} className="min-h-screen bg-[#fafafa] dark:bg-[#0a0a0a] text-zinc-900 dark:text-zinc-50 font-sans">
       <main className="max-w-5xl mx-auto px-6 py-12">
         {error && (
           <div role="alert" className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300/30 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/25 dark:text-amber-100">
@@ -330,61 +232,6 @@ export default function CaseClient({ id }: { id: string }) {
             Case information updated from the latest saved case state.
           </p>
         )}
-        <div className="mb-16">
-          <JourneyIndicator activeStage={activeStage} completedStages={completedStages} />
-        </div>
-
-        <nav
-          aria-label="Case destinations"
-          className="mb-10 flex items-center gap-1 overflow-x-auto border-y border-zinc-200 py-2 dark:border-zinc-800"
-        >
-          <span className="shrink-0 px-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
-            Explore
-          </span>
-          <Link
-            href={`${casePath}/guide`}
-            className="shrink-0 rounded-full px-3 py-2 text-xs font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-950 dark:text-zinc-300 dark:hover:bg-zinc-900 dark:hover:text-white"
-          >
-            Legal Guide
-          </Link>
-          <Link
-            href={`${casePath}/twin`}
-            className="shrink-0 rounded-full px-3 py-2 text-xs font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-950 dark:text-zinc-300 dark:hover:bg-zinc-900 dark:hover:text-white"
-          >
-            Legal Twin
-          </Link>
-          <Link
-            href={`${casePath}/documents`}
-            className="shrink-0 rounded-full px-3 py-2 text-xs font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-950 dark:text-zinc-300 dark:hover:bg-zinc-900 dark:hover:text-white"
-          >
-            Documents
-          </Link>
-          <Link
-            href={`${casePath}/voice`}
-            className="shrink-0 rounded-full px-3 py-2 text-xs font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-950 dark:text-zinc-300 dark:hover:bg-zinc-900 dark:hover:text-white"
-          >
-            <span className="inline-flex items-center gap-1.5"><Mic className="h-3.5 w-3.5" /> Add by voice</span>
-          </Link>
-          <Link
-            href={`${casePath}/safety`}
-            className="shrink-0 rounded-full px-3 py-2 text-xs font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-950 dark:text-zinc-300 dark:hover:bg-zinc-900 dark:hover:text-white"
-          >
-            Safety
-          </Link>
-          <Link
-            href="#journey"
-            className="shrink-0 rounded-full px-3 py-2 text-xs font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-950 dark:text-zinc-300 dark:hover:bg-zinc-900 dark:hover:text-white"
-          >
-            Journey
-          </Link>
-          <Link
-            href="#analysis"
-            className="shrink-0 rounded-full px-3 py-2 text-xs font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-950 dark:text-zinc-300 dark:hover:bg-zinc-900 dark:hover:text-white"
-          >
-            Analysis
-          </Link>
-        </nav>
-
         <div className="mb-8">
           <TrustNotice />
         </div>

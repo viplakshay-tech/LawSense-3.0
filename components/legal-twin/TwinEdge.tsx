@@ -1,4 +1,5 @@
 import type { KeyboardEvent, MouseEvent } from 'react';
+import { motion } from 'framer-motion';
 import { statusColor, TWIN_COLORS } from './semantics';
 import type { TwinEdgeData } from './types';
 import type { TwinProjectedPosition } from './TwinNode';
@@ -13,6 +14,7 @@ export interface TwinEdgeProps {
   selected?: boolean;
   highlighted?: boolean;
   dimmed?: boolean;
+  reducedMotion?: boolean;
   onSelect?: (edge: TwinEdgeData) => void;
 }
 
@@ -33,6 +35,7 @@ export function TwinEdge({
   selected = false,
   highlighted = false,
   dimmed = false,
+  reducedMotion = false,
   onSelect,
 }: TwinEdgeProps) {
   const dx = target.x - source.x;
@@ -87,16 +90,19 @@ export function TwinEdge({
           strokeDasharray="2 3"
         />
       )}
-      <line
+      <motion.line
         x1={startX}
         y1={startY}
         x2={endX}
         y2={endY}
         stroke={selected ? '#f8fafc' : color}
         strokeWidth={selected ? 2.6 : highlighted ? 2 : 1.4}
-        strokeDasharray={edge.status === 'unknown' ? '5 4' : undefined}
+        strokeDasharray={edge.status === 'unknown' ? '2 4' : edge.status === 'uncertain' ? '5 4' : edge.status === 'user_reported' ? '1 3' : undefined}
         markerEnd={edge.directed === false || !markerId ? undefined : `url(#${markerId})`}
         pointerEvents="none"
+        initial={reducedMotion ? false : { pathLength: 0 }}
+        animate={{ pathLength: 1 }}
+        transition={{ duration: reducedMotion ? 0 : 0.48, ease: 'easeOut' }}
       />
       {edge.label && (
         <text

@@ -1,5 +1,6 @@
 export { TwinCanvas, type TwinCanvasProps } from './TwinCanvas';
 export { TwinEdge, type TwinEdgeProps } from './TwinEdge';
+export { TwinGuideCompanion } from './TwinGuideCompanion';
 export { TwinInspector, type TwinInspectorProps } from './TwinInspector';
 export { TwinLegend } from './TwinLegend';
 export { TwinNode, type TwinNodeProps, type TwinProjectedPosition } from './TwinNode';

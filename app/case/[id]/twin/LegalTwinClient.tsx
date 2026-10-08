@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import {
   ArrowLeft,
@@ -36,8 +37,9 @@ import {
 } from '@/lib/api';
 import { LegalSourceCandidates } from '@/components/LegalSourceCandidates';
 import { TrustNotice } from '@/components/TrustNotice';
+import { TwinCanvas, TwinGuideCompanion, type TwinEdgeData, type TwinEvidenceStatus, type TwinNodeCategory, type TwinNodeData } from '@/components/legal-twin';
 import { useCaseState } from '../CaseStateProvider';
-import type { PointerEvent, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 
 type TwinKind =
   | 'person'
@@ -222,6 +224,54 @@ function depthForKind(kind: TwinKind): number {
   return -12;
 }
 
+const TWIN_CANVAS_CATEGORIES: Record<TwinKind, TwinNodeCategory> = {
+  person: 'PERSON',
+  party: 'PARTY',
+  event: 'EVENT',
+  fact: 'CLAIM',
+  claim: 'CLAIM',
+  evidence: 'EVIDENCE',
+  document: 'DOCUMENT',
+  issue: 'LEGAL_ISSUE',
+  procedure: 'PROCEDURE',
+  authority: 'AUTHORITY',
+  action: 'ACTION',
+};
+
+function visualEvidenceStatus(status: InformationStatus | undefined): TwinEvidenceStatus {
+  switch (status) {
+    case 'evidence_supported': return 'supported';
+    case 'user_reported': return 'user_reported';
+    case 'system_inferred':
+    case 'assumption': return 'uncertain';
+    case 'conflicting': return 'conflict';
+    case 'unknown':
+    default: return 'unknown';
+  }
+}
+
+function asTwinCanvasNode(node: TwinNode): TwinNodeData {
+  return {
+    id: node.id,
+    category: TWIN_CANVAS_CATEGORIES[node.kind],
+    label: node.title,
+    description: node.summary,
+    status: visualEvidenceStatus(node.status),
+    ...(node.date ? { occurredAt: node.date } : {}),
+  };
+}
+
+function asTwinCanvasEdge(edge: TwinEdge): TwinEdgeData {
+  return {
+    id: edge.id,
+    source: edge.source,
+    target: edge.target,
+    label: edge.relation,
+    status: visualEvidenceStatus(edge.status),
+    directed: true,
+  };
+}
+
 function timestamp(value: string | null | undefined): number | null {
   if (!value) return null;
   const parsed = Date.parse(value);
@@ -282,6 +332,14 @@ function getProjectionChanges(previous: TwinSnapshotSummary, next: TwinSnapshotS
   })));
 
   const changedRecordIds = new Set<string>();
+  const previousNodeStatuses = new Map(previous.nodes.map((node) => [node.id, node.status]));
+  const confirmedRecordIds = new Set<string>();
+  next.nodes.forEach((node) => {
+    const previousStatus = previousNodeStatuses.get(node.id);
+    if (previousStatus && previousStatus !== 'evidence_supported' && node.status === 'evidence_supported') {
+      confirmedRecordIds.add(`node:${node.id}`);
+    }
+  });
   let added = 0;
   let changed = 0;
   let removed = 0;
@@ -310,6 +368,7 @@ function getProjectionChanges(previous: TwinSnapshotSummary, next: TwinSnapshotS
 
   return {
     changedRecordIds,
+    confirmedRecordIds,
     added,
     changed,
     removed,
@@ -526,19 +585,9 @@ export default function LegalTwinClient({ id }: { id: string }) {
     revision,
     refreshCaseState,
   } = useCaseState();
-  const graphRef = useRef<HTMLDivElement>(null);
-  const graphLayerRef = useRef<HTMLDivElement>(null);
-  const lastAnimatedSnapshotRef = useRef<string | null>(null);
   const previousSnapshotRef = useRef<TwinSnapshotSummary | null>(null);
   const highlightTimerRef = useRef<number | null>(null);
   const snapshotRequestRef = useRef(0);
-  const graphDragRef = useRef<{
-    pointerId: number;
-    x: number;
-    y: number;
-    rotation: { x: number; y: number };
-  } | null>(null);
-  const graphRotationRef = useRef({ x: -5, y: 0 });
   const [legalTwin, setLegalTwin] = useState<LegalTwinSummary | null>(null);
   const [snapshot, setSnapshot] = useState<TwinSnapshotSummary | null>(null);
   const [snapshotError, setSnapshotError] = useState<string | null>(null);
@@ -548,12 +597,12 @@ export default function LegalTwinClient({ id }: { id: string }) {
   const [twinRevision, setTwinRevision] = useState(-1);
   const [selectedAsOf, setSelectedAsOf] = useState<string | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  const [changedRecordIds, setChangedRecordIds] = useState<Set<string>>(() => new Set());
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+  const [confirmedRecordIds, setConfirmedRecordIds] = useState<Set<string>>(() => new Set());
   const [changeSummary, setChangeSummary] = useState<string | null>(null);
   const [filter, setFilter] = useState<TwinKind | 'all'>('all');
+  const [showGuide, setShowGuide] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [graphWidth, setGraphWidth] = useState(0);
-  const [graphColumns, setGraphColumns] = useState(2);
   const selectedAsOfRef = useRef(selectedAsOf);
   const legalTwinRef = useRef(legalTwin);
   const initialRevisionForCaseRef = useRef<{ caseId: string; revision: number } | null>(null);
@@ -585,7 +634,7 @@ export default function LegalTwinClient({ id }: { id: string }) {
       const previous = previousSnapshotRef.current;
       if (previous?.caseId === nextSnapshot.caseId) {
         const changes = getProjectionChanges(previous, nextSnapshot);
-        setChangedRecordIds(changes.changedRecordIds);
+        setConfirmedRecordIds(changes.confirmedRecordIds);
         if (changes.added || changes.changed || changes.removed) {
           const parts = [
             changes.added ? `${changes.added} added` : '',
@@ -597,9 +646,11 @@ export default function LegalTwinClient({ id }: { id: string }) {
           setChangeSummary('Twin refreshed from the saved CaseState. The returned projection contains no graph record changes.');
         }
         if (highlightTimerRef.current !== null) window.clearTimeout(highlightTimerRef.current);
-        highlightTimerRef.current = window.setTimeout(() => setChangedRecordIds(new Set()), 2400);
+        highlightTimerRef.current = window.setTimeout(() => {
+          setConfirmedRecordIds(new Set());
+        }, 2400);
       } else {
-        setChangedRecordIds(new Set());
+        setConfirmedRecordIds(new Set());
         setChangeSummary(null);
       }
       initialRevisionForCaseRef.current = { caseId: nextSnapshot.caseId, revision: acceptedRevision };
@@ -644,21 +695,6 @@ export default function LegalTwinClient({ id }: { id: string }) {
       controller.abort();
     };
   }, [acceptProjection, hasCurrentCase, id, revision, twinRetryKey]);
-
-  useEffect(() => {
-    const element = graphRef.current;
-    if (!element) return;
-    const updateLayout = () => {
-      const width = element.getBoundingClientRect().width;
-      setGraphWidth((current) => current === width ? current : width);
-      const columns = width >= 1120 ? 4 : width >= 760 ? 3 : 2;
-      setGraphColumns((current) => current === columns ? current : columns);
-    };
-    const observer = new ResizeObserver(updateLayout);
-    observer.observe(element);
-    updateLayout();
-    return () => observer.disconnect();
-  }, []);
 
   const timelineEvents = useMemo(() => legalTwin?.timeline ?? [], [legalTwin?.timeline]);
   const datedEvents = useMemo(
@@ -741,16 +777,6 @@ export default function LegalTwinClient({ id }: { id: string }) {
   useEffect(() => () => {
     if (highlightTimerRef.current !== null) window.clearTimeout(highlightTimerRef.current);
   }, []);
-  useEffect(() => {
-    if (!snapshot || !snapshotMatchesDate) return;
-    const previousSnapshot = lastAnimatedSnapshotRef.current;
-    lastAnimatedSnapshotRef.current = snapshot.asOf;
-    if (previousSnapshot === snapshot.asOf || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    graphLayerRef.current?.animate([{ opacity: previousSnapshot ? 0.55 : 0.78 }, { opacity: 1 }], {
-      duration: previousSnapshot ? 260 : 320,
-      easing: 'ease-out',
-    });
-  }, [snapshot, snapshotMatchesDate]);
   const graph = useMemo(
     () => (snapshot ? makeGraph(snapshot, caseData, includeCurrentActions) : { nodes: [], edges: [] }),
     [caseData, includeCurrentActions, snapshot],
@@ -759,6 +785,7 @@ export default function LegalTwinClient({ id }: { id: string }) {
     if (pausePlayback) setIsPlaying(false);
     setSnapshotError(null);
     setSelectedAsOf(value);
+    setSelectedEdgeId(null);
     const eventNodeId = event?.relatedNodeIds.find((nodeId) => graph.nodes.some((node) => node.id === nodeId));
     if (eventNodeId) setSelectedNodeId(eventNodeId);
   }, [graph.nodes]);
@@ -796,16 +823,18 @@ export default function LegalTwinClient({ id }: { id: string }) {
     [baseNodeOrder, filter, graph.nodes],
   );
   const visibleNodeIds = useMemo(() => new Set(visibleNodes.map((node) => node.id)), [visibleNodes]);
-  const visibleEdges = useMemo(
-    () => graph.edges.filter((edge) => visibleNodeIds.has(edge.source) && visibleNodeIds.has(edge.target)),
-    [graph.edges, visibleNodeIds],
-  );
+  const twinCanvasNodes = useMemo(() => graph.nodes.map(asTwinCanvasNode), [graph.nodes]);
+  const twinCanvasEdges = useMemo(() => graph.edges.map(asTwinCanvasEdge), [graph.edges]);
   const selectedNode = useMemo(
     () => graph.nodes.find((node) => node.id === selectedNodeId)
       ?? graph.nodes.find((node) => node.id === activeEventNodeId)
       ?? graph.nodes[0]
       ?? null,
     [activeEventNodeId, graph.nodes, selectedNodeId],
+  );
+  const selectedTwinEdge = useMemo(
+    () => graph.edges.find((edge) => edge.id === selectedEdgeId) ?? null,
+    [graph.edges, selectedEdgeId],
   );
   const nodeById = useMemo(() => new Map(graph.nodes.map((node) => [node.id, node])), [graph.nodes]);
   const relatedEdges = useMemo(
@@ -814,29 +843,6 @@ export default function LegalTwinClient({ id }: { id: string }) {
       : [],
     [graph.edges, selectedNode],
   );
-  const actionNodes = useMemo(() => graph.nodes.filter((node) => node.kind === 'action'), [graph.nodes]);
-  const actionNodeIndexes = useMemo(
-    () => new Map(actionNodes.map((node, index) => [node.id, baseNodeOrder.size + index])),
-    [actionNodes, baseNodeOrder.size],
-  );
-  const visibleNodeIndexes = useMemo(() => new Map(visibleNodes.map((node) => [
-    node.id,
-    baseNodeOrder.get(node.id) ?? actionNodeIndexes.get(node.id) ?? baseNodeOrder.size,
-  ])), [actionNodeIndexes, baseNodeOrder, visibleNodes]);
-  const occupiedRows = useMemo(
-    () => [...visibleNodeIndexes.values()].map((index) => Math.floor(index / graphColumns) + 1),
-    [graphColumns, visibleNodeIndexes],
-  );
-  const graphRows = Math.max(
-    1,
-    filter === 'all'
-      ? Math.ceil((baseNodeOrder.size + actionNodes.length) / graphColumns)
-      : Math.max(...occupiedRows, 1),
-  );
-  const graphHeight = Math.max(236, graphRows * 126 + 4);
-  const graphViewWidth = graphWidth || 1000;
-  const gridGap = 14;
-  const gridColumnWidth = (graphViewWidth - gridGap * (graphColumns - 1)) / graphColumns;
   const hasLocation = Boolean(
     caseData?.jurisdiction.city || caseData?.jurisdiction.state || caseData?.jurisdiction.district || caseData?.jurisdiction.country,
   );
@@ -887,41 +893,6 @@ export default function LegalTwinClient({ id }: { id: string }) {
       </div>
     );
   }
-
-  const onGraphPointerDown = (event: PointerEvent<HTMLDivElement>) => {
-    if (!snapshotMatchesDate) return;
-    if ((event.target as HTMLElement).closest('button')) return;
-    graphDragRef.current = {
-      pointerId: event.pointerId,
-      x: event.clientX,
-      y: event.clientY,
-      rotation: graphRotationRef.current,
-    };
-    if (graphLayerRef.current) graphLayerRef.current.style.transition = 'none';
-    event.currentTarget.setPointerCapture(event.pointerId);
-  };
-
-  const onGraphPointerMove = (event: PointerEvent<HTMLDivElement>) => {
-    const drag = graphDragRef.current;
-    if (!drag || drag.pointerId !== event.pointerId) return;
-    const deltaX = event.clientX - drag.x;
-    const deltaY = event.clientY - drag.y;
-    const rotation = {
-      x: Math.max(-26, Math.min(26, drag.rotation.x - deltaY * 0.35)),
-      y: Math.max(-32, Math.min(32, drag.rotation.y + deltaX * 0.35)),
-    };
-    graphRotationRef.current = rotation;
-    graphDragRef.current = { ...drag, x: event.clientX, y: event.clientY, rotation };
-    if (graphLayerRef.current) {
-      graphLayerRef.current.style.transform = `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg)`;
-    }
-  };
-
-  const onGraphPointerEnd = (event: PointerEvent<HTMLDivElement>) => {
-    if (graphDragRef.current?.pointerId !== event.pointerId) return;
-    graphDragRef.current = null;
-    if (graphLayerRef.current) graphLayerRef.current.style.transition = '';
-  };
 
   const filteredEmptyMessage = filter === 'procedure'
     ? 'No procedure record is supported by the current CaseState and verified legal sources.'
@@ -1016,6 +987,226 @@ export default function LegalTwinClient({ id }: { id: string }) {
           </div>
         </div>
 
+        <section id="legal-twin-graph" className="scroll-mt-32 space-y-4 rounded-xl border border-white/[0.06] bg-[#161b2a] p-4 shadow-[0_10px_28px_rgba(0,0,0,0.18)] sm:p-5">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-cyan-300 shadow-[0_0_12px_rgba(103,232,249,0.75)]" />
+                <h2 className="font-serif text-2xl font-medium tracking-tight text-[#eff4ff]">Living Legal Twin</h2>
+              </div>
+              <p className="mt-1 max-w-2xl text-xs leading-5 text-[#aeb9d0]">
+                A state-driven view of recorded CaseState records. Move through the timeline to see which nodes and relationships were present at each point.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                aria-pressed={showGuide}
+                onClick={() => setShowGuide((visible) => !visible)}
+                className={`min-h-9 rounded-full border px-3 text-[10px] font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-200 ${showGuide ? 'border-cyan-200/30 bg-cyan-200/10 text-cyan-100' : 'border-white/10 bg-white/[0.03] text-[#c2ccdd] hover:bg-white/[0.07]'}`}
+              >
+                {showGuide ? 'Hide visual guide' : 'Show visual guide'}
+              </button>
+              <span className="flex items-center gap-1.5 rounded-full border border-cyan-200/10 bg-cyan-200/[0.045] px-3 py-1.5 font-mono text-[9px] uppercase tracking-wide text-cyan-100/80">
+                <Waypoints className="h-3.5 w-3.5" />
+                {graph.nodes.length} records · {graph.edges.length} explicit links
+              </span>
+            </div>
+          </div>
+
+          <div className={showGuide ? 'grid gap-3 xl:grid-cols-[minmax(0,1fr)_18rem]' : ''}>
+          <div
+            role="region"
+            aria-label="Living Legal Twin CaseState projection"
+            aria-busy={!snapshotMatchesDate}
+            className="relative overflow-hidden rounded-2xl border border-cyan-100/[0.08] bg-[#070b13] shadow-[0_22px_70px_rgba(0,0,0,0.32)]"
+          >
+            <div aria-hidden={!snapshotMatchesDate} inert={!snapshotMatchesDate}>
+              <TwinCanvas
+                nodes={twinCanvasNodes}
+                edges={twinCanvasEdges}
+                visibleNodeIds={visibleNodeIds}
+                highlightedRecordIds={confirmedRecordIds}
+                selectedNode={selectedNode?.id ?? null}
+                selectedEdge={selectedEdgeId}
+                currentTimeLabel={formatCaseDate(snapshotMatchesDate ? snapshot?.asOf ?? selectedAsOf : selectedAsOf)}
+                emptyMessage={filteredEmptyMessage}
+                onNodeSelect={(node) => {
+                  setSelectedNodeId(node?.id ?? null);
+                  setSelectedEdgeId(null);
+                }}
+                onEdgeSelect={(edge) => {
+                  setSelectedEdgeId(edge?.id ?? null);
+                  setSelectedNodeId(edge?.source ?? null);
+                }}
+                ariaLabel="Animated relationship graph of recorded CaseState nodes and explicit links"
+              />
+            </div>
+            {!snapshotMatchesDate && (
+              <div className="absolute inset-0 z-20 flex items-center justify-center bg-[#090e1c]/95 px-6 text-center backdrop-blur-sm" role="status" aria-live="polite">
+                <div className="flex max-w-md flex-col items-center gap-3">
+                  <LoaderCircle className="h-5 w-5 animate-spin text-[#ffc174]" />
+                  <p className="text-sm leading-6 text-[#ffddb8]">
+                    {snapshotError
+                      ? `Could not load the projection for ${formatCaseDate(selectedAsOf)}. The last loaded graph is hidden while the date is unresolved.`
+                      : currentTwinError
+                        ? `The Twin could not sync to this CaseState. Retry the Twin refresh to continue. ${currentTwinError}`
+                        : `Loading the CaseState projection for ${formatCaseDate(selectedAsOf)}…`}
+                  </p>
+                  {(snapshotError || currentTwinError) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSnapshotError(null);
+                        if (currentTwinError) retryTwinRefresh();
+                        else setSnapshotRetryKey((current) => current + 1);
+                      }}
+                      className="min-h-10 rounded-lg border border-[#ffc174]/30 bg-[#ffc174]/10 px-3 text-xs font-semibold text-[#ffddb8] transition hover:bg-[#ffc174]/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ffc174]"
+                      aria-label={`Retry CaseState projection for ${formatCaseDate(selectedAsOf)}`}
+                    >
+                      Try again
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+          {showGuide && <TwinGuideCompanion />}
+          </div>
+
+          {selectedTwinEdge && snapshotMatchesDate && (
+            <p role="status" aria-live="polite" className="rounded-lg border border-cyan-200/10 bg-cyan-200/[0.035] px-3 py-2 text-xs leading-5 text-[#d8e3fb]">
+              Relationship selected · {nodeById.get(selectedTwinEdge.source)?.title ?? 'Record'} {selectedTwinEdge.relation} {nodeById.get(selectedTwinEdge.target)?.title ?? 'record'} · {STATUS_LABELS[selectedTwinEdge.status]}
+            </p>
+          )}
+          <div className="flex items-center gap-2 overflow-x-auto pb-1">
+            <button
+              type="button"
+              aria-pressed={filter === 'all'}
+              disabled={!snapshotMatchesDate}
+              onClick={() => setFilter('all')}
+              className={`min-h-9 shrink-0 rounded-md px-3 font-mono text-[10px] transition disabled:cursor-wait disabled:opacity-45 ${filter === 'all' ? 'bg-[#f59e0b] text-[#2a1700] shadow-sm' : 'bg-[#252a39] text-[#bcc7de] hover:bg-[#303444]'}`}
+            >
+              All records ({graph.nodes.length})
+            </button>
+            {KIND_ORDER.map((kind) => {
+              const count = graph.nodes.filter((node) => node.kind === kind).length;
+              return (
+                <button
+                  key={kind}
+                  type="button"
+                  aria-pressed={filter === kind}
+                  disabled={!snapshotMatchesDate}
+                  onClick={() => setFilter(kind)}
+                  className={`min-h-9 shrink-0 rounded-md px-3 font-mono text-[10px] transition disabled:cursor-wait disabled:opacity-45 ${filter === kind ? 'bg-[#3e495d] text-[#ffddb8] ring-1 ring-[#ffc174]/35' : 'bg-[#252a39] text-[#bcc7de] hover:bg-[#303444]'}`}
+                >
+                  {KIND_LABELS[kind]} ({count})
+                </button>
+              );
+            })}
+          </div>
+
+          {selectedNode && snapshotMatchesDate && (
+            <motion.div
+              key={selectedNode.id}
+              initial={reducedMotion ? false : { opacity: 0, y: 7 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: reducedMotion ? 0 : 0.2 }}
+              className="rounded-lg border border-white/[0.04] bg-[#1a1f2e] p-4 shadow-sm sm:p-5"
+            >
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="flex min-w-0 items-start gap-3">
+                  <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${KIND_STYLES[selectedNode.kind].tint}`}>
+                    {(() => {
+                      const Icon = KIND_STYLES[selectedNode.kind].icon;
+                      return <Icon className="h-4 w-4" />;
+                    })()}
+                  </div>
+                  <div className="min-w-0">
+                    <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-[#f59e0b]">Selected record · {KIND_LABELS[selectedNode.kind]}</span>
+                    <h3 className="mt-0.5 truncate font-serif text-lg text-[#dee2f6]">{selectedNode.title}</h3>
+                    <p className="mt-0.5 text-xs text-[#aeb9d0]">{selectedNode.subtitle}</p>
+                  </div>
+                </div>
+                {selectedNode.status && (
+                  <span className={`rounded border px-2 py-1 text-[10px] ${STATUS_STYLES[selectedNode.status]}`}>
+                    {STATUS_LABELS[selectedNode.status]}
+                  </span>
+                )}
+              </div>
+              <p className="mt-4 text-sm leading-6 text-[#d8e3fb]">{selectedNode.summary}</p>
+              {(selectedNode.unresolved || selectedNode.temporallyUncertain) && (
+                <div className="mt-3 flex flex-wrap gap-2" aria-label="Record uncertainty">
+                  {selectedNode.unresolved && <span className="rounded border border-amber-300/35 bg-amber-950/40 px-2 py-1 text-[10px] text-amber-200">Unresolved in CaseState</span>}
+                  {selectedNode.temporallyUncertain && <span className="rounded border border-amber-300/35 bg-amber-950/40 px-2 py-1 text-[10px] text-amber-200">Timing not established</span>}
+                </div>
+              )}
+              {selectedNode.date !== undefined && (
+                <p className="mt-3 text-xs text-[#8e9ab1]">
+                  Date precision · {selectedNode.datePrecision ? humanize(selectedNode.datePrecision) : 'Unknown'}
+                </p>
+              )}
+              <div className="mt-4 border-t border-white/[0.06] pt-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-[#8e9ab1]">Recorded relationships</span>
+                  <span className="font-mono text-[10px] text-[#bcc7de]">{relatedEdges.length}</span>
+                </div>
+                {relatedEdges.length > 0 ? (
+                  <ul className="mt-2 flex flex-wrap gap-2">
+                    {relatedEdges.map((edge) => {
+                      const otherId = edge.source === selectedNode.id ? edge.target : edge.source;
+                      const other = nodeById.get(otherId);
+                      return (
+                        <li key={edge.id} title={edge.provenance.map((source) => source.sourcePath).join(' · ')} className="rounded-md border border-[#3e495d] bg-[#252a39] px-2.5 py-1.5 text-[10px] text-[#d8e3fb]">
+                          <span className="text-[#aeb9d0]">{edge.relation}</span>
+                          <span className="mx-1 text-[#8e9ab1]">·</span>
+                          {other?.title || 'Linked CaseState record'}
+                          <span className={`ml-2 rounded border px-1 py-0.5 text-[8px] ${STATUS_STYLES[edge.status]}`}>{STATUS_LABELS[edge.status]}</span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <p className="mt-2 text-xs text-[#8e9ab1]">No explicit relationship is recorded for this item.</p>
+                )}
+              </div>
+              <div className="mt-4 border-t border-white/[0.06] pt-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-[#8e9ab1]">Source provenance</span>
+                  <span className="font-mono text-[10px] text-[#bcc7de]">{selectedNode.provenance.length}</span>
+                </div>
+                {selectedNode.provenance.length > 0 ? (
+                  <ul className="mt-2 space-y-2">
+                    {selectedNode.provenance.map((source, index) => (
+                      <li key={`${source.sourceId}-${source.sourcePath}-${index}`} className="rounded-md border border-[#303444] bg-[#252a39]/70 px-2.5 py-2 text-[10px] leading-5">
+                        <span className="text-[#d8e3fb]">{humanize(source.sourceType)} · {humanize(source.status)}</span>
+                        <span className="block break-all text-[#aeb9d0]">{source.sourcePath} · {source.sourceId}</span>
+                        {source.details && <span className="mt-1 block whitespace-pre-wrap text-[#aeb9d0]">{source.details}</span>}
+                        {source.confirmedByUser && source.confirmedAt && (
+                          <span className="mt-1 block text-emerald-200/80">User confirmed · {new Date(source.confirmedAt).toLocaleString()}</span>
+                        )}
+                        {(source.pageNumber || source.extractionMethod || source.confidence !== null && source.confidence !== undefined) && (
+                          <span className="block text-[#8e9ab1]">
+                            {source.pageNumber ? `Page ${source.pageNumber} · ` : ''}
+                            {source.extractionMethod ? `${humanize(source.extractionMethod)} · ` : ''}
+                            {source.confidence !== null && source.confidence !== undefined ? `${Math.round(source.confidence * 100)}% confidence` : ''}
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-2 text-xs text-[#8e9ab1]">No provenance records were supplied for this node.</p>
+                )}
+              </div>
+            </motion.div>
+          )}
+
+          <p className="text-[11px] leading-5 text-[#8e9ab1]">
+            Use the keyboard accessible nodes and links to inspect provenance and explicit relationships. Rotate and zoom with the stage controls; depth does not imply legal importance. Timeline replay loads the saved CaseState projection for each selected time.
+          </p>
+        </section>
+
         <section className="space-y-4 rounded-xl border border-white/[0.06] bg-[#161b2a] p-4 shadow-[0_10px_28px_rgba(0,0,0,0.18)] sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
@@ -1023,7 +1214,7 @@ export default function LegalTwinClient({ id }: { id: string }) {
                 <CalendarClock className="h-[18px] w-[18px]" />
               </div>
               <div>
-                <h1 className="font-serif text-[19px] font-medium leading-6 text-[#dee2f6] sm:text-xl">Temporal State Scrubber</h1>
+                <h1 className="font-serif text-[19px] font-medium leading-6 text-[#dee2f6] sm:text-xl">Move through the case timeline</h1>
                 <p className="mt-0.5 text-[11px] text-[#aeb9d0]">Recorded CaseState events · {hasLocation ? locationLabel : 'Location not established'}</p>
               </div>
             </div>
@@ -1192,310 +1383,6 @@ export default function LegalTwinClient({ id }: { id: string }) {
           )}
         </section>
 
-        <section id="legal-twin-graph" className="scroll-mt-32 space-y-4 rounded-xl border border-white/[0.06] bg-[#161b2a] p-4 shadow-[0_10px_28px_rgba(0,0,0,0.18)] sm:p-5">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-[#c7c8ff]" />
-                <h2 className="font-serif text-xl font-medium text-[#dee2f6]">3D Relationship Graph</h2>
-              </div>
-              <p className="mt-1 text-[11px] text-[#aeb9d0]">
-                {snapshotMatchesDate
-                  ? `${graph.nodes.length} CaseState records · ${graph.edges.length} explicit links · As of ${formatCaseDate(snapshot?.asOf)}`
-                  : `Updating projection · last loaded state was as of ${formatCaseDate(snapshot?.asOf)}`}
-              </p>
-            </div>
-            <div className="flex items-center gap-1.5 rounded-md bg-[#1a1f2e] px-2.5 py-1.5 font-mono text-[9px] uppercase tracking-wide text-[#bcc7de]">
-              <Waypoints className="h-3.5 w-3.5 text-[#bcc7de]" />
-              Select a record to inspect
-            </div>
-          </div>
-
-          <div
-            ref={graphRef}
-            role="region"
-            aria-label="CaseState relationship graph"
-            aria-busy={!snapshotMatchesDate}
-            onPointerDown={onGraphPointerDown}
-            onPointerMove={onGraphPointerMove}
-            onPointerUp={onGraphPointerEnd}
-            onPointerCancel={onGraphPointerEnd}
-            className="relative cursor-grab overflow-hidden rounded-xl border border-white/[0.04] bg-[#090e1c] px-3 py-3 shadow-inner active:cursor-grabbing sm:px-4"
-            style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(188,199,222,0.11) 1px, transparent 0)', backgroundSize: '22px 22px', perspective: '1100px', transformStyle: 'preserve-3d', touchAction: 'pan-y' }}
-          >
-            {visibleNodes.length > 0 ? (
-              <div
-                ref={graphLayerRef}
-                aria-hidden={!snapshotMatchesDate}
-                className="relative transition-transform duration-300 ease-out motion-reduce:transition-none"
-                style={{
-                  height: `${graphHeight}px`,
-                  transformStyle: 'preserve-3d',
-                  transform: 'rotateX(-5deg) rotateY(0deg)',
-                }}
-              >
-                <svg
-                  aria-hidden="true"
-                  className="absolute inset-0 z-0 h-full w-full"
-                  viewBox={`0 0 ${graphViewWidth} ${graphHeight}`}
-                  preserveAspectRatio="none"
-                >
-                  {visibleEdges.map((edge) => {
-                    const sourceIndex = visibleNodeIndexes.get(edge.source);
-                    const targetIndex = visibleNodeIndexes.get(edge.target);
-                    if (sourceIndex === undefined || targetIndex === undefined) return null;
-                    const sourceColumn = sourceIndex % graphColumns;
-                    const sourceRow = Math.floor(sourceIndex / graphColumns);
-                    const targetColumn = targetIndex % graphColumns;
-                    const targetRow = Math.floor(targetIndex / graphColumns);
-                    const x1 = sourceColumn * (gridColumnWidth + gridGap) + gridColumnWidth / 2;
-                    const y1 = sourceRow * 126 + 52;
-                    const x2 = targetColumn * (gridColumnWidth + gridGap) + gridColumnWidth / 2;
-                    const y2 = targetRow * 126 + 52;
-                    const isChanged = changedRecordIds.has(`edge:${edge.id}`);
-                    const stroke = isChanged
-                      ? '#ffc174'
-                      : edge.status === 'conflicting' || edge.relation === 'conflicts with'
-                      ? '#fb7185'
-                      : edge.status === 'unknown' || edge.status === 'assumption'
-                        ? '#fbbf24'
-                        : edge.relation === 'supports'
-                        ? '#34d399'
-                        : edge.relation === 'involves'
-                          ? '#ffc174'
-                          : '#8291aa';
-                    return (
-                      <path
-                        key={edge.id}
-                        d={`M ${x1} ${y1} Q ${(x1 + x2) / 2} ${(y1 + y2) / 2 - 12} ${x2} ${y2}`}
-                        fill="none"
-                        stroke={stroke}
-                        strokeOpacity={isChanged ? '0.95' : edge.status === 'unknown' || edge.status === 'assumption' ? '0.72' : '0.56'}
-                        strokeWidth={isChanged ? '2.5' : edge.status === 'conflicting' ? '2' : '1.5'}
-                        strokeDasharray={edge.status === 'assumption' || edge.status === 'unknown' || edge.relation === 'source' || edge.relation === 'document reference' ? '4 4' : undefined}
-                      >
-                        <title>{`${edge.relation} · ${STATUS_LABELS[edge.status]} · ${edge.provenance.length} provenance record${edge.provenance.length === 1 ? '' : 's'}`}</title>
-                      </path>
-                    );
-                  })}
-                </svg>
-
-                <div
-                  role="group"
-                  aria-label="Keyboard accessible CaseState records; WebGL is not required"
-                  className="relative z-10 grid"
-                  style={{ gridTemplateColumns: `repeat(${graphColumns}, minmax(0, 1fr))`, columnGap: `${gridGap}px`, rowGap: '22px' }}
-                >
-                  {visibleNodes.map((node, index) => {
-                    const kindStyle = KIND_STYLES[node.kind];
-                    const Icon = kindStyle.icon;
-                    const slotIndex = visibleNodeIndexes.get(node.id) ?? index;
-                    const isActiveEvent = node.kind === 'event' && Boolean(activeEvent?.relatedNodeIds.includes(node.id));
-                    const isSelected = node.id === selectedNode?.id;
-                    return (
-                      <button
-                        type="button"
-                        key={node.id}
-                        onClick={() => setSelectedNodeId(node.id)}
-                        disabled={!snapshotMatchesDate}
-                        aria-pressed={isSelected}
-                        aria-label={`${KIND_LABELS[node.kind]}: ${node.title}${node.status ? ` · ${STATUS_LABELS[node.status]}` : ''}${node.unresolved ? ' · unresolved' : ''}${node.temporallyUncertain ? ' · timing uncertain' : ''}`}
-                        style={{
-                          gridColumn: (slotIndex % graphColumns) + 1,
-                          gridRow: Math.floor(slotIndex / graphColumns) + 1,
-                          transform: `translateZ(${node.depth}px)`,
-                          transformStyle: 'preserve-3d',
-                        }}
-                        className={`group flex h-[104px] min-w-0 flex-col justify-between rounded-lg border bg-[#1a1f2e]/95 p-2.5 text-left shadow-[0_8px_18px_rgba(0,0,0,0.22)] transition-[border-color,background-color,box-shadow,transform] duration-300 ease-out motion-reduce:transition-none hover:-translate-y-0.5 hover:bg-[#252a39] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#ffc174] ${isSelected ? 'border-[#ffc174]/75 ring-1 ring-[#ffc174]/25' : kindStyle.border} ${isActiveEvent ? 'ring-1 ring-sky-300/50' : ''} ${node.status === 'conflicting' ? 'border-rose-400/70' : ''} ${node.status === 'unknown' || node.status === 'assumption' ? 'border-amber-300/55 border-dashed' : ''} ${changedRecordIds.has(`node:${node.id}`) ? 'ring-2 ring-[#ffc174]/65' : ''}`}
-                      >
-                        <div className="flex min-w-0 items-center justify-between gap-1.5">
-                          <span className={`inline-flex min-w-0 items-center gap-1 rounded px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-[0.08em] ${kindStyle.tint}`}>
-                            <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${kindStyle.dot}`} />
-                            <span className="truncate">{KIND_LABELS[node.kind]}</span>
-                          </span>
-                          <span className="flex min-w-0 items-center justify-end gap-1">
-                            {node.temporallyUncertain && (
-                              <span className="max-w-[44%] truncate rounded border border-amber-300/35 bg-amber-950/50 px-1 py-0.5 text-[7px] text-amber-200" title="This record has uncertain timing in the CaseState snapshot">Time ?</span>
-                            )}
-                            {node.status ? (
-                              <span className={`max-w-[48%] truncate rounded border px-1.5 py-0.5 text-[8px] ${STATUS_STYLES[node.status]}`}>
-                                {STATUS_LABELS[node.status]}
-                              </span>
-                            ) : node.confidence ? (
-                              <span className="max-w-[45%] truncate font-mono text-[8px] uppercase text-[#8e9ab1]">{humanize(node.confidence)}</span>
-                            ) : null}
-                          </span>
-                        </div>
-                        <div className="flex min-w-0 items-center gap-2">
-                          <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${kindStyle.tint}`}>
-                            <Icon className="h-3.5 w-3.5" />
-                          </span>
-                          <span className="min-w-0">
-                            <span className="block truncate text-xs font-semibold text-[#dee2f6]">{node.title}</span>
-                            <span className="mt-0.5 block truncate text-[9px] text-[#aeb9d0]">{node.subtitle || KIND_LABELS[node.kind]}</span>
-                          </span>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : (
-              <div className="min-h-[180px] content-center">
-                <EmptyMessage>{filteredEmptyMessage}</EmptyMessage>
-              </div>
-            )}
-            {!snapshotMatchesDate && (
-              <div className="absolute inset-0 z-20 flex items-center justify-center bg-[#090e1c] px-6 text-center" role="status" aria-live="polite">
-                <div className="flex max-w-md flex-col items-center gap-3">
-                  <p className="text-sm leading-6 text-[#ffddb8]">
-                    {snapshotError
-                      ? `Could not load the projection for ${formatCaseDate(selectedAsOf)}. The last loaded graph is hidden while the date is unresolved.`
-                      : currentTwinError
-                        ? `The Twin could not sync to this CaseState. Retry the Twin refresh to continue. ${currentTwinError}`
-                        : `Loading the CaseState projection for ${formatCaseDate(selectedAsOf)}…`}
-                  </p>
-                  {(snapshotError || currentTwinError) && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSnapshotError(null);
-                        if (currentTwinError) retryTwinRefresh();
-                        else setSnapshotRetryKey((current) => current + 1);
-                      }}
-                      className="min-h-10 rounded-lg border border-[#ffc174]/30 bg-[#ffc174]/10 px-3 text-xs font-semibold text-[#ffddb8] transition hover:bg-[#ffc174]/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ffc174]"
-                      aria-label={`Retry CaseState projection for ${formatCaseDate(selectedAsOf)}`}
-                    >
-                      Try again
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2 overflow-x-auto pb-1">
-            <button
-              type="button"
-              aria-pressed={filter === 'all'}
-              disabled={!snapshotMatchesDate}
-              onClick={() => setFilter('all')}
-              className={`min-h-9 shrink-0 rounded-md px-3 font-mono text-[10px] transition disabled:cursor-wait disabled:opacity-45 ${filter === 'all' ? 'bg-[#f59e0b] text-[#2a1700] shadow-sm' : 'bg-[#252a39] text-[#bcc7de] hover:bg-[#303444]'}`}
-            >
-              All records ({graph.nodes.length})
-            </button>
-            {KIND_ORDER.map((kind) => {
-              const count = graph.nodes.filter((node) => node.kind === kind).length;
-              return (
-                <button
-                  key={kind}
-                  type="button"
-                  aria-pressed={filter === kind}
-                  disabled={!snapshotMatchesDate}
-                  onClick={() => setFilter(kind)}
-                  className={`min-h-9 shrink-0 rounded-md px-3 font-mono text-[10px] transition disabled:cursor-wait disabled:opacity-45 ${filter === kind ? 'bg-[#3e495d] text-[#ffddb8] ring-1 ring-[#ffc174]/35' : 'bg-[#252a39] text-[#bcc7de] hover:bg-[#303444]'}`}
-                >
-                  {KIND_LABELS[kind]} ({count})
-                </button>
-              );
-            })}
-          </div>
-
-          {selectedNode && snapshotMatchesDate && (
-            <div className="rounded-lg border border-white/[0.04] bg-[#1a1f2e] p-4 shadow-sm sm:p-5">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="flex min-w-0 items-start gap-3">
-                  <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${KIND_STYLES[selectedNode.kind].tint}`}>
-                    {(() => {
-                      const Icon = KIND_STYLES[selectedNode.kind].icon;
-                      return <Icon className="h-4 w-4" />;
-                    })()}
-                  </div>
-                  <div className="min-w-0">
-                    <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-[#f59e0b]">Selected record · {KIND_LABELS[selectedNode.kind]}</span>
-                    <h3 className="mt-0.5 truncate font-serif text-lg text-[#dee2f6]">{selectedNode.title}</h3>
-                    <p className="mt-0.5 text-xs text-[#aeb9d0]">{selectedNode.subtitle}</p>
-                  </div>
-                </div>
-                {selectedNode.status && (
-                  <span className={`rounded border px-2 py-1 text-[10px] ${STATUS_STYLES[selectedNode.status]}`}>
-                    {STATUS_LABELS[selectedNode.status]}
-                  </span>
-                )}
-              </div>
-              <p className="mt-4 text-sm leading-6 text-[#d8e3fb]">{selectedNode.summary}</p>
-              {(selectedNode.unresolved || selectedNode.temporallyUncertain) && (
-                <div className="mt-3 flex flex-wrap gap-2" aria-label="Record uncertainty">
-                  {selectedNode.unresolved && <span className="rounded border border-amber-300/35 bg-amber-950/40 px-2 py-1 text-[10px] text-amber-200">Unresolved in CaseState</span>}
-                  {selectedNode.temporallyUncertain && <span className="rounded border border-amber-300/35 bg-amber-950/40 px-2 py-1 text-[10px] text-amber-200">Timing not established</span>}
-                </div>
-              )}
-              {selectedNode.date !== undefined && (
-                <p className="mt-3 text-xs text-[#8e9ab1]">
-                  Date precision · {selectedNode.datePrecision ? humanize(selectedNode.datePrecision) : 'Unknown'}
-                </p>
-              )}
-              <div className="mt-4 border-t border-white/[0.06] pt-3">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-[#8e9ab1]">Recorded relationships</span>
-                  <span className="font-mono text-[10px] text-[#bcc7de]">{relatedEdges.length}</span>
-                </div>
-                {relatedEdges.length > 0 ? (
-                  <ul className="mt-2 flex flex-wrap gap-2">
-                    {relatedEdges.map((edge) => {
-                      const otherId = edge.source === selectedNode.id ? edge.target : edge.source;
-                      const other = nodeById.get(otherId);
-                      return (
-                        <li key={edge.id} title={edge.provenance.map((source) => source.sourcePath).join(' · ')} className="rounded-md border border-[#3e495d] bg-[#252a39] px-2.5 py-1.5 text-[10px] text-[#d8e3fb]">
-                          <span className="text-[#aeb9d0]">{edge.relation}</span>
-                          <span className="mx-1 text-[#8e9ab1]">·</span>
-                          {other?.title || 'Linked CaseState record'}
-                          <span className={`ml-2 rounded border px-1 py-0.5 text-[8px] ${STATUS_STYLES[edge.status]}`}>{STATUS_LABELS[edge.status]}</span>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                ) : (
-                  <p className="mt-2 text-xs text-[#8e9ab1]">No explicit relationship is recorded for this item.</p>
-                )}
-              </div>
-              <div className="mt-4 border-t border-white/[0.06] pt-3">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-[#8e9ab1]">Source provenance</span>
-                  <span className="font-mono text-[10px] text-[#bcc7de]">{selectedNode.provenance.length}</span>
-                </div>
-                {selectedNode.provenance.length > 0 ? (
-                  <ul className="mt-2 space-y-2">
-                    {selectedNode.provenance.map((source, index) => (
-                      <li key={`${source.sourceId}-${source.sourcePath}-${index}`} className="rounded-md border border-[#303444] bg-[#252a39]/70 px-2.5 py-2 text-[10px] leading-5">
-                        <span className="text-[#d8e3fb]">{humanize(source.sourceType)} · {humanize(source.status)}</span>
-                        <span className="block break-all text-[#aeb9d0]">{source.sourcePath} · {source.sourceId}</span>
-                        {source.details && <span className="mt-1 block whitespace-pre-wrap text-[#aeb9d0]">{source.details}</span>}
-                        {source.confirmedByUser && source.confirmedAt && (
-                          <span className="mt-1 block text-emerald-200/80">User confirmed · {new Date(source.confirmedAt).toLocaleString()}</span>
-                        )}
-                        {(source.pageNumber || source.extractionMethod || source.confidence !== null && source.confidence !== undefined) && (
-                          <span className="block text-[#8e9ab1]">
-                            {source.pageNumber ? `Page ${source.pageNumber} · ` : ''}
-                            {source.extractionMethod ? `${humanize(source.extractionMethod)} · ` : ''}
-                            {source.confidence !== null && source.confidence !== undefined ? `${Math.round(source.confidence * 100)}% confidence` : ''}
-                          </span>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="mt-2 text-xs text-[#8e9ab1]">No provenance records were supplied for this node.</p>
-                )}
-              </div>
-            </div>
-          )}
-
-          <p className="text-[11px] leading-5 text-[#8e9ab1]">
-            Use the keyboard accessible record buttons to inspect provenance and explicit links. This DOM and SVG graph works without WebGL. Drag an empty area to adjust the 3D viewpoint; depth does not imply legal importance. The date scrubber loads the CaseState projection for the selected time.
-          </p>
-        </section>
-
         {isCurrentCaseProjection ? (
         <>
         <section className="rounded-xl border border-white/[0.06] bg-[#161b2a] p-4 shadow-[0_10px_28px_rgba(0,0,0,0.18)] sm:p-5">
@@ -1658,11 +1545,20 @@ export default function LegalTwinClient({ id }: { id: string }) {
           <section className="space-y-3 rounded-xl border border-[#8c9eff]/15 bg-[#161b2a] p-4 shadow-[0_10px_28px_rgba(0,0,0,0.14)] sm:p-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <p className="font-mono text-[9px] uppercase tracking-[0.12em] text-[#b7c2ff]">Journey · same CaseState analysis</p>
+                  <p className="font-mono text-[9px] uppercase tracking-[0.12em] text-[#b7c2ff]">Journey · latest CaseState analysis</p>
                 <h2 className="mt-1 font-serif text-lg text-[#dee2f6]">How the case is progressing</h2>
-                <p className="mt-1 max-w-3xl text-xs leading-5 text-[#aeb9d0]">
-                  {caseData.analysis.journey.currentSituation || 'Journey steps and status returned for this case.'}
-                </p>
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.p
+                    key={caseData.analysis.journey.currentSituation || 'journey-summary'}
+                    initial={reducedMotion ? false : { opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: reducedMotion ? 0 : -4 }}
+                    transition={{ duration: reducedMotion ? 0 : 0.22 }}
+                    className="mt-1 max-w-3xl text-xs leading-5 text-[#aeb9d0]"
+                  >
+                    {caseData.analysis.journey.currentSituation || 'Journey steps and status returned for this case.'}
+                  </motion.p>
+                </AnimatePresence>
               </div>
               <button
                 type="button"
@@ -1674,16 +1570,37 @@ export default function LegalTwinClient({ id }: { id: string }) {
             </div>
             {caseData.analysis.journey.steps.length > 0 ? (
               <ol className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                <AnimatePresence initial={false}>
                 {caseData.analysis.journey.steps.slice(0, 6).map((step, index) => (
-                  <li key={step.id} className="rounded-lg border border-white/[0.06] bg-[#1a1f2e] px-3 py-3">
+                  <motion.li
+                    key={step.id}
+                    layout={!reducedMotion}
+                    initial={reducedMotion ? false : { opacity: 0, y: 7 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -5 }}
+                    transition={{ duration: reducedMotion ? 0 : 0.24 }}
+                    className="rounded-lg border border-white/[0.06] bg-[#1a1f2e] px-3 py-3"
+                  >
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-[#8e9ab1]">{index + 1} · {humanize(step.stage)}</span>
-                      <span className="rounded border border-[#8c9eff]/20 bg-[#8c9eff]/[0.05] px-1.5 py-0.5 text-[8px] uppercase text-[#c7cfff]">{humanize(step.status)}</span>
+                      <AnimatePresence mode="wait" initial={false}>
+                        <motion.span
+                          key={step.status}
+                          initial={reducedMotion ? false : { opacity: 0, y: 4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -4 }}
+                          transition={{ duration: reducedMotion ? 0 : 0.16 }}
+                          className="rounded border border-[#8c9eff]/20 bg-[#8c9eff]/[0.05] px-1.5 py-0.5 text-[8px] uppercase text-[#c7cfff]"
+                        >
+                          {humanize(step.status)}
+                        </motion.span>
+                      </AnimatePresence>
                     </div>
                     <h3 className="mt-2 text-xs font-semibold text-[#dee2f6]">{step.title}</h3>
                     <p className="mt-1 text-[10px] leading-5 text-[#aeb9d0]">{step.description}</p>
-                  </li>
+                  </motion.li>
                 ))}
+                </AnimatePresence>
               </ol>
             ) : (
               <p className="rounded-lg border border-dashed border-white/[0.08] px-3 py-3 text-xs text-[#8e9ab1]">No journey steps were returned for this CaseState.</p>

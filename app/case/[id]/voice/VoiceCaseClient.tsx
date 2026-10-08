@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, CheckCircle2, Loader2, Mic, ShieldAlert } from 'lucide-react';
 import VoiceCapture, { type RecognitionLanguage } from '@/components/voice/VoiceCapture';
+import VoiceOutput from '@/components/voice/VoiceOutput';
 import {
   addVoiceStatement,
   previewVoiceTranscript,
@@ -29,6 +30,7 @@ export default function VoiceCaseClient({ id }: { id: string }) {
   const [language, setLanguage] = useState<RecognitionLanguage>('Hinglish');
   const [preview, setPreview] = useState<VoiceTranscriptResponse | null>(null);
   const [working, setWorking] = useState(false);
+  const [captureBusy, setCaptureBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const previewIsCurrent = preview?.transcript === transcript;
@@ -37,6 +39,10 @@ export default function VoiceCaseClient({ id }: { id: string }) {
     [preview, previewIsCurrent],
   );
   const questions = previewIsCurrent ? preview?.caseState?.unknowns ?? [] : [];
+
+  const spokenResponse = previewIsCurrent && preview?.status === 'success' && preview.caseState
+    ? `I reviewed the transcript and prepared a draft with ${extractedFacts.length} extracted ${extractedFacts.length === 1 ? 'detail' : 'details'} and ${questions.length} ${questions.length === 1 ? 'question' : 'questions'}. Nothing is saved to your case yet. Please review and edit the transcript, check the draft details, and select Add reviewed statement to case when you are ready to confirm.`
+    : null;
 
   const updateTranscript = (value: string) => {
     setTranscript(value);
@@ -66,7 +72,7 @@ export default function VoiceCaseClient({ id }: { id: string }) {
   };
 
   const commitTranscript = async () => {
-    if (!previewIsCurrent || preview?.status !== 'success') return;
+    if (!transcript.trim() || !previewIsCurrent || preview?.status !== 'success' || !preview.caseState || working) return;
     setWorking(true);
     setError(null);
     try {
@@ -135,7 +141,7 @@ export default function VoiceCaseClient({ id }: { id: string }) {
               <select
                 value={language}
                 onChange={(event) => setLanguage(event.target.value as RecognitionLanguage)}
-                disabled={working}
+                disabled={working || captureBusy}
                 className="h-10 rounded-xl border border-zinc-200 bg-white px-3 dark:border-zinc-700 dark:bg-zinc-900"
               >
                 {LANGUAGES.map((option) => <option key={option}>{option}</option>)}
@@ -144,6 +150,7 @@ export default function VoiceCaseClient({ id }: { id: string }) {
             <VoiceCapture
               language={language}
               disabled={working}
+              onCaptureStateChange={setCaptureBusy}
               onTranscript={(spoken) => {
                 setTranscript((current) => [current.trim(), spoken.trim()].filter(Boolean).join(' '));
                 setInputMethod('voice');
@@ -226,6 +233,8 @@ export default function VoiceCaseClient({ id }: { id: string }) {
               )}
             </section>
           )}
+
+          {spokenResponse && <VoiceOutput text={spokenResponse} language="english" />}
         </section>
       </div>
     </main>

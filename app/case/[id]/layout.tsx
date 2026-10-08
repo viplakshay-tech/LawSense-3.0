@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { CaseStateProvider } from './CaseStateProvider';
+import { CaseShell } from '@/components/case-shell/CaseShell';
 
 export default async function CaseLayout({
   children,
@@ -9,5 +10,9 @@ export default async function CaseLayout({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  return <CaseStateProvider key={id} caseId={id}>{children}</CaseStateProvider>;
+  return (
+    <CaseStateProvider key={id} caseId={id}>
+      <CaseShell caseId={id}>{children}</CaseShell>
+    </CaseStateProvider>
+  );
 }

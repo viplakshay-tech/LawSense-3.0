@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { isActiveAt, parseTwinTime } from './semantics';
+import { AnimatePresence, motion } from 'framer-motion';
+import { isActiveAt, nodeColor, parseTwinTime } from './semantics';
 import { TwinEdge } from './TwinEdge';
 import { TwinNode, type TwinProjectedPosition } from './TwinNode';
 import type {
@@ -24,6 +25,10 @@ export interface TwinCanvasProps {
   snapshots?: readonly TwinSnapshotData[];
   selectedNode?: string | null;
   selectedEdge?: string | null;
+  visibleNodeIds?: ReadonlySet<string>;
+  highlightedRecordIds?: ReadonlySet<string>;
+  currentTimeLabel?: string;
+  emptyMessage?: string;
   onNodeSelect?: (node: TwinNodeData | null) => void;
   onEdgeSelect?: (edge: TwinEdgeData | null) => void;
   onCurrentTimeChange?: (currentTime: TwinTemporalValue | null) => void;
@@ -232,6 +237,7 @@ function projectLayout(
   layout: Map<string, TwinPosition>,
   yaw: number,
   zoom: number,
+  focusId?: string | null,
 ): Map<string, TwinProjectedPosition> {
   const pitch = 0.72;
   const projected = new Map<string, TwinProjectedPosition>();
@@ -275,8 +281,11 @@ function projectLayout(
   const scale =
     Math.min(760 / spanX, 405 / spanY, 1.4) * zoom;
 
-  const centerX = (minX + maxX) / 2;
-  const centerY = (minY + maxY) / 2;
+  const averageX = (minX + maxX) / 2;
+  const averageY = (minY + maxY) / 2;
+  const focus = raw.find((point) => point.id === focusId);
+  const centerX = focus ? lerp(averageX, focus.x, 0.38) : averageX;
+  const centerY = focus ? lerp(averageY, focus.y, 0.38) : averageY;
 
   for (const point of raw) {
     projected.set(point.id, {
@@ -343,6 +352,10 @@ export function TwinCanvas({
   snapshots = [],
   selectedNode = null,
   selectedEdge = null,
+  visibleNodeIds: requestedVisibleNodeIds,
+  highlightedRecordIds = new Set<string>(),
+  currentTimeLabel,
+  emptyMessage,
   onNodeSelect,
   onEdgeSelect,
   onCurrentTimeChange,
@@ -360,6 +373,7 @@ export function TwinCanvas({
   const [zoom, setZoom] = useState(1);
   const [prefersReducedMotion, setPrefersReducedMotion] =
     useState(false);
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
 
   const animationFrameRef =
     useRef<number | null>(null);
@@ -405,7 +419,7 @@ export function TwinCanvas({
 
   const visibleNodes = useMemo(
     () =>
-      snapshotAtTime
+      (snapshotAtTime
         ? graph.nodes
         : graph.nodes.filter((node) =>
             isActiveAt(
@@ -413,10 +427,11 @@ export function TwinCanvas({
               node.validTo,
               currentTime,
             ),
-          ),
+          )).filter((node) => !requestedVisibleNodeIds || requestedVisibleNodeIds.has(node.id)),
     [
       currentTime,
       graph.nodes,
+      requestedVisibleNodeIds,
       snapshotAtTime,
     ],
   );
@@ -473,8 +488,9 @@ export function TwinCanvas({
         layout,
         yaw,
         zoom,
+        selectedNode,
       ),
-    [layout, yaw, zoom],
+    [layout, selectedNode, yaw, zoom],
   );
 
   useEffect(() => {
@@ -624,6 +640,10 @@ export function TwinCanvas({
 
           if (status === 'supported') {
             counts.supported += 1;
+          } else if (status === 'user_reported') {
+            counts.userReported += 1;
+          } else if (status === 'uncertain') {
+            counts.uncertain += 1;
           } else if (
             status === 'conflict'
           ) {
@@ -640,6 +660,8 @@ export function TwinCanvas({
         },
         {
           supported: 0,
+          userReported: 0,
+          uncertain: 0,
           conflict: 0,
           safety: 0,
           unknown: 0,
@@ -647,6 +669,7 @@ export function TwinCanvas({
       ),
     [visibleNodes],
   );
+  const hoveredNode = visibleNodes.find((node) => node.id === hoveredNodeId);
 
   function clearSelection() {
     onNodeSelect?.(null);
@@ -658,49 +681,29 @@ export function TwinCanvas({
       className={`relative overflow-hidden rounded-2xl border border-white/[0.08] bg-[#070b13] ${className}`}
     >
       <style>{`
-        @keyframes lawsense-twin-node-enter {
-          0% {
-            opacity: 0;
-            transform: scale(0.84);
-          }
-          55% {
-            opacity: 1;
-            transform: scale(1.035);
-          }
-          100% {
-            opacity: 1;
-            transform: scale(1);
-          }
-        }
-
-        @keyframes lawsense-twin-edge-enter {
-          0% { opacity: 0; }
-          100% { opacity: 1; }
-        }
-
         @keyframes lawsense-twin-pulse {
           0%, 100% { opacity: .38; }
           50% { opacity: .78; }
         }
 
-        .lawsense-twin-node-enter {
-          transform-box: fill-box;
-          transform-origin: center;
-          animation: lawsense-twin-node-enter 560ms cubic-bezier(.22,1,.36,1) both;
-        }
-
-        .lawsense-twin-edge-enter {
-          animation: lawsense-twin-edge-enter 420ms ease-out both;
+        @keyframes lawsense-twin-confirmation {
+          0% { opacity: .78; transform: scale(.72); }
+          100% { opacity: 0; transform: scale(1.7); }
         }
 
         .lawsense-twin-pulse {
           animation: lawsense-twin-pulse 2.6s ease-in-out infinite;
         }
 
+        .lawsense-twin-confirmation-ring {
+          transform-box: fill-box;
+          transform-origin: center;
+          animation: lawsense-twin-confirmation 900ms ease-out 2;
+        }
+
         @media (prefers-reduced-motion: reduce) {
-          .lawsense-twin-node-enter,
-          .lawsense-twin-edge-enter,
-          .lawsense-twin-pulse {
+          .lawsense-twin-pulse,
+          .lawsense-twin-confirmation-ring {
             animation: none !important;
           }
         }
@@ -711,7 +714,7 @@ export function TwinCanvas({
           <div className="flex items-center gap-2">
             <span className="inline-flex h-2 w-2 rounded-full bg-cyan-400 shadow-[0_0_12px_rgba(34,211,238,0.8)] lawsense-twin-pulse" />
             <h2 className="text-sm font-semibold text-slate-100">
-              Living Legal Twin
+              CaseState graph
             </h2>
           </div>
 
@@ -719,7 +722,9 @@ export function TwinCanvas({
             {visibleNodes.length} nodes · {visibleEdges.length} relationships
             {snapshotAtTime
               ? ` · ${snapshotAtTime.label}`
-              : ''}
+              : currentTimeLabel
+                ? ` · ${currentTimeLabel}`
+                : ''}
           </p>
 
           <div className="mt-2 flex flex-wrap gap-1.5">
@@ -727,23 +732,18 @@ export function TwinCanvas({
               {statusCounts.supported} supported
             </span>
 
-            {statusCounts.unknown > 0 && (
-              <span className="rounded-full border border-slate-400/15 bg-slate-400/[0.05] px-2 py-0.5 text-[10px] text-slate-400">
-                {statusCounts.unknown} unresolved
-              </span>
-            )}
-
-            {statusCounts.conflict > 0 && (
-              <span className="rounded-full border border-amber-400/20 bg-amber-400/[0.05] px-2 py-0.5 text-[10px] text-amber-300">
-                {statusCounts.conflict} conflict
-              </span>
-            )}
-
-            {statusCounts.safety > 0 && (
-              <span className="rounded-full border border-rose-400/20 bg-rose-400/[0.05] px-2 py-0.5 text-[10px] text-rose-300">
-                {statusCounts.safety} safety
-              </span>
-            )}
+            <span className="rounded-full border border-blue-400/15 bg-blue-400/[0.05] px-2 py-0.5 text-[10px] text-blue-300">
+              {statusCounts.userReported} user reported
+            </span>
+            <span className="rounded-full border border-amber-400/20 bg-amber-400/[0.05] px-2 py-0.5 text-[10px] text-amber-300">
+              {statusCounts.uncertain} uncertain
+            </span>
+            <span className="rounded-full border border-rose-400/20 bg-rose-400/[0.05] px-2 py-0.5 text-[10px] text-rose-300">
+              {statusCounts.conflict + statusCounts.safety} conflicting
+            </span>
+            <span className="rounded-full border border-slate-400/15 bg-slate-400/[0.05] px-2 py-0.5 text-[10px] text-slate-400">
+              {statusCounts.unknown} unknown
+            </span>
           </div>
         </div>
 
@@ -832,9 +832,9 @@ export function TwinCanvas({
         {visibleNodes.length === 0 ? (
           <div className="flex min-h-[24rem] items-center justify-center px-6 text-center">
             <p className="max-w-md text-sm leading-6 text-slate-400">
-              {nodes.length === 0
+              {emptyMessage ?? (nodes.length === 0
                 ? 'No graph data was supplied.'
-                : 'No nodes are active at this point in the timeline.'}
+                : 'No nodes are active at this point in the timeline.')}
             </p>
           </div>
         ) : (
@@ -870,98 +870,126 @@ export function TwinCanvas({
               </marker>
             </defs>
 
-            {visibleEdges.map((edge) => {
-              const source = projection.get(edge.source);
-              const target = projection.get(edge.target);
+            <AnimatePresence initial={!prefersReducedMotion}>
+              {visibleEdges.map((edge) => {
+                const source = projection.get(edge.source);
+                const target = projection.get(edge.target);
 
-              if (!source || !target) return null;
+                if (!source || !target) return null;
 
-              const selected = edge.id === selectedEdge;
+                const selected = edge.id === selectedEdge;
 
-              const highlighted =
-                selected ||
-                (!!visibleSelectedNode &&
-                  (edge.source === visibleSelectedNode ||
-                    edge.target === visibleSelectedNode));
+                const highlighted =
+                  selected ||
+                  (!!visibleSelectedNode &&
+                    (edge.source === visibleSelectedNode ||
+                      edge.target === visibleSelectedNode));
 
-              return (
-                <g
-                  key={edge.id}
-                  className="lawsense-twin-edge-enter"
-                  style={{
-                    opacity: highlighted ? 1 : 0.82,
-                  }}
-                >
-                  <TwinEdge
-                    edge={edge}
-                    source={source}
-                    target={target}
-                    sourceLabel={
-                      visibleNodeById.get(edge.source)?.label
-                    }
-                    targetLabel={
-                      visibleNodeById.get(edge.target)?.label
-                    }
-                    markerId={markerId}
-                    selected={selected}
-                    highlighted={highlighted}
-                    dimmed={!!focusedNodeIds && !highlighted}
-                    onSelect={(nextEdge) => {
-                      onEdgeSelect?.(nextEdge);
-                      onNodeSelect?.(null);
-                    }}
-                  />
-                </g>
-              );
-            })}
+                return (
+                  <motion.g
+                    key={`edge:${edge.id}`}
+                    initial={prefersReducedMotion ? false : { opacity: 0 }}
+                    animate={{ opacity: highlighted ? 1 : 0.78 }}
+                    exit={{ opacity: 0, transition: { duration: prefersReducedMotion ? 0 : 0.18 } }}
+                    transition={{ duration: prefersReducedMotion ? 0 : 0.34, ease: 'easeOut' }}
+                  >
+                    <TwinEdge
+                      edge={edge}
+                      source={source}
+                      target={target}
+                      sourceLabel={
+                        visibleNodeById.get(edge.source)?.label
+                      }
+                      targetLabel={
+                        visibleNodeById.get(edge.target)?.label
+                      }
+                      markerId={markerId}
+                      selected={selected}
+                      highlighted={highlighted}
+                      dimmed={!!focusedNodeIds && !highlighted}
+                      reducedMotion={prefersReducedMotion}
+                      onSelect={(nextEdge) => {
+                        onEdgeSelect?.(nextEdge);
+                        onNodeSelect?.(visibleNodeById.get(nextEdge.source) ?? null);
+                      }}
+                    />
+                  </motion.g>
+                );
+              })}
+            </AnimatePresence>
 
-            {sortedNodes.map((node) => {
-              const position = projection.get(node.id);
+            <AnimatePresence initial={!prefersReducedMotion}>
+              {sortedNodes.map((node) => {
+                const position = projection.get(node.id);
 
-              if (!position) return null;
+                if (!position) return null;
 
-              const isSelected =
-                node.id === visibleSelectedNode;
+                const isSelected =
+                  node.id === visibleSelectedNode;
 
-              const isHighlighted =
-                !!focusedNodeIds?.has(node.id) &&
-                !isSelected;
+                const isHighlighted =
+                  !!focusedNodeIds?.has(node.id) &&
+                  !isSelected;
 
-              const isDimmed =
-                !!focusedNodeIds &&
-                !focusedNodeIds.has(node.id);
+                const isDimmed =
+                  !!focusedNodeIds &&
+                  !focusedNodeIds.has(node.id);
 
-              return (
-                <g
-                  key={node.id}
-                  className="lawsense-twin-node-enter"
-                  style={{
-                    opacity: isDimmed ? 0.2 : 1,
-                  }}
-                >
-                  <TwinNode
-                    node={node}
-                    position={position}
-                    selected={isSelected}
-                    highlighted={isHighlighted}
-                    dimmed={isDimmed}
-                    onSelect={(nextNode) => {
-                      onNodeSelect?.(nextNode);
-                      onEdgeSelect?.(null);
-                    }}
-                  />
-                </g>
-              );
-            })}
+                return (
+                  <motion.g
+                    key={`node:${node.id}`}
+                    initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.84 }}
+                    animate={{ opacity: isDimmed ? 0.22 : 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.84, transition: { duration: prefersReducedMotion ? 0 : 0.2 } }}
+                    transition={{ duration: prefersReducedMotion ? 0 : 0.42, ease: [0.22, 1, 0.36, 1] }}
+                    style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
+                  >
+                    <TwinNode
+                      node={node}
+                      position={position}
+                      selected={isSelected}
+                      highlighted={isHighlighted}
+                      dimmed={isDimmed}
+                      confirmed={!prefersReducedMotion && node.status === 'supported' && highlightedRecordIds.has(`node:${node.id}`)}
+                      onHover={(hovered) => setHoveredNodeId(hovered?.id ?? null)}
+                      onSelect={(nextNode) => {
+                        onNodeSelect?.(nextNode);
+                        onEdgeSelect?.(null);
+                      }}
+                    />
+                  </motion.g>
+                );
+              })}
+            </AnimatePresence>
           </svg>
         )}
+        <AnimatePresence mode="wait" initial={false}>
+          {hoveredNode && (
+            <motion.div
+              key={hoveredNode.id}
+              initial={prefersReducedMotion ? false : { opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: prefersReducedMotion ? 0 : -4 }}
+              transition={{ duration: prefersReducedMotion ? 0 : 0.18 }}
+              className="pointer-events-none absolute bottom-3 left-3 z-10 max-w-[min(26rem,calc(100%-1.5rem))] rounded-xl border border-white/10 bg-[#101827]/95 px-3.5 py-3 shadow-xl backdrop-blur"
+            >
+              <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.12em] text-slate-400">
+                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: nodeColor(hoveredNode.category, hoveredNode.status) }} />
+                {hoveredNode.category.replace('_', ' ')} · {hoveredNode.status?.replace('_', ' ') ?? 'unknown'}
+              </div>
+              <p className="mt-1 text-xs font-semibold text-slate-100">{hoveredNode.label}</p>
+              {hoveredNode.description && <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-slate-400">{hoveredNode.description}</p>}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/[0.07] px-4 py-2.5 text-[11px] text-slate-500">
         <span>
-          The Twin is derived from recorded case state, evidence and
-          relationships.
+          Only recorded CaseState records are shown. Position is for readability and does not imply legal weight.
         </span>
+
+        {currentTimeLabel && <span className="font-mono text-[10px] text-slate-400">Temporal view · {currentTimeLabel}</span>}
 
         {currentTime !== null &&
           currentTime !== undefined &&
