@@ -29,6 +29,7 @@ export function ImmediateDangerPrompt({
     choiceSelected: string;
     choiceSentNotice: string;
     urgencyLabel: string;
+    yesPriority: string;
   };
   onChoose: (choice: ImmediateDangerAnswer) => void;
 }) {
@@ -94,6 +95,12 @@ export function ImmediateDangerPrompt({
               );
             })}
           </div>
+
+          {(choice === 'yes' || (choice === 'not_sure' && urgent)) && (
+            <p className="mt-4 rounded-xl border border-amber-100/15 bg-amber-100/[0.035] px-3.5 py-3 text-xs leading-5 text-amber-50/80">
+              {copy.yesPriority}
+            </p>
+          )}
 
           <p aria-live="polite" className="mt-4 min-h-5 text-xs leading-5 text-zinc-400">
             {busy ? copy.choiceUpdating : prompt || (choice ? copy.choiceSelected : '')}

@@ -55,6 +55,7 @@ export const safetyCopy: Record<SafetyLanguage, {
   caseError: string;
   categoryNames: Record<string, string>;
   urgencyLabel: string;
+  yesPriority: string;
 }> = {
   en: {
     pageEyebrow: 'LawSense · Safety support',
@@ -123,6 +124,7 @@ export const safetyCopy: Record<SafetyLanguage, {
       legal_aid: 'Legal aid',
     },
     urgencyLabel: 'Safety support priority',
+    yesPriority: 'If you feel in immediate danger, focus on getting to a safer place if you can. If you want emergency help, use your local emergency service or choose a verified listing below. LawSense will not contact anyone.',
   },
   hi: {
     pageEyebrow: 'LawSense · सुरक्षा सहायता',
@@ -191,6 +193,7 @@ export const safetyCopy: Record<SafetyLanguage, {
       legal_aid: 'कानूनी सहायता',
     },
     urgencyLabel: 'सुरक्षा सहायता प्राथमिकता',
+    yesPriority: 'अगर आपको अभी तत्काल खतरा लग रहा है, तो संभव हो तो पहले किसी सुरक्षित जगह जाएँ। आपातकालीन सहायता चाहिए तो अपनी स्थानीय सेवा का उपयोग करें या नीचे दी गई सत्यापित सूची चुनें। LawSense किसी से संपर्क नहीं करेगा।',
   },
   hinglish: {
     pageEyebrow: 'LawSense · Safety support',
@@ -259,6 +262,81 @@ export const safetyCopy: Record<SafetyLanguage, {
       legal_aid: 'Legal aid',
     },
     urgencyLabel: 'Safety support priority',
+    yesPriority: 'Agar aapko abhi immediate danger lag raha hai, to mumkin ho to pehle safer jagah jaayein. Emergency help ke liye apni local service use karein ya neeche verified listing choose karein. LawSense kisi ko contact nahi karega.',
+  },
+};
+
+export const safetyActionCopy: Record<SafetyLanguage, {
+  guideStateLabel: string;
+  whyLabel: string;
+  whyYes: string;
+  whyNo: string;
+  whyNotSure: string;
+  whyUnanswered: string;
+  professionalHelp: string;
+  professionalHelpDetail: string;
+  evidenceAction: string;
+  legalWorkflowAction: string;
+  pauseAction: string;
+  resumeAction: string;
+  pausedMessage: string;
+  callResource: string;
+  callDisclosure: string;
+  openWebsite: string;
+}> = {
+  en: {
+    guideStateLabel: 'Guide state',
+    whyLabel: 'Why this step is shown',
+    whyYes: 'Safety Support returned this step first for the screening with your YES answer. The screening may be incomplete or mistaken; choose only what feels safe.',
+    whyNo: 'Safety Support returned this step first for the screening with your NO answer. The screening may be incomplete or mistaken; choose only what feels safe.',
+    whyNotSure: 'Your NOT SURE answer is supported. Safety Support returned this step first for the screening; it may be incomplete or mistaken.',
+    whyUnanswered: 'Safety Support returned this as the first step for the screening. Detection is limited and is not a diagnosis; choose only what feels safe.',
+    professionalHelp: 'Find verified professional support',
+    professionalHelpDetail: 'Review official listings returned for this screening. You choose whether to open a website or call.',
+    evidenceAction: 'Review evidence guidance',
+    legalWorkflowAction: 'Return to the legal workflow',
+    pauseAction: "I can't do this right now",
+    resumeAction: 'Show my options again',
+    pausedMessage: 'This pause stays on your device. No one was contacted. You can return to these options whenever you are ready.',
+    callResource: 'Call',
+    callDisclosure: "Tapping Call opens your device's phone app. LawSense does not place the call.",
+    openWebsite: 'Open official website',
+  },
+  hi: {
+    guideStateLabel: 'Guide की स्थिति',
+    whyLabel: 'यह कदम क्यों दिखाया गया है',
+    whyYes: 'Safety Support ने YES जवाब और इस screening के लिए यह कदम पहले दिखाया है। Screening अधूरी या गलत हो सकती है; केवल वही चुनें जो सुरक्षित लगे।',
+    whyNo: 'Safety Support ने NO जवाब और इस screening के लिए यह कदम पहले दिखाया है। Screening अधूरी या गलत हो सकती है; केवल वही चुनें जो सुरक्षित लगे।',
+    whyNotSure: 'NOT SURE भी मान्य जवाब है। Safety Support ने इस screening के लिए यह कदम पहले दिखाया है; screening अधूरी या गलत हो सकती है।',
+    whyUnanswered: 'Safety Support ने इस screening के लिए यह पहला कदम लौटाया है। पहचान सीमित है और यह निदान नहीं है; केवल वही चुनें जो सुरक्षित लगे।',
+    professionalHelp: 'सत्यापित पेशेवर सहायता देखें',
+    professionalHelpDetail: 'इस screening के लिए लौटाई गई आधिकारिक सूची देखें। वेबसाइट खोलना या कॉल करना आपका चुनाव है।',
+    evidenceAction: 'सबूत संबंधी सुझाव देखें',
+    legalWorkflowAction: 'कानूनी प्रक्रिया पर लौटें',
+    pauseAction: 'मैं अभी यह नहीं कर सकता/सकती',
+    resumeAction: 'मेरे विकल्प फिर दिखाएँ',
+    pausedMessage: 'यह विराम आपके डिवाइस पर ही है। किसी से संपर्क नहीं हुआ। तैयार होने पर आप विकल्पों पर लौट सकते हैं।',
+    callResource: 'कॉल करें',
+    callDisclosure: 'कॉल चुनने पर आपके डिवाइस का फ़ोन ऐप खुलेगा। LawSense कॉल नहीं करता।',
+    openWebsite: 'आधिकारिक वेबसाइट खोलें',
+  },
+  hinglish: {
+    guideStateLabel: 'Guide state',
+    whyLabel: 'Yeh step kyun dikh raha hai',
+    whyYes: 'Safety Support ne aapke YES answer aur is screening ke liye yeh step pehle return kiya. Screening adhuri ya galat ho sakti hai; sirf wahi choose karein jo safe lage.',
+    whyNo: 'Safety Support ne aapke NO answer aur is screening ke liye yeh step pehle return kiya. Screening adhuri ya galat ho sakti hai; sirf wahi choose karein jo safe lage.',
+    whyNotSure: 'NOT SURE bhi valid answer hai. Safety Support ne is screening ke liye yeh step pehle return kiya; screening adhuri ya galat ho sakti hai.',
+    whyUnanswered: 'Safety Support ne is screening ke liye ise first step return kiya. Detection limited hai aur diagnosis nahi; sirf wahi choose karein jo safe lage.',
+    professionalHelp: 'Verified professional support dekhein',
+    professionalHelpDetail: 'Is screening ke liye return hui official listings dekhein. Website kholna ya call karna aapka choice hai.',
+    evidenceAction: 'Evidence guidance dekhein',
+    legalWorkflowAction: 'Legal workflow par wapas jaayein',
+    pauseAction: 'Main abhi yeh nahi kar sakta/sakti',
+    resumeAction: 'Mere options phir dikhayein',
+    pausedMessage: 'Yeh pause sirf aapke device par hai. Kisi ko contact nahi kiya gaya. Ready hone par aap options par wapas aa sakte hain.',
+    callResource: 'Call karein',
+    callDisclosure: 'Call tap karne par aapke device ka phone app khulega. LawSense call nahi karta.',
+    openWebsite: 'Official website kholein',
   },
 };
 

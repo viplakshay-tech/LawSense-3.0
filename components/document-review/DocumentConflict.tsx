@@ -13,9 +13,10 @@ export interface DocumentConflictProps {
   title: string;
   description?: string | null;
   values: readonly ConflictValue[];
+  onPage?: (pageNumber: number) => void;
 }
 
-export function DocumentConflict({ title, description, values }: DocumentConflictProps) {
+export function DocumentConflict({ title, description, values, onPage }: DocumentConflictProps) {
   const status: DocumentReviewStatus = 'CONFLICTING';
 
   return (
@@ -37,7 +38,12 @@ export function DocumentConflict({ title, description, values }: DocumentConflic
               <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">{item.label}</p>
               <p className="mt-1 break-words text-sm text-zinc-200">{item.value || 'No value supplied'}</p>
               <p className="mt-2 break-words text-[10px] text-zinc-500">
-                {item.documentName || 'Document not supplied'} <span aria-hidden="true">·</span> Page {item.sourcePage ?? 'not supplied'}
+                {item.documentName || 'Document not supplied'} <span aria-hidden="true">·</span>{' '}
+                {item.sourcePage != null && onPage ? (
+                  <button type="button" onClick={() => onPage(item.sourcePage!)} className="text-blue-200 underline decoration-blue-200/30 underline-offset-2 hover:text-blue-100">
+                    Page {item.sourcePage}
+                  </button>
+                ) : `Page ${item.sourcePage ?? 'not supplied'}`}
               </p>
             </li>
           ))}

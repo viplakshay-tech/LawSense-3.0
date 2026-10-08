@@ -7,6 +7,7 @@ export interface SafetySupportResource {
   category?: string | null;
   jurisdiction?: string | null;
   official?: boolean;
+  verification_status?: string | null;
   url?: string | null;
   phone?: string | null;
   description?: string | null;

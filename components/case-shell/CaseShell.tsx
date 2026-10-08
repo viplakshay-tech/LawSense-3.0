@@ -21,7 +21,9 @@ import {
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { JourneyStageName } from '@/lib/api';
+import { rememberSessionCase } from '@/lib/case-continuity';
 import { useCaseState } from '../../app/case/[id]/CaseStateProvider';
+import { GuideControlSurface } from '@/components/guide-presence';
 
 type CaseSectionId = 'understand' | 'evidence' | 'grounding' | 'journey' | 'twin' | 'safety';
 
@@ -81,13 +83,15 @@ function getJurisdictionLabel(caseState: NonNullable<ReturnType<typeof useCaseSt
     caseState.jurisdiction.country,
   ].filter((value): value is string => Boolean(value?.trim()));
 
-  return location.length ? location.join(', ') : 'Jurisdiction not set';
+  if (location.length) return location.join(', ');
+  const locationText = caseState.jurisdiction.locationText?.trim();
+  return locationText ? `Recorded location: ${locationText}` : 'Jurisdiction not set';
 }
 
 function getSafetyTone(context: string | undefined): 'urgent' | 'caution' | 'clear' {
+  if (!context || context === 'none') return 'clear';
   if (context === 'urgent_safety_context') return 'urgent';
-  if (context === 'potentially_unsafe' || context === 'sensitive') return 'caution';
-  return 'clear';
+  return 'caution';
 }
 
 function CaseNavigation({
@@ -113,11 +117,12 @@ function CaseNavigation({
         ? 'twin'
         : pathname.startsWith(`${basePath}/safety`)
           ? 'safety'
-          : pathname === basePath && hash === '#journey'
+          : pathname === basePath && hash.startsWith('#journey')
             ? 'journey'
             : pathname === basePath || pathname === `${basePath}/`
               ? 'understand'
               : null;
+  const safetyMode = activeSection === 'safety';
 
   const safetySelectedStyle = safetyTone === 'urgent'
     ? 'bg-rose-400/[0.12] text-rose-100 ring-1 ring-inset ring-rose-300/25'
@@ -162,6 +167,7 @@ function CaseNavigation({
                 !selected && isSafety ? safetyIdleStyle : '',
                 selected && !isSafety && !mobile ? 'bg-[#263246]' : '',
                 selected && mobile && !isSafety ? 'text-[#f2c98f]' : '',
+                safetyMode && !isSafety ? 'opacity-40' : '',
               ].join(' ')}
             >
               {selected && !isSafety && !mobile && (
@@ -196,7 +202,7 @@ function CaseNavigation({
               )}
             </Link>
             {!mobile && section.id === 'evidence' && (
-              <div className="ml-[2.65rem] mt-0.5 border-l border-white/[0.08] pl-3">
+              <div className={`ml-[2.65rem] mt-0.5 border-l border-white/[0.08] pl-3 ${safetyMode ? 'opacity-40' : ''}`}>
                 <Link
                   href={`${basePath}/voice`}
                   aria-current={pathname.startsWith(`${basePath}/voice`) ? 'page' : undefined}
@@ -227,7 +233,12 @@ export function CaseShell({ caseId, children }: { caseId: string; children: Reac
     return () => window.removeEventListener('hashchange', syncHash);
   }, [pathname]);
 
+  useEffect(() => {
+    rememberSessionCase(caseId);
+  }, [caseId]);
+
   const activeSafetyTone = getSafetyTone(caseState?.analysis?.safetyContext.context);
+  const safetyMode = pathname.startsWith(`${basePath}/safety`);
   const sections: CaseSection[] = [
     { id: 'understand', label: 'Understand', mobileLabel: 'Understand', href: basePath, icon: ClipboardList },
     { id: 'evidence', label: 'Evidence', mobileLabel: 'Evidence', href: `${basePath}/documents`, icon: FileStack },
@@ -244,9 +255,14 @@ export function CaseShell({ caseId, children }: { caseId: string; children: Reac
     ?? journeySteps.find((step) => !isComplete(step.status));
   const displayedStep = currentStep ?? journeySteps[journeySteps.length - 1];
   const caseStage = displayedStep?.stage ?? (caseState ? getFallbackStage(caseState) : undefined);
-  const stageTitle = displayedStep?.title?.trim()
-    || (caseStage ? STAGE_LABELS[caseStage] : loading ? 'Loading case details' : 'Case details unavailable');
-  const progressLabel = currentStep
+  const safetyOverride = activeSafetyTone !== 'clear';
+  const stageTitle = safetyOverride
+    ? activeSafetyTone === 'urgent' ? 'Review urgent safety support' : 'Review sensitive safety support'
+    : displayedStep?.title?.trim()
+      || (caseStage ? STAGE_LABELS[caseStage] : loading ? 'Loading case details' : 'Case details unavailable');
+  const progressLabel = safetyOverride
+    ? activeSafetyTone === 'urgent' ? 'Safety first' : 'Sensitive support'
+    : currentStep
     ? isActive(currentStep.status) ? 'In progress' : 'Next up'
     : journeySteps.length > 0 && completedSteps.length === journeySteps.length
       ? 'Complete'
@@ -259,7 +275,12 @@ export function CaseShell({ caseId, children }: { caseId: string; children: Reac
   const evidenceCount = caseState?.evidence.length ?? 0;
   const nextJourneyAction = journey?.nextActions.find((action) => action.action.trim());
   const decisionAction = caseState?.analysis?.decisionScenario?.nextAction.trim();
-  const recommendedAction = decisionAction
+  const recommendedAction = safetyOverride
+    ? caseState?.analysis?.safetyContext.recommendedSafetyPrompt?.trim()
+      || (activeSafetyTone === 'urgent'
+        ? 'Review the urgent safety options before continuing the ordinary journey.'
+        : 'Review the sensitive safety support before continuing the ordinary journey.')
+    : decisionAction
     || nextJourneyAction?.action.trim()
     || (openQuestions.length > 0
       ? `Review ${openQuestions.length} open question${openQuestions.length === 1 ? '' : 's'} in the journey.`
@@ -268,7 +289,9 @@ export function CaseShell({ caseId, children }: { caseId: string; children: Reac
         : caseState?.analysis?.legalKnowledge.status !== 'records_found'
           ? 'Check the legal grounding and see which sources are available.'
           : 'Review how the known facts connect in the Living Twin.');
-  const recommendedHref = decisionAction
+  const recommendedHref = safetyOverride
+    ? `${basePath}/safety`
+    : decisionAction
     ? nextJourneyAction
       ? getDestinationForStage(nextJourneyAction.stage, basePath)
       : `${basePath}#journey`
@@ -299,11 +322,11 @@ export function CaseShell({ caseId, children }: { caseId: string; children: Reac
             </span>
           </Link>
 
-          <section aria-label="Current case" className="rounded-2xl border border-white/[0.075] bg-white/[0.035] p-3.5 shadow-[0_12px_28px_rgba(0,0,0,0.12)]">
+          <section aria-label="Current case" className={`rounded-2xl border border-white/[0.075] bg-white/[0.035] p-3.5 shadow-[0_12px_28px_rgba(0,0,0,0.12)] ${safetyMode ? 'opacity-45' : ''}`}>
             <div className="flex items-center justify-between gap-2">
               <span className="inline-flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-[0.15em] text-slate-500">
                 <span className={`h-1.5 w-1.5 rounded-full ${loading ? 'animate-pulse bg-amber-300' : 'bg-emerald-400'}`} />
-                {loading ? 'Syncing case' : 'Active case'}
+                {loading ? 'Reopening case' : caseState ? 'Active case' : 'Case unavailable'}
               </span>
               <span className="font-mono text-[9px] text-slate-500">{caseShortId}</span>
             </div>
@@ -326,7 +349,7 @@ export function CaseShell({ caseId, children }: { caseId: string; children: Reac
             </div>
           </section>
 
-          <section aria-label="Case progress" className="mt-3 rounded-2xl border border-white/[0.06] bg-[#151e2b] p-3.5">
+          <section aria-label="Case progress" className={`mt-3 rounded-2xl border border-white/[0.06] bg-[#151e2b] p-3.5 ${safetyMode ? 'opacity-40' : ''}`}>
             <div className="flex items-center justify-between gap-2">
               <span className="text-[9px] font-semibold uppercase tracking-[0.15em] text-slate-500">Current focus</span>
               <span className="rounded-full border border-[#e9bd7b]/15 bg-[#e9bd7b]/[0.06] px-2 py-0.5 text-[9px] font-medium text-[#e8c891]">
@@ -334,6 +357,12 @@ export function CaseShell({ caseId, children }: { caseId: string; children: Reac
               </span>
             </div>
             <p className="mt-2 line-clamp-2 text-[12px] font-medium leading-[18px] text-slate-200">{stageTitle}</p>
+            <Link
+              href={`${basePath}#journey`}
+              className="mt-1 inline-flex min-h-6 items-center gap-1 rounded-md text-[10px] font-semibold text-[#e8c891] underline decoration-[#e9bd7b]/25 underline-offset-2 transition hover:text-[#ffe0ad] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#e9bd7b] motion-reduce:transition-none"
+            >
+              Open the Journey plan <ArrowUpRight className="h-3 w-3" aria-hidden="true" />
+            </Link>
             <div className="mt-3 h-1 overflow-hidden rounded-full bg-white/[0.07]" aria-hidden="true">
               {journeySteps.length > 0 && (
                 <motion.div
@@ -357,8 +386,8 @@ export function CaseShell({ caseId, children }: { caseId: string; children: Reac
           </div>
           <CaseNavigation sections={sections} pathname={pathname} hash={hash} safetyTone={activeSafetyTone} />
 
-          <section aria-label="Suggested next step" className="mt-auto rounded-2xl border border-[#e9bd7b]/15 bg-gradient-to-br from-[#e9bd7b]/[0.09] to-transparent p-3.5">
-            <div className="flex items-center gap-2 text-[#e8c891]">
+          <section aria-label="Suggested next step" className={`mt-auto rounded-2xl border p-3.5 ${safetyOverride ? activeSafetyTone === 'urgent' ? 'border-rose-300/30 bg-gradient-to-br from-rose-300/[0.12] to-transparent' : 'border-amber-200/25 bg-gradient-to-br from-amber-200/[0.09] to-transparent' : 'border-[#e9bd7b]/15 bg-gradient-to-br from-[#e9bd7b]/[0.09] to-transparent'}`}>
+            <div className={`flex items-center gap-2 ${safetyOverride ? activeSafetyTone === 'urgent' ? 'text-rose-200' : 'text-amber-100' : 'text-[#e8c891]'}`}>
               <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
               <p className="text-[9px] font-semibold uppercase tracking-[0.14em]">A useful next step</p>
             </div>
@@ -379,16 +408,16 @@ export function CaseShell({ caseId, children }: { caseId: string; children: Reac
             </p>
           )}
 
-          <Link href="/" className="mt-4 flex min-h-9 items-center gap-2 rounded-lg px-2 text-[11px] font-medium text-slate-500 transition hover:bg-white/[0.04] hover:text-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e9bd7b] motion-reduce:transition-none">
+          <Link href="/" aria-label="Choose a case from this session" className="mt-4 flex min-h-9 items-center gap-2 rounded-lg px-2 text-[11px] font-medium text-slate-500 transition hover:bg-white/[0.04] hover:text-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e9bd7b] motion-reduce:transition-none">
             <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-            All situations
+            Cases this session
           </Link>
         </aside>
 
         <div className="min-w-0">
           <header className="flex min-h-[66px] items-center justify-between gap-4 border-b border-slate-200/80 bg-white px-4 py-3 sm:px-6 lg:min-h-[54px] lg:bg-white/85 lg:px-8 lg:py-2">
             <div className="min-w-0 lg:hidden">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Law Sense · Active case</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Law Sense · {loading ? 'Reopening case' : caseState ? 'Active case' : 'Case unavailable'}</p>
               <p className="mt-0.5 truncate text-sm font-semibold text-slate-800">{caseTitle}</p>
             </div>
             <div className="hidden min-w-0 items-center gap-2 text-[10px] uppercase tracking-[0.14em] text-slate-400 lg:flex">
@@ -401,9 +430,9 @@ export function CaseShell({ caseId, children }: { caseId: string; children: Reac
                 <CircleHelp className="h-3 w-3" aria-hidden="true" />
                 {openQuestions.length} open
               </span>
-              <Link href="/" aria-label="Return to all situations" className="inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 text-[10px] font-semibold text-slate-600 transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 motion-reduce:transition-none">
+              <Link href="/" aria-label="Choose a case from this session" className="inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 text-[10px] font-semibold text-slate-600 transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 motion-reduce:transition-none">
                 <ArrowLeft className="h-3 w-3" aria-hidden="true" />
-                <span className="hidden sm:inline">All situations</span>
+                <span className="hidden sm:inline">Cases this session</span>
                 <span className="sm:hidden">Cases</span>
               </Link>
             </div>
@@ -414,7 +443,7 @@ export function CaseShell({ caseId, children }: { caseId: string; children: Reac
             initial={shouldReduceMotion ? false : { opacity: 0, y: 7 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: shouldReduceMotion ? 0 : 0.24, ease: 'easeOut' }}
-            className="min-w-0 pb-24 lg:pb-0"
+            className="min-w-0 pb-24 lg:pb-20"
           >
             {children}
           </motion.div>
@@ -430,6 +459,7 @@ export function CaseShell({ caseId, children }: { caseId: string; children: Reac
           Legal source records have not been returned for this case.
         </span>
       )}
+      <GuideControlSurface />
     </div>
   );
 }

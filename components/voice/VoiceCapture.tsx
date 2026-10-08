@@ -81,7 +81,14 @@ interface VoiceCaptureProps {
   disabled?: boolean;
   onTranscript: (transcript: string) => void;
   onCaptureStateChange?: (active: boolean) => void;
+  onCaptureStatusChange?: (status: 'idle' | 'listening' | 'processing') => void;
+  onCaptureEvent?: (event: VoiceCaptureEvent) => void;
 }
+
+export type VoiceCaptureEvent =
+  | { type: 'capture_started'; captureId: string; provider: 'browser' | 'server'; language: RecognitionLanguage }
+  | { type: 'capture_cancelled'; captureId: string }
+  | { type: 'capture_failed'; captureId: string; detail: string };
 
 const BAR_COUNT = 18;
 const QUIET_WAVEFORM = Array.from({ length: BAR_COUNT }, () => 0.08);
@@ -96,7 +103,7 @@ function errorMessage(code: string): string {
   return 'Speech recognition stopped before a transcript was available. You can try again or type your statement.';
 }
 
-export default function VoiceCapture({ language, disabled = false, onTranscript, onCaptureStateChange }: VoiceCaptureProps) {
+export default function VoiceCapture({ language, disabled = false, onTranscript, onCaptureStateChange, onCaptureStatusChange, onCaptureEvent }: VoiceCaptureProps) {
   const provider = useRef(new BrowserSpeechRecognitionProvider());
   const session = useRef<BrowserRecognitionSession | null>(null);
   const mediaRecorder = useRef<MediaRecorder | null>(null);
@@ -104,6 +111,7 @@ export default function VoiceCapture({ language, disabled = false, onTranscript,
   const audioContext = useRef<AudioContext | null>(null);
   const animationFrame = useRef<number | null>(null);
   const operationId = useRef(0);
+  const captureId = useRef<string | null>(null);
   const cancelRequested = useRef(false);
   const lastCaptureBusy = useRef(false);
   const [providerMode, setProviderMode] = useState<'checking' | 'browser' | 'server' | 'unavailable'>('checking');
@@ -241,8 +249,11 @@ export default function VoiceCapture({ language, disabled = false, onTranscript,
       setLiveTranscript(candidate.trim());
       onTranscript(candidate.trim());
     } else {
-      setError((current) => current ?? 'No transcript was produced. Nothing was saved. Try again or type your statement.');
+      const detail = 'No transcript was produced. Nothing was saved. Try again or type your statement.';
+      setError((current) => current ?? detail);
+      if (captureId.current) onCaptureEvent?.({ type: 'capture_failed', captureId: captureId.current, detail });
     }
+    captureId.current = null;
     recognition.onend = null;
   };
 
@@ -271,7 +282,10 @@ export default function VoiceCapture({ language, disabled = false, onTranscript,
       recorder.onerror = () => {
         setRecording(false);
         setStopping(false);
-        setError('Audio recording failed. No transcript was created. You can try again or type your statement.');
+        const detail = 'Audio recording failed. No transcript was created. You can try again or type your statement.';
+        setError(detail);
+        if (captureId.current) onCaptureEvent?.({ type: 'capture_failed', captureId: captureId.current, detail });
+        captureId.current = null;
         mediaRecorder.current = null;
         stopMeter();
       };
@@ -288,7 +302,10 @@ export default function VoiceCapture({ language, disabled = false, onTranscript,
         stopMeter();
         mediaRecorder.current = null;
         if (audio.size === 0) {
-          setError('No audio was captured. No transcript was created. Try again or type your statement.');
+          const detail = 'No audio was captured. No transcript was created. Try again or type your statement.';
+          setError(detail);
+          if (captureId.current) onCaptureEvent?.({ type: 'capture_failed', captureId: captureId.current, detail });
+          captureId.current = null;
           setProcessing(false);
           return;
         }
@@ -298,15 +315,25 @@ export default function VoiceCapture({ language, disabled = false, onTranscript,
           if (result.transcript?.trim()) {
             setLiveTranscript(result.transcript.trim());
             onTranscript(result.transcript.trim());
+            captureId.current = null;
           }
           if (result.status !== 'success') {
-            setError(result.detail || `Speech provider status: ${result.status.replaceAll('_', ' ')}.`);
+            const detail = result.detail || `Speech provider status: ${result.status.replaceAll('_', ' ')}.`;
+            setError(detail);
+            if (captureId.current) onCaptureEvent?.({ type: 'capture_failed', captureId: captureId.current, detail });
+            captureId.current = null;
           } else if (!result.transcript?.trim()) {
-            setError('No transcript was produced. Nothing was saved. Try again or type your statement.');
+            const detail = 'No transcript was produced. Nothing was saved. Try again or type your statement.';
+            setError(detail);
+            if (captureId.current) onCaptureEvent?.({ type: 'capture_failed', captureId: captureId.current, detail });
+            captureId.current = null;
           }
         } catch (cause) {
           if (currentOperation === operationId.current && !cancelRequested.current) {
-            setError(cause instanceof Error ? cause.message : 'Speech processing failed. No transcript was created.');
+            const detail = cause instanceof Error ? cause.message : 'Speech processing failed. No transcript was created.';
+            setError(detail);
+            if (captureId.current) onCaptureEvent?.({ type: 'capture_failed', captureId: captureId.current, detail });
+            captureId.current = null;
           }
         } finally {
           if (currentOperation === operationId.current) setProcessing(false);
@@ -328,6 +355,14 @@ export default function VoiceCapture({ language, disabled = false, onTranscript,
           ? 'Microphone access was blocked. Allow access in your browser settings or type your statement.'
           : 'Microphone access was unavailable. Check your microphone, try again, or type your statement.',
       );
+      if (captureId.current) {
+        onCaptureEvent?.({
+          type: 'capture_failed',
+          captureId: captureId.current,
+          detail: cause instanceof Error ? cause.message : 'Microphone access was unavailable.',
+        });
+      }
+      captureId.current = null;
     }
   };
 
@@ -338,7 +373,10 @@ export default function VoiceCapture({ language, disabled = false, onTranscript,
     cancelRequested.current = false;
     const recognition = provider.current.create(language);
     if (!recognition) {
-      setError('Voice input is unavailable in this browser. You can type your statement instead.');
+      const detail = 'Voice input is unavailable in this browser. You can type your statement instead.';
+      setError(detail);
+      if (captureId.current) onCaptureEvent?.({ type: 'capture_failed', captureId: captureId.current, detail });
+      captureId.current = null;
       return;
     }
 
@@ -353,7 +391,10 @@ export default function VoiceCapture({ language, disabled = false, onTranscript,
       setLiveTranscript(candidate);
     };
     recognition.onerror = (event) => {
-      if (!cancelRequested.current) setError(errorMessage(event.error));
+      if (!cancelRequested.current) {
+        const detail = errorMessage(event.error);
+        setError(detail);
+      }
     };
     recognition.onend = () => finishBrowserCapture(recognition, candidate);
 
@@ -376,12 +417,21 @@ export default function VoiceCapture({ language, disabled = false, onTranscript,
     } catch {
       session.current = null;
       setRecording(false);
-      setError('The microphone could not start. Check browser permission and try again.');
+      const detail = 'The microphone could not start. Check browser permission and try again.';
+      setError(detail);
+      if (captureId.current) onCaptureEvent?.({ type: 'capture_failed', captureId: captureId.current, detail });
+      captureId.current = null;
     }
   };
 
   const start = () => {
     if (disabled || recording || processing || permissionPending || providerMode === 'checking' || providerMode === 'unavailable') return;
+    const id = typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : `capture-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    captureId.current = id;
+    const captureProvider = providerMode === 'server' ? 'server' : 'browser';
+    onCaptureEvent?.({ type: 'capture_started', captureId: id, provider: captureProvider, language });
     if (providerMode === 'server') void startServerRecording();
     else startBrowserRecognition();
   };
@@ -400,6 +450,10 @@ export default function VoiceCapture({ language, disabled = false, onTranscript,
   const cancel = () => {
     cancelRequested.current = true;
     operationId.current += 1;
+    if (captureId.current) {
+      onCaptureEvent?.({ type: 'capture_cancelled', captureId: captureId.current });
+      captureId.current = null;
+    }
     if (session.current) {
       const activeSession = session.current;
       activeSession.onresult = null;
@@ -426,6 +480,7 @@ export default function VoiceCapture({ language, disabled = false, onTranscript,
   };
 
   const busy = recording || stopping || processing || permissionPending;
+  const captureStatus = recording ? 'listening' : busy ? 'processing' : 'idle';
   const modeLabel = providerMode === 'browser'
     ? 'Speech recognition is provided by your browser.'
     : 'Audio is sent to LawSense for the configured speech provider.';
@@ -435,6 +490,10 @@ export default function VoiceCapture({ language, disabled = false, onTranscript,
     lastCaptureBusy.current = busy;
     onCaptureStateChange?.(busy);
   }, [busy, onCaptureStateChange]);
+
+  useEffect(() => {
+    onCaptureStatusChange?.(captureStatus);
+  }, [captureStatus, onCaptureStatusChange]);
 
   return (
     <div className="flex min-w-[14rem] flex-col gap-2" role="group" aria-label="Voice input controls">

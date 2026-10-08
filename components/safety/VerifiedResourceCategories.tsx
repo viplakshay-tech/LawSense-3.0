@@ -1,6 +1,6 @@
 import { BadgeCheck, ExternalLink, Globe2, Phone } from 'lucide-react';
 import { SafetySurface } from './SafetySurface';
-import { safetyCategoryLabel } from './copy';
+import { safetyActionCopy, safetyCategoryLabel } from './copy';
 import type { SafetyLanguage, SafetySupportAssessment, SafetySupportResource } from './types';
 
 function secureWebUrl(value: string | null | undefined): string | null {
@@ -23,6 +23,7 @@ function safePhone(value: string | null | undefined): string | null {
 function isDisplayableResource(resource: SafetySupportResource, categories: string[]): boolean {
   return Boolean(
     resource.official === true &&
+      resource.verification_status === 'verified_official' &&
       resource.name?.trim() &&
       resource.category &&
       categories.includes(resource.category),
@@ -52,7 +53,7 @@ export function VerifiedResourceCategories({
   );
 
   return (
-    <SafetySurface>
+    <SafetySurface id="verified-safety-resources" tabIndex={-1} className="scroll-mt-6 outline-none focus-visible:ring-2 focus-visible:ring-teal-100/50">
       <div className="flex items-start gap-3">
         <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl border border-indigo-100/10 bg-indigo-100/[0.045] text-indigo-100/75">
           <Globe2 aria-hidden="true" className="size-4" />
@@ -103,6 +104,7 @@ function ResourceCard({ resource, language }: { resource: SafetySupportResource;
   const url = secureWebUrl(resource.url);
   const phone = safePhone(resource.phone);
   const category = resource.category ? safetyCategoryLabel(resource.category, language) : '';
+  const actionCopy = safetyActionCopy[language];
 
   return (
     <li className="rounded-xl border border-white/[0.075] bg-white/[0.025] p-4">
@@ -127,19 +129,21 @@ function ResourceCard({ resource, language }: { resource: SafetySupportResource;
             className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-white/[0.09] bg-white/[0.04] px-3 text-xs font-medium text-zinc-200 transition hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-200/70"
           >
             <ExternalLink aria-hidden="true" className="size-3.5" />
-            {language === 'hi' ? 'आधिकारिक वेबसाइट खोलें' : language === 'hinglish' ? 'Official website kholein' : 'Open official website'}
+            {actionCopy.openWebsite}
           </a>
         )}
         {phone && (
           <a
             href={`tel:${phone}`}
+            aria-label={`${actionCopy.callResource} ${resource.name} · ${resource.phone}`}
             className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-white/[0.09] bg-white/[0.04] px-3 text-xs font-medium text-zinc-200 transition hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-200/70"
           >
             <Phone aria-hidden="true" className="size-3.5" />
-            {resource.phone}
+            {actionCopy.callResource} · {resource.phone}
           </a>
         )}
       </div>
+      {phone && <p className="mt-3 text-[10px] leading-4 text-zinc-500">{actionCopy.callDisclosure}</p>}
     </li>
   );
 }

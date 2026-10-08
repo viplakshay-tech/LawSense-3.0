@@ -9,7 +9,7 @@ type CaseStateContextValue = {
   loading: boolean;
   error: string | null;
   revision: number;
-  replaceCaseState: (nextCase: CaseState) => void;
+  replaceCaseState: (nextCase: CaseState) => boolean;
   refreshCaseState: () => Promise<CaseState>;
 };
 
@@ -58,15 +58,15 @@ export function CaseStateProvider({
   }, [caseId]);
 
   const replaceCaseState = useCallback((nextCase: CaseState) => {
-    if (nextCase.id !== caseId) return;
+    if (nextCase.id !== caseId) return false;
     const current = currentCaseRef.current;
-    if (current && isOlderState(nextCase, current)) return;
+    if (current && isOlderState(nextCase, current)) return false;
 
     mutationSequenceRef.current += 1;
     requestSequenceRef.current += 1;
     requestControllerRef.current?.abort();
     requestControllerRef.current = null;
-    acceptCaseState(nextCase);
+    return acceptCaseState(nextCase);
   }, [acceptCaseState, caseId]);
 
   const refreshCaseState = useCallback(async (): Promise<CaseState> => {

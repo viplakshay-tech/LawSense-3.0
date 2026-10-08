@@ -35,9 +35,21 @@ import {
   type TwinSnapshotSummary,
   type TwinTimelineEvent,
 } from '@/lib/api';
+import type { GuideAction } from '@/components/guide-runtime';
+import { createGuideActionBridge, type GuideActionCommand } from '@/components/guide-actions';
 import { LegalSourceCandidates } from '@/components/LegalSourceCandidates';
 import { TrustNotice } from '@/components/TrustNotice';
-import { TwinCanvas, TwinGuideCompanion, type TwinEdgeData, type TwinEvidenceStatus, type TwinNodeCategory, type TwinNodeData } from '@/components/legal-twin';
+import {
+  TwinCanvas,
+  TwinGuideCompanion,
+  type TwinEdgeData,
+  type TwinEvidenceStatus,
+  type TwinGuideEdgeContext,
+  type TwinGuideNodeContext,
+  type TwinGuideTimelineContext,
+  type TwinNodeCategory,
+  type TwinNodeData,
+} from '@/components/legal-twin';
 import { useCaseState } from '../CaseStateProvider';
 import type { ReactNode } from 'react';
 
@@ -598,10 +610,12 @@ export default function LegalTwinClient({ id }: { id: string }) {
   const [selectedAsOf, setSelectedAsOf] = useState<string | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+  const [requestedFocusId, setRequestedFocusId] = useState<string | null>(null);
+  const focusHandledRef = useRef(false);
   const [confirmedRecordIds, setConfirmedRecordIds] = useState<Set<string>>(() => new Set());
   const [changeSummary, setChangeSummary] = useState<string | null>(null);
   const [filter, setFilter] = useState<TwinKind | 'all'>('all');
-  const [showGuide, setShowGuide] = useState(false);
+  const [showGuide, setShowGuide] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
   const selectedAsOfRef = useRef(selectedAsOf);
   const legalTwinRef = useRef(legalTwin);
@@ -658,6 +672,12 @@ export default function LegalTwinClient({ id }: { id: string }) {
     previousSnapshotRef.current = nextSnapshot;
   }, []);
 
+  const reconcileSelectionWithProjection = useCallback((projection: TwinSnapshotSummary, includeCurrentActions: boolean) => {
+    const projectedGraph = makeGraph(projection, caseData, includeCurrentActions);
+    setSelectedNodeId((current) => current && projectedGraph.nodes.some((node) => node.id === current) ? current : null);
+    setSelectedEdgeId((current) => current && projectedGraph.edges.some((edge) => edge.id === current) ? current : null);
+  }, [caseData]);
+
   useEffect(() => {
     if (!hasCurrentCase) return;
     let mounted = true;
@@ -675,6 +695,7 @@ export default function LegalTwinClient({ id }: { id: string }) {
         setLegalTwin(twin);
         if (followsLatest) {
           acceptProjection(twin.snapshot, revision);
+          reconcileSelectionWithProjection(twin.snapshot, true);
           setSnapshot(twin.snapshot);
           setSelectedAsOf(twin.snapshot.asOf);
         } else {
@@ -694,7 +715,7 @@ export default function LegalTwinClient({ id }: { id: string }) {
       mounted = false;
       controller.abort();
     };
-  }, [acceptProjection, hasCurrentCase, id, revision, twinRetryKey]);
+  }, [acceptProjection, hasCurrentCase, id, reconcileSelectionWithProjection, revision, twinRetryKey]);
 
   const timelineEvents = useMemo(() => legalTwin?.timeline ?? [], [legalTwin?.timeline]);
   const datedEvents = useMemo(
@@ -724,6 +745,7 @@ export default function LegalTwinClient({ id }: { id: string }) {
     return value === null ? [] : [value];
   });
   const snapshotTimestamp = timestamp(legalTwin?.snapshot.asOf);
+  const selectedDateIsCurrent = snapshotTimestamp !== null && selectedTimestamp === snapshotTimestamp;
   const snapshotHasMilestone = snapshotTimestamp !== null && datedTimestamps.includes(snapshotTimestamp);
   const availableTimestamps = snapshotTimestamp === null ? datedTimestamps : [...datedTimestamps, snapshotTimestamp];
   const rangeMinimum = datedTimestamps.length ? Math.min(...availableTimestamps) : null;
@@ -756,6 +778,7 @@ export default function LegalTwinClient({ id }: { id: string }) {
             throw new Error('The snapshot response did not match the requested case and date.');
           }
           acceptProjection(nextSnapshot, revision);
+          reconcileSelectionWithProjection(nextSnapshot, selectedDateIsCurrent);
           setSnapshot(nextSnapshot);
         })
         .catch((snapshotLoadError) => {
@@ -769,10 +792,10 @@ export default function LegalTwinClient({ id }: { id: string }) {
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [acceptProjection, id, legalTwin, revision, selectedAsOf, snapshot?.asOf, snapshotRetryKey, twinRevision]);
+  }, [acceptProjection, id, legalTwin, reconcileSelectionWithProjection, revision, selectedAsOf, selectedDateIsCurrent, snapshot?.asOf, snapshotRetryKey, twinRevision]);
 
   const snapshotMatchesDate = twinRevision === revision && selectedTimestamp !== null && timestamp(snapshot?.asOf) === selectedTimestamp;
-  const includeCurrentActions = snapshotMatchesDate && snapshotTimestamp !== null && selectedTimestamp === snapshotTimestamp;
+  const includeCurrentActions = snapshotMatchesDate && selectedDateIsCurrent;
   const isCurrentCaseProjection = includeCurrentActions;
   useEffect(() => () => {
     if (highlightTimerRef.current !== null) window.clearTimeout(highlightTimerRef.current);
@@ -781,14 +804,12 @@ export default function LegalTwinClient({ id }: { id: string }) {
     () => (snapshot ? makeGraph(snapshot, caseData, includeCurrentActions) : { nodes: [], edges: [] }),
     [caseData, includeCurrentActions, snapshot],
   );
-  const setTimelineDate = useCallback((value: string | null, event?: TwinTimelineEvent, pausePlayback = true) => {
+  const setTimelineDate = useCallback((value: string | null, pausePlayback = true) => {
     if (pausePlayback) setIsPlaying(false);
     setSnapshotError(null);
     setSelectedAsOf(value);
     setSelectedEdgeId(null);
-    const eventNodeId = event?.relatedNodeIds.find((nodeId) => graph.nodes.some((node) => node.id === nodeId));
-    if (eventNodeId) setSelectedNodeId(eventNodeId);
-  }, [graph.nodes]);
+  }, []);
   const activeMilestoneIndex = selectedTimestamp === null
     ? -1
     : datedMilestones.reduce((lastIndex, milestone, index) => milestone.at <= selectedTimestamp ? index : lastIndex, -1);
@@ -799,7 +820,7 @@ export default function LegalTwinClient({ id }: { id: string }) {
     if (nextMilestoneIndex >= datedMilestones.length) return;
     const nextEvent = datedMilestones[nextMilestoneIndex].event;
     const timer = window.setTimeout(() => {
-      setTimelineDate(nextEvent.occurredAt ?? null, nextEvent, false);
+      setTimelineDate(nextEvent.occurredAt ?? null, false);
       if (nextMilestoneIndex === datedMilestones.length - 1) setIsPlaying(false);
     }, 1800);
     return () => window.clearTimeout(timer);
@@ -813,10 +834,6 @@ export default function LegalTwinClient({ id }: { id: string }) {
     return new Map(ids.map((nodeId, index) => [nodeId, index]));
   }, [legalTwin?.snapshot.nodes]);
 
-  const activeEventNodeId = useMemo(
-    () => activeEvent?.relatedNodeIds.find((nodeId) => graph.nodes.some((node) => node.id === nodeId)) ?? null,
-    [activeEvent, graph.nodes],
-  );
   const visibleNodes = useMemo(
     () => [...(filter === 'all' ? graph.nodes : graph.nodes.filter((node) => node.kind === filter))]
       .sort((left, right) => (baseNodeOrder.get(left.id) ?? Number.MAX_SAFE_INTEGER) - (baseNodeOrder.get(right.id) ?? Number.MAX_SAFE_INTEGER)),
@@ -826,12 +843,29 @@ export default function LegalTwinClient({ id }: { id: string }) {
   const twinCanvasNodes = useMemo(() => graph.nodes.map(asTwinCanvasNode), [graph.nodes]);
   const twinCanvasEdges = useMemo(() => graph.edges.map(asTwinCanvasEdge), [graph.edges]);
   const selectedNode = useMemo(
-    () => graph.nodes.find((node) => node.id === selectedNodeId)
-      ?? graph.nodes.find((node) => node.id === activeEventNodeId)
-      ?? graph.nodes[0]
-      ?? null,
-    [activeEventNodeId, graph.nodes, selectedNodeId],
+    () => selectedNodeId ? graph.nodes.find((node) => node.id === selectedNodeId) ?? null : null,
+    [graph.nodes, selectedNodeId],
   );
+  useEffect(() => {
+    if (!snapshotMatchesDate || focusHandledRef.current) return;
+    const requestedNodeId = new URLSearchParams(window.location.search).get('focus');
+    focusHandledRef.current = true;
+    if (!requestedNodeId) return;
+
+    const node = graph.nodes.find((item) => item.id === requestedNodeId);
+    window.requestAnimationFrame(() => {
+      setRequestedFocusId(requestedNodeId);
+      if (node) {
+        setFilter('all');
+        setSelectedEdgeId(null);
+        setSelectedNodeId(node.id);
+      }
+      document.getElementById('legal-twin-graph')?.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
+    });
+  }, [graph.nodes, reducedMotion, snapshotMatchesDate]);
+  const focusNotice = requestedFocusId && snapshotMatchesDate && !graph.nodes.some((node) => node.id === requestedFocusId)
+    ? 'The requested record is not present in this Legal Twin projection. The projection shows only nodes returned by the Twin service.'
+    : null;
   const selectedTwinEdge = useMemo(
     () => graph.edges.find((edge) => edge.id === selectedEdgeId) ?? null,
     [graph.edges, selectedEdgeId],
@@ -843,6 +877,119 @@ export default function LegalTwinClient({ id }: { id: string }) {
       : [],
     [graph.edges, selectedNode],
   );
+  const guideSelectedNode = useMemo<TwinGuideNodeContext | null>(() => {
+    if (!snapshotMatchesDate || !selectedNode) return null;
+    const node = selectedNode;
+    if (!node) return null;
+    return {
+      id: node.id,
+      kind: node.kind,
+      title: node.title,
+      subtitle: node.subtitle,
+      summary: node.summary,
+      status: node.status ?? 'unknown',
+      references: node.references,
+      provenance: node.provenance,
+      unresolved: Boolean(node.unresolved),
+      temporallyUncertain: Boolean(node.temporallyUncertain),
+    };
+  }, [selectedNode, snapshotMatchesDate]);
+  const guideSelectedEdge = useMemo<TwinGuideEdgeContext | null>(() => {
+    if (!snapshotMatchesDate || !selectedTwinEdge) return null;
+    const source = nodeById.get(selectedTwinEdge.source);
+    const target = nodeById.get(selectedTwinEdge.target);
+    if (!source || !target) return null;
+    return {
+      id: selectedTwinEdge.id,
+      relation: selectedTwinEdge.relation,
+      status: selectedTwinEdge.status,
+      source: { id: source.id, title: source.title, kind: source.kind },
+      target: { id: target.id, title: target.title, kind: target.kind },
+      provenance: selectedTwinEdge.provenance,
+    };
+  }, [nodeById, selectedTwinEdge, snapshotMatchesDate]);
+  const guideTimeline = useMemo<TwinGuideTimelineContext>(() => {
+    const currentAt = legalTwin?.snapshot.asOf ?? null;
+    const latestTime = timestamp(currentAt);
+    return {
+      at: selectedAsOf,
+      currentAt,
+      isCurrent: latestTime !== null && selectedTimestamp === latestTime,
+      projectionReady: snapshotMatchesDate,
+      activeEvent: activeEvent
+        ? { title: humanize(activeEvent.kind), summary: activeEvent.summary }
+        : null,
+    };
+  }, [activeEvent, legalTwin?.snapshot.asOf, selectedAsOf, selectedTimestamp, snapshotMatchesDate]);
+  const guideActionBridge = useMemo(() => createGuideActionBridge({
+    navigate: (route) => {
+      if (route.kind === 'home') {
+        router.push('/');
+        return;
+      }
+      const casePath = `/case/${encodeURIComponent(route.caseId)}`;
+      const path = route.kind === 'case' ? casePath
+        : route.kind === 'documents' ? `${casePath}/documents`
+          : route.kind === 'guide' ? `${casePath}/guide`
+            : route.kind === 'journey' ? `${casePath}#journey`
+              : `${casePath}/${route.kind}`;
+      router.push(path);
+    },
+    openEvidence: (evidenceId) => {
+      if (caseData) {
+        const query = evidenceId ? `?evidenceId=${encodeURIComponent(evidenceId)}` : '';
+        router.push(`/case/${encodeURIComponent(caseData.id)}/documents${query}`);
+      }
+    },
+    openDocument: (documentId) => {
+      if (!caseData || !caseData.documents.some((document) => document.id === documentId)) {
+        return { status: 'unavailable', reason: 'The selected document is not present in the current CaseState.' };
+      }
+      router.push(`/case/${encodeURIComponent(caseData.id)}/documents?documentId=${encodeURIComponent(documentId)}`);
+    },
+    openLegalGrounding: () => {
+      if (caseData) router.push(`/case/${encodeURIComponent(caseData.id)}/guide`);
+    },
+    openJourney: () => {
+      if (caseData) router.push(`/case/${encodeURIComponent(caseData.id)}#journey`);
+    },
+    openTwin: () => {
+      if (!legalTwin) return { status: 'unavailable', reason: 'The latest Twin state is not available yet.' };
+      setTimelineDate(legalTwin.snapshot.asOf);
+    },
+  }), [caseData, legalTwin, router, setTimelineDate]);
+  const handleGuideAction = useCallback((action: GuideAction | GuideActionCommand) => {
+    if (!('payload' in action)) {
+      void guideActionBridge.dispatch(action);
+      return;
+    }
+    switch (action.type) {
+      case 'SHOW_EVIDENCE':
+        void guideActionBridge.dispatch({ type: 'openEvidence' });
+        break;
+      case 'SHOW_LEGAL_GROUNDING': {
+        const recordId = action.payload.recordIds[0];
+        void guideActionBridge.dispatch(recordId
+          ? { type: 'openLegalGrounding', recordId }
+          : { type: 'navigate', route: { kind: 'guide', caseId: action.payload.caseId } });
+        break;
+      }
+      case 'OPEN_JOURNEY':
+        void guideActionBridge.dispatch({ type: 'openJourney' });
+        break;
+      case 'SHOW_TWIN':
+        void guideActionBridge.dispatch({ type: 'openTwin' });
+        break;
+      case 'NAVIGATE':
+        void guideActionBridge.dispatch({
+          type: 'navigate',
+          route: { kind: action.payload.target, caseId: action.payload.caseId },
+        });
+        break;
+      default:
+        break;
+    }
+  }, [guideActionBridge]);
   const hasLocation = Boolean(
     caseData?.jurisdiction.city || caseData?.jurisdiction.state || caseData?.jurisdiction.district || caseData?.jurisdiction.country,
   );
@@ -988,6 +1135,11 @@ export default function LegalTwinClient({ id }: { id: string }) {
         </div>
 
         <section id="legal-twin-graph" className="scroll-mt-32 space-y-4 rounded-xl border border-white/[0.06] bg-[#161b2a] p-4 shadow-[0_10px_28px_rgba(0,0,0,0.18)] sm:p-5">
+          {focusNotice && (
+            <p role="status" className="rounded-lg border border-amber-300/15 bg-amber-300/[0.04] px-3 py-2 text-xs leading-5 text-amber-100/80">
+              {focusNotice}
+            </p>
+          )}
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <div className="flex items-center gap-2">
@@ -1005,7 +1157,7 @@ export default function LegalTwinClient({ id }: { id: string }) {
                 onClick={() => setShowGuide((visible) => !visible)}
                 className={`min-h-9 rounded-full border px-3 text-[10px] font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-200 ${showGuide ? 'border-cyan-200/30 bg-cyan-200/10 text-cyan-100' : 'border-white/10 bg-white/[0.03] text-[#c2ccdd] hover:bg-white/[0.07]'}`}
               >
-                {showGuide ? 'Hide visual guide' : 'Show visual guide'}
+                {showGuide ? 'Hide Guide' : 'Show Guide'}
               </button>
               <span className="flex items-center gap-1.5 rounded-full border border-cyan-200/10 bg-cyan-200/[0.045] px-3 py-1.5 font-mono text-[9px] uppercase tracking-wide text-cyan-100/80">
                 <Waypoints className="h-3.5 w-3.5" />
@@ -1071,7 +1223,71 @@ export default function LegalTwinClient({ id }: { id: string }) {
               </div>
             )}
           </div>
-          {showGuide && <TwinGuideCompanion />}
+          <details className="rounded-xl border border-cyan-100/10 bg-[#101827] md:hidden">
+            <summary className="min-h-11 cursor-pointer px-4 py-3 text-sm font-semibold text-cyan-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-200">
+              Browse records and relationships
+            </summary>
+            <div className="max-h-80 space-y-4 overflow-y-auto border-t border-white/[0.06] p-3">
+              <section aria-labelledby="twin-mobile-records-heading">
+                <h3 id="twin-mobile-records-heading" className="mb-2 text-xs font-semibold text-slate-300">Records</h3>
+                {visibleNodes.length > 0 ? (
+                  <ul className="space-y-1.5">
+                    {visibleNodes.map((node) => (
+                      <li key={`touch-node-${node.id}`}>
+                        <button
+                          type="button"
+                          aria-pressed={selectedNodeId === node.id}
+                          disabled={!snapshotMatchesDate}
+                          onClick={() => { setSelectedNodeId(node.id); setSelectedEdgeId(null); }}
+                          className="flex min-h-11 w-full items-center justify-between gap-3 rounded-lg border border-white/[0.08] bg-white/[0.025] px-3 py-2 text-left text-sm text-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-200 disabled:opacity-45"
+                        >
+                          <span className="min-w-0 break-words">{node.title}</span>
+                          <span className="shrink-0 text-[10px] text-slate-400">{KIND_LABELS[node.kind]}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-xs text-slate-400">No records are available in this view.</p>
+                )}
+              </section>
+              <section aria-labelledby="twin-mobile-relationships-heading">
+                <h3 id="twin-mobile-relationships-heading" className="mb-2 text-xs font-semibold text-slate-300">Relationships</h3>
+                {graph.edges.length > 0 ? (
+                  <ul className="space-y-1.5">
+                    {graph.edges.map((edge) => {
+                      const source = nodeById.get(edge.source);
+                      const target = nodeById.get(edge.target);
+                      return (
+                        <li key={`touch-edge-${edge.id}`}>
+                          <button
+                            type="button"
+                            aria-pressed={selectedEdgeId === edge.id}
+                            disabled={!snapshotMatchesDate}
+                            onClick={() => { setSelectedEdgeId(edge.id); setSelectedNodeId(edge.source); }}
+                            className="min-h-11 w-full rounded-lg border border-white/[0.08] bg-white/[0.025] px-3 py-2 text-left text-sm leading-5 text-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-200 disabled:opacity-45"
+                          >
+                            <span className="break-words">{source?.title ?? 'Record'} {edge.relation} {target?.title ?? 'record'}</span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <p className="text-xs text-slate-400">No relationships are available in this view.</p>
+                )}
+              </section>
+            </div>
+          </details>
+          {showGuide && (
+            <TwinGuideCompanion
+              caseState={caseData}
+              node={guideSelectedNode}
+              edge={guideSelectedEdge}
+              timeline={guideTimeline}
+              onActionRequested={handleGuideAction}
+            />
+          )}
           </div>
 
           {selectedTwinEdge && snapshotMatchesDate && (
@@ -1223,7 +1439,7 @@ export default function LegalTwinClient({ id }: { id: string }) {
               disabled={datedEvents.length < 2 || reducedMotion}
               onClick={() => {
                 if (!isPlaying && activeMilestoneIndex >= datedEvents.length - 1 && datedEvents[0]) {
-                  setTimelineDate(datedEvents[0].occurredAt ?? null, datedEvents[0]);
+                  setTimelineDate(datedEvents[0].occurredAt ?? null);
                 }
                 setIsPlaying((playing) => !playing);
               }}
@@ -1272,7 +1488,7 @@ export default function LegalTwinClient({ id }: { id: string }) {
                       <button
                         key={event.id}
                         type="button"
-                        onClick={() => setTimelineDate(event.occurredAt ?? null, event)}
+                        onClick={() => setTimelineDate(event.occurredAt ?? null)}
                         aria-pressed={isActive}
                         className="group flex min-w-[104px] flex-1 flex-col items-center rounded-lg px-1 py-1 text-center transition hover:bg-[#252a39] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#ffc174]"
                         title={`${formatCaseDate(event.occurredAt)} · ${event.summary}`}
@@ -1311,7 +1527,7 @@ export default function LegalTwinClient({ id }: { id: string }) {
                     type="button"
                     aria-label="Previous dated milestone"
                     disabled={!previousMilestone}
-                    onClick={() => previousMilestone && setTimelineDate(previousMilestone.occurredAt ?? null, previousMilestone)}
+                    onClick={() => previousMilestone && setTimelineDate(previousMilestone.occurredAt ?? null)}
                     className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[#bcc7de] transition hover:bg-[#252a39] hover:text-[#ffc174] disabled:opacity-30"
                   >
                     <ArrowLeft className="h-4 w-4" />
@@ -1332,7 +1548,7 @@ export default function LegalTwinClient({ id }: { id: string }) {
                     type="button"
                     aria-label="Next dated milestone"
                     disabled={!nextMilestone || activeMilestoneIndex === datedEvents.length - 1}
-                    onClick={() => nextMilestone && setTimelineDate(nextMilestone.occurredAt ?? null, nextMilestone)}
+                    onClick={() => nextMilestone && setTimelineDate(nextMilestone.occurredAt ?? null)}
                     className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[#bcc7de] transition hover:bg-[#252a39] hover:text-[#ffc174] disabled:opacity-30"
                   >
                     <ArrowRight className="h-4 w-4" />
@@ -1385,7 +1601,7 @@ export default function LegalTwinClient({ id }: { id: string }) {
 
         {isCurrentCaseProjection ? (
         <>
-        <section className="rounded-xl border border-white/[0.06] bg-[#161b2a] p-4 shadow-[0_10px_28px_rgba(0,0,0,0.18)] sm:p-5">
+        <section id="twin-evidence-records" className="scroll-mt-24 rounded-xl border border-white/[0.06] bg-[#161b2a] p-4 shadow-[0_10px_28px_rgba(0,0,0,0.18)] sm:p-5">
           <div className="mb-4 flex items-end justify-between gap-3">
             <div>
               <h2 className="font-serif text-xl font-medium text-[#dee2f6]">Evidence records</h2>
@@ -1402,6 +1618,7 @@ export default function LegalTwinClient({ id }: { id: string }) {
                   onClick={() => {
                     setFilter('all');
                     setSelectedNodeId(`evidence:${item.id}`);
+                    setSelectedEdgeId(null);
                   }}
                   className="group flex min-h-[104px] min-w-0 flex-col justify-between rounded-lg border border-[#303444] bg-[#1a1f2e] p-3 text-left transition hover:border-[#38bdf8]/40 hover:bg-[#252a39]"
                 >
@@ -1714,7 +1931,7 @@ export default function LegalTwinClient({ id }: { id: string }) {
                 disabled={!snapshotMatchesDate}
                 onClick={() => {
                   setFilter(kind);
-                  document.getElementById('legal-twin-graph')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  document.getElementById('legal-twin-graph')?.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
                 }}
                 className="flex min-h-[74px] items-center gap-3 rounded-xl border border-white/[0.06] bg-[#161b2a] px-3 py-3 text-left transition hover:border-[#ffc174]/30 hover:bg-[#1a1f2e] disabled:cursor-wait disabled:opacity-45"
               >

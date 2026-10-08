@@ -20,7 +20,7 @@ export function PageNavigator({ currentPage, totalPages, onPageChange, className
         onClick={() => onPageChange(page - 1)}
         disabled={!hasPages || page <= 1}
         aria-label="Previous page"
-        className="inline-flex h-9 items-center gap-1 rounded-lg border border-white/[0.09] bg-white/[0.025] px-3 text-xs font-medium text-zinc-300 transition hover:bg-white/[0.07] disabled:cursor-not-allowed disabled:opacity-40"
+        className="inline-flex h-9 items-center gap-1 rounded-lg border border-white/[0.09] bg-white/[0.025] px-3 text-xs font-medium text-zinc-300 transition hover:bg-white/[0.07] disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none"
       >
         <ChevronLeft aria-hidden="true" className="h-4 w-4" />
         Previous
@@ -33,7 +33,7 @@ export function PageNavigator({ currentPage, totalPages, onPageChange, className
         onClick={() => onPageChange(page + 1)}
         disabled={!hasPages || page >= totalPages}
         aria-label="Next page"
-        className="inline-flex h-9 items-center gap-1 rounded-lg border border-white/[0.09] bg-white/[0.025] px-3 text-xs font-medium text-zinc-300 transition hover:bg-white/[0.07] disabled:cursor-not-allowed disabled:opacity-40"
+        className="inline-flex h-9 items-center gap-1 rounded-lg border border-white/[0.09] bg-white/[0.025] px-3 text-xs font-medium text-zinc-300 transition hover:bg-white/[0.07] disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none"
       >
         Next
         <ChevronRight aria-hidden="true" className="h-4 w-4" />

@@ -48,7 +48,7 @@ export function OCRStatus({ status, detail }: { status: OCRProcessingStatus; det
   return (
     <section aria-label="OCR status" className={`rounded-xl border p-4 ${content.tone}`}>
       <h3 className="flex items-center gap-2 text-sm font-semibold">
-        <Icon aria-hidden="true" className={`h-4 w-4 ${status === 'PROCESSING' ? 'animate-spin' : ''}`} />
+        <Icon aria-hidden="true" className={`h-4 w-4 ${status === 'PROCESSING' ? 'animate-spin motion-reduce:animate-none' : ''}`} />
         {content.label}
       </h3>
       <p className="mt-2 text-xs leading-5 opacity-80">{detail || content.description}</p>

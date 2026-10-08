@@ -14,9 +14,15 @@ export interface DocumentViewerProps {
   initialPage?: number;
   onPageChange?: (page: number) => void;
   status?: DocumentReviewStatus;
+  selectedSource?: {
+    pageNumber?: number | null;
+    start?: number | null;
+    end?: number | null;
+    excerpt?: string | null;
+  } | null;
 }
 
-export function DocumentViewer({ document, pages, pageCount, initialPage = 1, onPageChange, status }: DocumentViewerProps) {
+export function DocumentViewer({ document, pages, pageCount, initialPage = 1, onPageChange, status, selectedSource }: DocumentViewerProps) {
   const safePageCount = Math.max(0, Math.floor(pageCount));
   const documentKey = document.id ?? document.fileName;
   const [pageState, setPageState] = useState(() => ({
@@ -27,7 +33,9 @@ export function DocumentViewer({ document, pages, pageCount, initialPage = 1, on
   const requestedPage = pageState.documentKey === documentKey && pageState.initialPage === initialPage
     ? pageState.page
     : Math.max(1, initialPage);
-  const currentPage = safePageCount > 0 ? Math.min(requestedPage, safePageCount) : 0;
+  const currentPage = safePageCount > 0
+    ? Math.min(Math.max(1, requestedPage), safePageCount)
+    : Math.max(1, requestedPage);
   const pageContent = pages.find((page) => page.pageNumber === currentPage);
   const previewUrl = pageContent?.previewUrl || document.previewUrl || null;
 
@@ -90,10 +98,40 @@ export function DocumentViewer({ document, pages, pageCount, initialPage = 1, on
         </div>
 
         <section aria-labelledby="document-extracted-text" className="min-w-0 p-4 sm:p-5">
+          {selectedSource && (
+            <section
+              aria-label="Selected finding source location"
+              aria-live="polite"
+              className="mb-5 rounded-xl border border-amber-300/25 bg-amber-300/[0.055] p-4 transition-[border-color,background-color] duration-300 motion-reduce:transition-none"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-xs font-semibold uppercase tracking-[0.13em] text-amber-100">Selected source location</h3>
+                <span className="rounded-md border border-amber-200/15 px-2 py-1 text-[10px] text-amber-100/75">
+                  {selectedSource.pageNumber != null ? `Page ${selectedSource.pageNumber}` : 'Page not supplied'}
+                </span>
+              </div>
+              {selectedSource.start != null && selectedSource.end != null && (
+                <p className="mt-2 text-[10px] text-amber-100/65">Characters {selectedSource.start}–{selectedSource.end} in the returned page text</p>
+              )}
+              {selectedSource.excerpt ? (
+                <blockquote className="mt-3 border-l-2 border-amber-200/70 pl-3 text-sm leading-6 text-zinc-100">
+                  <mark className="rounded bg-amber-200/20 px-0.5 text-inherit">{selectedSource.excerpt}</mark>
+                </blockquote>
+              ) : selectedSource.pageNumber != null || selectedSource.start != null || selectedSource.end != null ? (
+                <p className="mt-3 text-xs leading-5 text-amber-50/75">
+                  The review service returned a page or character location, but no source excerpt. The selected finding and its review details remain available in the findings list.
+                </p>
+              ) : (
+                <p className="mt-3 text-xs leading-5 text-amber-50/75">
+                  Review snapshot: the service did not return a source page, excerpt, or character location. The selected finding and its review details remain available in the findings list.
+                </p>
+              )}
+            </section>
+          )}
           <div className="flex items-start justify-between gap-3">
             <div>
               <h3 id="document-extracted-text" className="text-xs font-semibold uppercase tracking-[0.13em] text-zinc-300">Extracted text</h3>
-              <p className="mt-1 text-[11px] text-zinc-500">Page {currentPage || '—'}</p>
+            <p className="mt-1 text-[11px] text-zinc-500">Page {currentPage}</p>
             </div>
             <span className="rounded-md border border-white/[0.08] px-2 py-1 text-[10px] text-zinc-500">
               {pageContent?.extractedText ? 'Service text provided' : 'No text provided'}

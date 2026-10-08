@@ -6,7 +6,7 @@ This folder provides controlled React components for rendering graph data suppli
 - `TwinTimeline` selects among dated snapshots. `TwinCanvas` displays a snapshot's graph when `currentTime` exactly matches its `at` value; otherwise, it applies each node and edge's optional validity interval to the base graph.
 - `TwinInspector` resolves selected node and edge IDs against the supplied graph data.
 - `TwinLegend` and `TwinSnapshot` can be composed independently.
-- `TwinGuideCompanion` reuses the application's animated guide portrait in a caller-controlled, presentational map aside. Its idle state does not receive case or legal analysis data.
+- `TwinGuideCompanion` consumes the caller's canonical `CaseState`, actual node or relationship selection, and timeline position. It sends caller-authored contextual explanations through Guide Runtime, renders the existing `GuidePresence`, and routes applicable evidence, grounding, journey, document, and timeline actions through the existing Guide contracts.
 
 The visual evidence statuses distinguish supported, user-reported, uncertain, conflicting, and unknown records. The case route maps the API's evidence statuses into these display categories; the visualization does not create or revise case facts. Reduced-motion preferences disable the stage's animated transitions and confirmation pulses.
 

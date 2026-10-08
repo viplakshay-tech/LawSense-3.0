@@ -5,7 +5,7 @@ import { ArrowLeft, ChevronDown, LoaderCircle, Shield, Sparkles } from 'lucide-r
 import { useRouter } from 'next/navigation';
 import { useCaseState } from '@/app/case/[id]/CaseStateProvider';
 import { getSafetySupport } from './api';
-import { safetyCopy } from './copy';
+import { safetyActionCopy, safetyCopy } from './copy';
 import { EvidencePreservationPanel } from './EvidencePreservationPanel';
 import { ImmediateDangerPrompt } from './ImmediateDangerPrompt';
 import { NextSafeAction } from './NextSafeAction';
@@ -38,6 +38,8 @@ export function SafetyExperience({ caseId }: { caseId: string }) {
   const [languagePreference, setLanguagePreference] = useState<SafetyLanguagePreference>('auto');
   const [assessmentLoading, setAssessmentLoading] = useState(false);
   const [supportError, setSupportError] = useState(false);
+  const [evidenceExpanded, setEvidenceExpanded] = useState(false);
+  const [paused, setPaused] = useState(false);
 
   const refreshSupport = useCallback(async (
     immediateDanger: ImmediateDangerAnswer | null,
@@ -75,11 +77,13 @@ export function SafetyExperience({ caseId }: { caseId: string }) {
     ? assessment?.language ?? (isSafetyLanguage(caseData?.metadata.language) ? caseData.metadata.language : 'en')
     : languagePreference;
   const copy = safetyCopy[displayLanguage];
+  const actionCopy = safetyActionCopy[displayLanguage];
   const fallbackTopics = caseData?.analysis?.safetyContext?.indicators.map((item) => item.category) ?? [];
 
   function handleDangerChoice(nextChoice: ImmediateDangerAnswer) {
     choiceRef.current = nextChoice;
     setChoice(nextChoice);
+    setPaused(false);
     setAssessmentResponse(null);
     if (caseData) void refreshSupport(nextChoice, languageRef.current);
   }
@@ -95,8 +99,18 @@ export function SafetyExperience({ caseId }: { caseId: string }) {
     if (caseData) void refreshSupport(choiceRef.current, languageRef.current);
   }
 
+  function focusSection(id: string) {
+    const section = document.getElementById(id);
+    if (!section) return;
+    section.focus();
+    section.scrollIntoView({
+      block: 'start',
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+    });
+  }
+
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#0b0e13] text-zinc-100">
+    <div data-safety-mode="active" className="relative min-h-screen overflow-hidden bg-[#0b0e13] text-zinc-100">
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -top-56 left-1/2 size-[34rem] -translate-x-1/2 rounded-full bg-teal-100/[0.035] blur-3xl" />
         <div className="absolute right-[-16rem] top-[34rem] size-[28rem] rounded-full bg-slate-300/[0.025] blur-3xl" />
@@ -177,6 +191,12 @@ export function SafetyExperience({ caseId }: { caseId: string }) {
           )}
         </section>
 
+        <div aria-label="Guide state: SAFETY" role="status" className="mb-4 flex items-center gap-3 rounded-xl border border-teal-100/[0.12] bg-teal-100/[0.025] px-4 py-3">
+          <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-500">{actionCopy.guideStateLabel}</span>
+          <span className="rounded-full border border-teal-100/20 bg-teal-100/[0.07] px-2.5 py-1 text-[10px] font-bold tracking-[0.14em] text-teal-50">SAFETY</span>
+          <span className="text-xs text-zinc-400">{displayLanguage === 'hi' ? 'सुरक्षा सहायता सक्रिय है' : displayLanguage === 'hinglish' ? 'Safety support active hai' : 'Safety support is active'}</span>
+        </div>
+
         <div className="space-y-4 sm:space-y-5">
           <SafetyContextSummary
             assessment={assessment}
@@ -226,14 +246,41 @@ export function SafetyExperience({ caseId }: { caseId: string }) {
 
           {assessment && (
             <div className="space-y-4 sm:space-y-5">
-              <SafetyPathway options={assessment.escalation_options} copy={copy} />
-              <EvidencePreservationPanel guidance={assessment.evidence_preservation_guidance} copy={copy} />
-              <VerifiedResourceCategories
+              {!paused && <SafetyPathway options={assessment.escalation_options} copy={copy} />}
+              <NextSafeAction
                 assessment={assessment}
-                language={displayLanguage}
                 copy={copy}
+                actionCopy={actionCopy}
+                choice={choice}
+                paused={paused}
+                onShowResources={() => focusSection('verified-safety-resources')}
+                onShowEvidence={() => {
+                  setEvidenceExpanded(true);
+                  focusSection('evidence-preservation-guidance');
+                }}
+                onReturnToCase={() => router.push(`/case/${encodeURIComponent(caseId)}`)}
+                onPause={() => setPaused(true)}
+                onResume={() => setPaused(false)}
               />
-              <NextSafeAction assessment={assessment} copy={copy} />
+              {!paused && (
+                <>
+                  <EvidencePreservationPanel
+                    guidance={assessment.evidence_preservation_guidance}
+                    expanded={evidenceExpanded}
+                    onToggle={() => setEvidenceExpanded((current) => !current)}
+                    copy={{
+                      ...copy,
+                      evidenceAction: actionCopy.evidenceAction,
+                      hideEvidenceAction: displayLanguage === 'hi' ? 'सुझाव छिपाएँ' : displayLanguage === 'hinglish' ? 'Guidance hide karein' : 'Hide guidance',
+                    }}
+                  />
+                  <VerifiedResourceCategories
+                    assessment={assessment}
+                    language={displayLanguage}
+                    copy={copy}
+                  />
+                </>
+              )}
             </div>
           )}
 

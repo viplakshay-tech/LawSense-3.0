@@ -5,9 +5,10 @@ export interface EvidenceProvenanceProps {
   source: EvidenceSource;
   confidencePercent?: ConfidencePercent | null;
   label?: string;
+  onPage?: (pageNumber: number) => void;
 }
 
-export function EvidenceProvenance({ source, confidencePercent, label = 'Evidence source' }: EvidenceProvenanceProps) {
+export function EvidenceProvenance({ source, confidencePercent, label = 'Evidence source', onPage }: EvidenceProvenanceProps) {
   const hasSourceDetails = Boolean(source.documentName || source.pageNumber != null || source.excerpt || source.locator);
 
   return (
@@ -25,7 +26,13 @@ export function EvidenceProvenance({ source, confidencePercent, label = 'Evidenc
           </div>
           <div>
             <dt className="text-[10px] uppercase tracking-wide text-zinc-600">Source page</dt>
-            <dd className="mt-1 text-zinc-300">{source.pageNumber ?? 'Not supplied'}</dd>
+            <dd className="mt-1 text-zinc-300">
+              {source.pageNumber != null && onPage ? (
+                <button type="button" onClick={() => onPage(source.pageNumber!)} className="text-blue-200 underline decoration-blue-200/30 underline-offset-2 hover:text-blue-100">
+                  Page {source.pageNumber}
+                </button>
+              ) : source.pageNumber != null ? `Page ${source.pageNumber}` : 'Not supplied'}
+            </dd>
           </div>
           <div>
             <dt className="text-[10px] uppercase tracking-wide text-zinc-600">Locator</dt>

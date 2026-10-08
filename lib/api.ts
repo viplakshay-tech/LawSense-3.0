@@ -330,6 +330,7 @@ export interface CaseState {
   legalIssues: LegalIssue[];
   intent?: CaseIntent | null;
   unknowns: string[];
+  skippedClarificationIds: string[];
   assumptions: string[];
   conflicts: string[];
   metadata: CaseMetadata;
@@ -624,8 +625,12 @@ export async function getCase(id: string, signal?: AbortSignal): Promise<CaseSta
   return res.json();
 }
 
-export async function getClarificationQuestions(id: string): Promise<ClarificationQuestions> {
-  const res = await fetch(`${BASE_URL}/cases/${encodeURIComponent(id)}/clarification`, {
+export async function getClarificationQuestions(
+  id: string,
+  options: { includeSkipped?: boolean } = {},
+): Promise<ClarificationQuestions> {
+  const query = options.includeSkipped ? '?include_skipped=true' : '';
+  const res = await fetch(`${BASE_URL}/cases/${encodeURIComponent(id)}/clarification${query}`, {
     method: 'GET',
     headers: { Accept: 'application/json' },
     cache: 'no-store',
@@ -636,6 +641,25 @@ export async function getClarificationQuestions(id: string): Promise<Clarificati
     throw new Error(`Failed to retrieve clarification questions: ${detail}`);
   }
   return body as ClarificationQuestions;
+}
+
+export async function skipClarificationQuestion(
+  caseId: string,
+  questionId: string,
+): Promise<CaseState> {
+  const res = await fetch(
+    `${BASE_URL}/cases/${encodeURIComponent(caseId)}/clarification/${encodeURIComponent(questionId)}/skip`,
+    {
+      method: 'POST',
+      headers: { Accept: 'application/json' },
+    },
+  );
+  const body = await res.json().catch(() => null);
+  if (!res.ok) {
+    const detail = typeof body?.detail === 'string' ? body.detail : res.statusText;
+    throw new Error(`Failed to skip clarification: ${detail}`);
+  }
+  return body as CaseState;
 }
 
 export async function answerClarificationQuestion(

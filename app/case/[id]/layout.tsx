@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { CaseStateProvider } from './CaseStateProvider';
 import { CaseShell } from '@/components/case-shell/CaseShell';
+import { GuideRuntimeProvider } from '@/components/guide-runtime';
 
 export default async function CaseLayout({
   children,
@@ -12,7 +13,9 @@ export default async function CaseLayout({
   const { id } = await params;
   return (
     <CaseStateProvider key={id} caseId={id}>
-      <CaseShell caseId={id}>{children}</CaseShell>
+      <GuideRuntimeProvider caseId={id}>
+        <CaseShell caseId={id}>{children}</CaseShell>
+      </GuideRuntimeProvider>
     </CaseStateProvider>
   );
 }

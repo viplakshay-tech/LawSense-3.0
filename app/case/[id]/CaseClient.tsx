@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   type CaseFact,
@@ -13,6 +14,7 @@ import { EvidenceWorkspace } from '@/components/EvidenceWorkspace';
 import { LegalSourceCandidates } from '@/components/LegalSourceCandidates';
 import { TrustNotice } from '@/components/TrustNotice';
 import { ClarificationPanel } from '@/components/clarification/ClarificationPanel';
+import { JourneyPlan } from '@/components/journey/JourneyPlan';
 import {
   CalendarDays,
   CircleHelp,
@@ -160,6 +162,22 @@ export default function CaseClient({ id }: { id: string }) {
     refreshCaseState,
   } = useCaseState();
 
+  useEffect(() => {
+    if (!caseData) return;
+    const focusKey = 'lawsense:focus-clarification-case';
+    const focusRequestedByHome = window.sessionStorage.getItem(focusKey) === id;
+    if (window.location.hash !== '#clarification' && !focusRequestedByHome) return;
+    if (focusRequestedByHome) window.sessionStorage.removeItem(focusKey);
+    const frame = window.requestAnimationFrame(() => {
+      const section = document.getElementById('clarification');
+      const heading = document.getElementById('clarification-heading');
+      const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      section?.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
+      heading?.focus({ preventScroll: true });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [caseData, id]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#fafafa] dark:bg-[#0a0a0a] flex items-center justify-center">
@@ -178,7 +196,7 @@ export default function CaseClient({ id }: { id: string }) {
           <div className="w-12 h-12 bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-500 rounded-full flex items-center justify-center mx-auto">
             <ShieldAlert className="w-6 h-6" />
           </div>
-          <h2 className="text-xl font-semibold text-zinc-900 dark:text-white">Case Not Found</h2>
+          <h2 className="text-xl font-semibold text-zinc-900 dark:text-white">This case could not be reopened</h2>
           <p className="text-sm text-zinc-500 dark:text-zinc-400">{error || 'The case service did not return this case.'}</p>
           <button
             type="button"
@@ -191,7 +209,7 @@ export default function CaseClient({ id }: { id: string }) {
             onClick={() => router.push('/')}
             className="mt-6 px-6 py-2.5 bg-zinc-900 dark:bg-zinc-50 text-white dark:text-zinc-900 rounded-full font-medium shadow-sm hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors w-full"
           >
-            Go Back
+            Cases this session
           </button>
         </div>
       </div>
@@ -206,7 +224,8 @@ export default function CaseClient({ id }: { id: string }) {
     caseData.jurisdiction.city ||
       caseData.jurisdiction.state ||
       caseData.jurisdiction.district ||
-      caseData.jurisdiction.country,
+      caseData.jurisdiction.country ||
+      caseData.jurisdiction.locationText,
   );
   const status = hasExtractedUnderstanding ? 'Understood' : 'Case created';
   const hasInitialNarrativeEvidence = caseData.evidence.some(
@@ -217,7 +236,6 @@ export default function CaseClient({ id }: { id: string }) {
   const showInitialStatementSource =
     Boolean(caseData.initialStatement?.trim()) && !hasInitialNarrativeEvidence;
   const safetyContext = caseData.analysis?.safetyContext;
-  const journey = caseData.analysis?.journey;
   return (
     <div data-case-id={id} className="min-h-screen bg-[#fafafa] dark:bg-[#0a0a0a] text-zinc-900 dark:text-zinc-50 font-sans">
       <main className="max-w-5xl mx-auto px-6 py-12">
@@ -236,17 +254,22 @@ export default function CaseClient({ id }: { id: string }) {
           <TrustNotice />
         </div>
 
+        <div className="mb-8">
+          <JourneyPlan caseState={caseData} revision={revision} />
+        </div>
+
         <div className="mb-8 scroll-mt-24" id="clarification">
           <ClarificationPanel
             caseId={caseData.id}
             updatedAt={caseData.metadata.updatedAt}
             revision={revision}
+            skippedClarificationIds={caseData.skippedClarificationIds}
             onCaseUpdate={replaceCaseState}
           />
         </div>
 
         <div className="mb-10">
-          <EvidenceWorkspace caseData={caseData} refreshCaseState={refreshCaseState} />
+          <EvidenceWorkspace caseId={caseData.id} />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-12">
@@ -439,42 +462,6 @@ export default function CaseClient({ id }: { id: string }) {
               )}
             </section>
 
-            <section id="journey" className="scroll-mt-24 bg-white dark:bg-[#111] rounded-3xl border border-zinc-200 dark:border-zinc-800/80 p-8 shadow-sm">
-              <div className="mb-5 flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-50 text-violet-600 dark:bg-violet-900/20 dark:text-violet-400">
-                  <CircleHelp className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold">Possible paths</h3>
-                  <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                    Options returned for this case journey.
-                  </p>
-                </div>
-              </div>
-              {journey?.currentSituation?.trim() && (
-                <p className="mb-4 text-sm leading-6 text-zinc-600 dark:text-zinc-300">
-                  {journey.currentSituation}
-                </p>
-              )}
-              {journey ? (
-                journey.possiblePaths.length > 0 ? (
-                  <div className="space-y-3">
-                    {journey.possiblePaths.map((path) => (
-                      <article key={path.id} className="rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
-                        <h4 className="font-medium">{path.label}</h4>
-                        <p className="mt-2 text-sm leading-6 text-zinc-600 dark:text-zinc-300">
-                          {path.description}
-                        </p>
-                      </article>
-                    ))}
-                  </div>
-                ) : (
-                  <EmptyState>No possible paths have been returned for this case.</EmptyState>
-                )
-              ) : (
-                <EmptyState>No journey summary has been returned for this case.</EmptyState>
-              )}
-            </section>
           </div>
 
           <aside className="space-y-6">
@@ -549,6 +536,12 @@ export default function CaseClient({ id }: { id: string }) {
                     <div>
                       <dt className="text-zinc-500">Country</dt>
                       <dd className="mt-1 font-medium">{caseData.jurisdiction.country}</dd>
+                    </div>
+                  )}
+                  {caseData.jurisdiction.locationText && (
+                    <div>
+                      <dt className="text-zinc-500">Recorded location text</dt>
+                      <dd className="mt-1 font-medium">{caseData.jurisdiction.locationText}</dd>
                     </div>
                   )}
                   <div>

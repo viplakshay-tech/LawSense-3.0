@@ -5,7 +5,7 @@ import {
   type DragEvent,
   type FormEvent,
   type KeyboardEvent,
-  type MouseEvent,
+  useEffect,
   useRef,
   useState,
 } from 'react';
@@ -24,12 +24,17 @@ import {
   Sparkles,
   X,
 } from 'lucide-react';
-import { createCase, previewVoiceTranscript, uploadEvidence, type VoiceTranscriptResponse } from '@/lib/api';
+import { createCase, getCase, previewVoiceTranscript, uploadEvidence, type CaseState, type VoiceTranscriptResponse } from '@/lib/api';
 import VoiceCapture, { type RecognitionLanguage } from '@/components/voice/VoiceCapture';
 import { TrustNotice } from '@/components/TrustNotice';
+import { GuidePresence } from '@/components/guide-presence';
+import { SessionCaseChooser } from '@/components/case-continuity/SessionCaseChooser';
+import { CaseIntakeReview } from './CaseIntakeReview';
+import { rememberSessionCase } from '@/lib/case-continuity';
 import './HomeExperience.css';
 
 type EntryMode = 'text' | 'voice' | 'upload';
+type SubmissionStage = 'idle' | 'reviewing_transcript' | 'creating_case' | 'uploading_document' | 'preparing_review';
 
 const pathway = [
   {
@@ -166,30 +171,52 @@ export default function HomeExperience() {
   const [entryMode, setEntryMode] = useState<EntryMode>('text');
   const [voicePreview, setVoicePreview] = useState<VoiceTranscriptResponse | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submissionStage, setSubmissionStage] = useState<SubmissionStage>('idle');
+  const [voiceCaptureStatus, setVoiceCaptureStatus] = useState<'idle' | 'listening' | 'processing'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [createdCaseId, setCreatedCaseId] = useState<string | null>(null);
+  const [createdCaseState, setCreatedCaseState] = useState<CaseState | null>(null);
+  const [intakeReview, setIntakeReview] = useState<CaseState | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [activeStage, setActiveStage] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const statementRef = useRef<HTMLTextAreaElement>(null);
+  const readbackFocusPendingRef = useRef(false);
+  const readbackFocusFrameRef = useRef<number | null>(null);
   const modeTabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const stageTabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+
+  useEffect(() => {
+    if (!intakeReview || !readbackFocusPendingRef.current) return;
+    readbackFocusPendingRef.current = false;
+    readbackFocusFrameRef.current = window.requestAnimationFrame(() => {
+      const section = document.getElementById('intake-review');
+      const heading = document.getElementById('intake-review-heading');
+      const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      section?.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
+      heading?.focus({ preventScroll: true });
+    });
+
+    return () => {
+      if (readbackFocusFrameRef.current !== null) {
+        window.cancelAnimationFrame(readbackFocusFrameRef.current);
+        readbackFocusFrameRef.current = null;
+      }
+    };
+  }, [intakeReview]);
 
   const scrollToSection = (id: string, focusStatement = false) => {
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     document.getElementById(id)?.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
-    if (focusStatement) window.setTimeout(() => statementRef.current?.focus(), reducedMotion ? 0 : 450);
-  };
-
-  const handleSectionLink = (event: MouseEvent<HTMLAnchorElement>, id: string) => {
-    event.preventDefault();
-    scrollToSection(id);
+    if (focusStatement) statementRef.current?.focus({ preventScroll: true });
   };
 
   const setMode = (mode: EntryMode) => {
     setEntryMode(mode);
     setInputMethod(mode === 'voice' ? 'voice' : 'text');
+    setVoiceCaptureStatus('idle');
     setError(null);
   };
 
@@ -197,6 +224,10 @@ export default function HomeExperience() {
     if (!file) return;
     const supportedExtension = /\.(pdf|jpg|jpeg|png)$/i.test(file.name);
 
+    if (file.size === 0) {
+      setError('This file is empty. Choose a PDF, JPG, or PNG with content.');
+      return;
+    }
     if (file.size > 25 * 1024 * 1024) {
       setError('File size must be 25 MiB or less.');
       return;
@@ -207,6 +238,7 @@ export default function HomeExperience() {
     }
 
     setSelectedFile(file);
+    setUploadedFile(null);
     setError(null);
   };
 
@@ -223,6 +255,7 @@ export default function HomeExperience() {
 
   const removeFile = () => {
     setSelectedFile(null);
+    setUploadedFile(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -240,6 +273,7 @@ export default function HomeExperience() {
     }
 
     setIsSubmitting(true);
+    setSubmissionStage('creating_case');
     setError(null);
     let targetCaseId = createdCaseId;
 
@@ -249,16 +283,19 @@ export default function HomeExperience() {
         inputMethod === 'voice' &&
         (!voicePreview || voicePreview.transcript !== text || voicePreview.status !== 'success' || !voicePreview.caseState)
       ) {
+        setSubmissionStage('reviewing_transcript');
         const preview = await previewVoiceTranscript(text);
         setVoicePreview(preview);
         if (preview.status !== 'success' || !preview.caseState) {
           setError(preview.detail || 'The transcript could not be reviewed. You can edit it and try again.');
         }
         setIsSubmitting(false);
+        setSubmissionStage('idle');
         return;
       }
 
       if (!targetCaseId) {
+        setSubmissionStage('creating_case');
         const caseData = await createCase({
           initialStatement: text,
           title: null,
@@ -271,18 +308,33 @@ export default function HomeExperience() {
 
         targetCaseId = caseData.id;
         setCreatedCaseId(targetCaseId);
+        setCreatedCaseState(caseData);
+        rememberSessionCase(targetCaseId);
       }
 
-      if (selectedFile) await uploadEvidence(targetCaseId, selectedFile, () => undefined);
-      router.push(`/case/${targetCaseId}`);
+      if (selectedFile && uploadedFile !== selectedFile) {
+        setSubmissionStage('uploading_document');
+        await uploadEvidence(targetCaseId, selectedFile, () => undefined);
+        setUploadedFile(selectedFile);
+      }
+      setSubmissionStage('preparing_review');
+      const latestCase = await getCase(targetCaseId);
+      setCreatedCaseState(latestCase);
+      readbackFocusPendingRef.current = true;
+      setIntakeReview(latestCase);
+      setIsSubmitting(false);
+      setSubmissionStage('idle');
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : 'The request failed.';
       setError(
         targetCaseId
-          ? `Your case was created, but the document could not be uploaded. ${message} Retry the upload or open your case below.`
+          ? selectedFile && uploadedFile !== selectedFile
+            ? `Your case is saved, but the document upload or review could not finish. ${message} Try again to continue.`
+            : `Your case is saved, but the review could not be prepared. ${message} Try again to continue.`
           : `Failed to create your case. ${message}`,
       );
       setIsSubmitting(false);
+      setSubmissionStage('idle');
     }
   };
 
@@ -323,7 +375,7 @@ export default function HomeExperience() {
   const submitLabel = isSubmitting
     ? 'Working on your case…'
     : createdCaseId
-      ? selectedFile ? 'Retry upload and open case' : 'Open my case'
+      ? selectedFile && uploadedFile !== selectedFile ? 'Retry upload and review' : 'Continue to review'
       : inputMethod === 'voice'
         ? voicePreview && voicePreview.transcript === text && voicePreview.status === 'success' && voicePreview.caseState
           ? 'Create my case'
@@ -338,14 +390,14 @@ export default function HomeExperience() {
       </div>
 
       <header className={'header'}>
-        <a className={'brand'} href="#top" aria-label="LawSense home" onClick={(event) => handleSectionLink(event, 'top')}>
+        <a className={'brand'} href="#top" aria-label="LawSense home">
           <span className={'brandIcon'}><BrandMark /></span>
           <span className={'brandWord'}>Law<span>Sense</span></span>
         </a>
         <nav className={'headerNav'} aria-label="Main navigation">
-          <a href="#pathway" onClick={(event) => handleSectionLink(event, 'pathway')}>How it works</a>
-          <a href="#examples" onClick={(event) => handleSectionLink(event, 'examples')}>Examples</a>
-          <a className={'headerCta'} href="#your-story" onClick={(event) => handleSectionLink(event, 'your-story')}>Begin your story <ArrowUpRight aria-hidden="true" size={14} /></a>
+          <a href="#pathway">How it works</a>
+          <a href="#examples">Examples</a>
+          <a className={'headerCta'} href="#your-story">Begin your story <ArrowUpRight aria-hidden="true" size={14} /></a>
         </nav>
       </header>
 
@@ -361,7 +413,7 @@ export default function HomeExperience() {
               Bring the facts as you know them; we will help put the pieces in order.
             </p>
             <div className={`${'heroActions'} ${'revealFour'}`}>
-              <a className={'primaryLink'} href="#your-story" onClick={(event) => handleSectionLink(event, 'your-story')}>Start with your story <ArrowDownRight aria-hidden="true" size={16} /></a>
+              <a className={'primaryLink'} href="#your-story">Start with your story <ArrowDownRight aria-hidden="true" size={16} /></a>
               <span className={'actionNote'}>No legal terms required</span>
             </div>
             <div className={`${'heroAssurances'} ${'revealFour'}`} aria-label="How LawSense helps">
@@ -373,16 +425,28 @@ export default function HomeExperience() {
           <div className={`${'heroVisual'} ${'revealThree'}`}>
             <NetworkArtwork />
           </div>
-          <a className={'scrollCue'} href="#your-story" onClick={(event) => handleSectionLink(event, 'your-story')}><span /> SCROLL TO BEGIN</a>
+          <a className={'scrollCue'} href="#your-story"><span /> SCROLL TO BEGIN</a>
         </section>
 
-        <section className={'workspaceSection'} id="your-story" aria-labelledby="story-heading">
+        <section className={'workspaceSection'} id="your-story" aria-labelledby={intakeReview ? 'intake-review-heading' : 'story-heading'}>
+          <SessionCaseChooser activeCaseId={createdCaseId} activeCaseData={createdCaseState} />
+          {intakeReview && (
+            <CaseIntakeReview
+              caseState={intakeReview}
+              onCaseUpdate={setIntakeReview}
+              onContinue={() => {
+                window.sessionStorage.setItem('lawsense:focus-clarification-case', intakeReview.id);
+                router.push(`/case/${intakeReview.id}`);
+              }}
+            />
+          )}
+          <div hidden={Boolean(intakeReview)}>
           <div className={'sectionHeading'}>
             <div>
               <p className={'sectionEyebrow'}>01 / YOUR STORY</p>
-              <h2 id="story-heading">Begin where you are.</h2>
+              <h2 id="story-heading">Tell me what happened.</h2>
             </div>
-            <p className={'sectionNote'}>Small details are welcome. You can add more as you go.</p>
+            <p className={'sectionNote'}>You can type it, speak it, or show me a document. Start with whatever feels easiest.</p>
           </div>
 
           <form className={'storyCard'} onSubmit={handleSubmit}>
@@ -417,9 +481,9 @@ export default function HomeExperience() {
             </div>
 
             <div className={'inputBody'}>
-              <div className={'modeIntro'} aria-live="polite">
+              <div key={entryMode} className={'modeIntro'} aria-live="polite">
                 <div>
-                  <h3>{entryMode === 'voice' ? 'Say it in your own words.' : entryMode === 'upload' ? 'Give the document a little context.' : 'What happened?'}</h3>
+                    <h3>{entryMode === 'voice' ? 'Say it in your own words.' : entryMode === 'upload' ? 'Give the document a little context.' : 'I’m listening.'}</h3>
                   <p>
                     {entryMode === 'voice'
                       ? 'Start speaking when you are ready. You can review and edit the transcript before anything is saved.'
@@ -428,7 +492,26 @@ export default function HomeExperience() {
                         : 'A few sentences is a good start. You do not need to know what the law calls it.'}
                   </p>
                 </div>
-                <span className={'softIndex'}>LS / 01</span>
+                <GuidePresence
+                  state={isSubmitting || voiceCaptureStatus === 'processing' ? 'PROCESSING' : voiceCaptureStatus === 'listening' ? 'LISTENING' : entryMode === 'voice' && Boolean(text.trim()) ? 'ASKING' : 'IDLE'}
+                  size="compact"
+                  detail={isSubmitting
+                    ? submissionStage === 'reviewing_transcript'
+                      ? 'Reviewing the voice transcript before it is saved.'
+                      : submissionStage === 'creating_case'
+                        ? 'Saving the first case record.'
+                        : submissionStage === 'uploading_document'
+                          ? 'Adding the selected document to your case.'
+                          : 'Preparing your first case readback.'
+                    : voiceCaptureStatus === 'listening'
+                      ? 'Listening to your account.'
+                      : voiceCaptureStatus === 'processing'
+                        ? 'Processing the voice capture before transcript review.'
+                        : entryMode === 'voice' && Boolean(text.trim())
+                          ? 'Your transcript draft is ready for review.'
+                          : 'I’ll keep your account, supporting documents and open questions distinct.'}
+                  className="homeGuidePresence"
+                />
               </div>
 
               {entryMode === 'voice' && (
@@ -443,6 +526,7 @@ export default function HomeExperience() {
                       setInputMethod('voice');
                       setError(null);
                     }}
+                    onCaptureStatusChange={setVoiceCaptureStatus}
                   />
                 </div>
               )}
@@ -571,9 +655,7 @@ export default function HomeExperience() {
               {error && <p className={'errorMessage'} role="alert">{error}</p>}
               {createdCaseId && (
                 <p className={'caseCreated'} role="status">
-                  Your case is saved.{' '}
-                  <button type="button" onClick={() => router.push(`/case/${createdCaseId}`)}>Open it now</button>
-                  {selectedFile ? ' or retry the document upload.' : '.'}
+                  Your case is saved. Continue here to review what I understood before opening your case.
                 </p>
               )}
             </div>
@@ -588,6 +670,7 @@ export default function HomeExperience() {
             </div>
           </form>
           <p className={'afterFormNote'}>A document can support your account. Include a short description so your case has context.</p>
+          </div>
         </section>
 
         <section className={'pathwaySection'} id="pathway" aria-labelledby="pathway-title">
@@ -668,9 +751,9 @@ export default function HomeExperience() {
       </main>
 
       <footer className={'footer'}>
-        <a className={'footerBrand'} href="#top" onClick={(event) => handleSectionLink(event, 'top')}><BrandMark /> LawSense</a>
+        <a className={'footerBrand'} href="#top"><BrandMark /> LawSense</a>
         <span>Thoughtful first steps. Clearer context.</span>
-        <a href="#your-story" onClick={(event) => handleSectionLink(event, 'your-story')}>Begin again <ArrowRight aria-hidden="true" size={13} /></a>
+        <a href="#your-story">Begin again <ArrowRight aria-hidden="true" size={13} /></a>
       </footer>
     </div>
   );

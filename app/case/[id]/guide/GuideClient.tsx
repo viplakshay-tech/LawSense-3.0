@@ -1,75 +1,42 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, BookOpen, Loader2, Scale, ShieldAlert } from 'lucide-react';
 import { type CaseState, type JourneySummary } from '@/lib/api';
 import { useCaseState } from '../CaseStateProvider';
 import { LegalGuide } from '@/components/legal-guide';
 import { LEGAL_GUIDE_STATES, type GuideActionEvent, type GuideStateName } from '@/components/legal-guide/types';
-import { LegalSourceCandidates } from '@/components/LegalSourceCandidates';
+import { deriveGuideState as deriveRuntimeGuideState } from '@/components/guide-runtime/state';
 import { TrustNotice } from '@/components/TrustNotice';
 
-function getSafetyState(caseData: CaseState): GuideStateName | undefined {
-  const context = caseData.analysis?.safetyContext?.context;
-  if (context === 'urgent_safety_context' || context === 'potentially_unsafe' || context === 'sensitive') {
-    return 'safety_warning';
+const completedStatuses = new Set(['complete', 'completed', 'done', 'finished']);
+
+function guidePageStateFromRuntime(snapshot: ReturnType<typeof deriveRuntimeGuideState>): GuideStateName {
+  switch (snapshot.name) {
+    case 'idle':
+      return snapshot.reason === 'initial_account_missing' || snapshot.reason === 'analysis_unavailable'
+        ? 'listening'
+        : 'idle';
+    case 'listening': return 'listening';
+    case 'processing': return 'extracting';
+    case 'asking': return 'asking';
+    case 'evidence':
+    case 'uncertain':
+    case 'conflict': return 'evidence_review';
+    case 'grounded': return 'legal_verification';
+    case 'action': return 'journey_action';
+    case 'safety': return 'safety_warning';
+    case 'completion': return 'completion';
+    case 'explaining':
+    case 'speaking': return 'idle';
+    case 'error': return 'error';
+    default: {
+      const exhaustiveState: never = snapshot.name;
+      return exhaustiveState;
+    }
   }
-  return undefined;
-}
-
-const completedStatuses = new Set(['complete', 'completed', 'done']);
-
-function isJourneyComplete(caseData: CaseState): boolean {
-  const journey = caseData.analysis?.journey;
-  return Boolean(
-    journey &&
-      journey.steps.length > 0 &&
-      journey.steps.every((step) => completedStatuses.has(step.status.toLocaleLowerCase())) &&
-      journey.nextActions.length === 0 &&
-      journey.unknowns.length === 0 &&
-      caseData.unknowns.length === 0 &&
-      caseData.conflicts.length === 0,
-  );
-}
-
-function isExtracting(caseData: CaseState): boolean {
-  return caseData.evidence.some((item) => item.processingStatus === 'processing');
-}
-
-function needsEvidenceReview(caseData: CaseState): boolean {
-  const needsReviewStatuses = new Set(['user_reported', 'system_inferred', 'assumption', 'conflicting', 'unknown']);
-  return (
-    caseData.documents.length > 0 ||
-    caseData.evidence.some(
-      (item) =>
-        needsReviewStatuses.has(item.status) ||
-        item.processingStatus === 'ocr_required' ||
-        item.processingStatus === 'failed',
-    )
-  );
-}
-
-function needsLegalVerification(journey?: JourneySummary): boolean {
-  if (!journey) return false;
-  const legalSteps = journey.steps.filter((step) => step.stage === 'LAW' || step.stage === 'OPTIONS');
-  return legalSteps.some((step) => !completedStatuses.has(step.status.toLocaleLowerCase()));
-}
-
-/** Selects the first outstanding phase represented in the canonical CaseState. */
-function deriveGuideState(caseData: CaseState): GuideStateName {
-  if (getSafetyState(caseData)) return 'safety_warning';
-  if (isExtracting(caseData)) return 'extracting';
-  if (isJourneyComplete(caseData)) return 'completion';
-
-  const journey = caseData.analysis?.journey;
-  if (caseData.unknowns.length > 0 || (journey?.unknowns.length ?? 0) > 0) return 'asking';
-  if (needsEvidenceReview(caseData)) return 'evidence_review';
-  if (needsLegalVerification(journey)) return 'legal_verification';
-  if (journey?.nextActions.length) return 'journey_action';
-
-  if (!caseData.initialStatement?.trim() || !caseData.analysis) return 'listening';
-  return 'idle';
 }
 
 function humanize(value: string): string {
@@ -187,7 +154,7 @@ function GuideHeader({ id, title, onBack }: { id: string; title?: string; onBack
             className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-lg border border-white/[0.1] bg-white/[0.04] px-3 text-xs font-semibold text-slate-300 transition hover:bg-white/[0.07] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8C9EFF]"
           >
             <ArrowLeft aria-hidden="true" className="h-4 w-4" />
-            Case
+            Back to case
           </button>
         </div>
       </div>
@@ -247,8 +214,10 @@ function SafetySummary({ caseData }: { caseData: CaseState }) {
   );
 }
 
-function JourneySummary({ journey }: { journey: JourneySummary }) {
-  const currentStep = journey.steps.find((step) => step.status === 'current');
+function JourneySummary({ journey, caseId }: { journey: JourneySummary; caseId: string }) {
+  const currentStep = journey.steps.find((step) => ['active', 'current', 'in_progress', 'started'].includes(step.status.toLocaleLowerCase()))
+    ?? journey.steps.find((step) => !completedStatuses.has(step.status.toLocaleLowerCase()));
+  const completedCount = journey.steps.filter((step) => completedStatuses.has(step.status.toLocaleLowerCase())).length;
 
   return (
     <section aria-labelledby="guide-journey-heading" className="space-y-3">
@@ -260,49 +229,23 @@ function JourneySummary({ journey }: { journey: JourneySummary }) {
           Case journey
         </h2>
         {currentStep && <p className="mt-2 text-sm font-medium text-slate-200">{currentStep.title}</p>}
-        {journey.currentSituation.trim() && (
-          <p className="mt-2 text-xs leading-5 text-slate-400">{journey.currentSituation}</p>
-        )}
-        <p className="mt-3 text-[11px] leading-5 text-slate-500">
-          Jurisdiction status · {humanize(journey.jurisdictionStatus)}
+        <p className="mt-2 text-[11px] leading-5 text-slate-500">
+          {journey.steps.length > 0
+            ? `Live CaseState progress · ${completedCount} of ${journey.steps.length} steps complete`
+            : 'Journey progress is unknown because no steps were returned.'}
         </p>
+        {journey.nextActions[0] && (
+          <p className="mt-2 text-xs leading-5 text-slate-400">
+            Next recorded action · {journey.nextActions[0].action}
+          </p>
+        )}
+        <Link
+          href={`/case/${encodeURIComponent(caseId)}#journey`}
+          className="mt-3 inline-flex min-h-9 items-center gap-2 rounded-lg border border-[#8C9EFF]/25 bg-[#8C9EFF]/[0.06] px-3 text-xs font-semibold text-[#b7c2ff] transition hover:bg-[#8C9EFF]/[0.12] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8C9EFF] motion-reduce:transition-none"
+        >
+          Open the live Journey plan <span aria-hidden="true">→</span>
+        </Link>
       </div>
-
-      {journey.possiblePaths.length > 0 && (
-        <div className="rounded-xl border border-[#8C9EFF]/15 bg-[#8C9EFF]/[0.025] p-4">
-          <h3 className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#8C9EFF]/80">
-            Possible paths recorded
-          </h3>
-          <ul className="mt-3 space-y-3">
-            {journey.possiblePaths.map((path) => (
-              <li key={path.id}>
-                <p className="text-xs font-medium text-slate-200">{path.label}</p>
-                <p className="mt-1 text-[11px] leading-5 text-slate-400">{path.description}</p>
-                <p className="mt-1 text-[10px] text-slate-500">Status · {humanize(path.status)}</p>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {journey.nextActions.length > 0 && (
-        <div className="rounded-xl border border-white/[0.07] bg-[#0c111a] p-4">
-          <h3 className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-            Next steps in the case analysis
-          </h3>
-          <ul className="mt-3 space-y-3">
-            {journey.nextActions.map((action) => (
-              <li key={action.id} className="border-l border-[#8C9EFF]/30 pl-3">
-                <p className="text-xs leading-5 text-slate-200">{action.action}</p>
-                <p className="mt-1 text-[11px] leading-5 text-slate-400">{action.reason}</p>
-                {action.condition && (
-                  <p className="mt-1 text-[11px] leading-5 text-amber-200/80">{action.condition}</p>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
     </section>
   );
 }
@@ -310,26 +253,26 @@ function JourneySummary({ journey }: { journey: JourneySummary }) {
 function LegalVerificationSummary({ caseData }: { caseData: CaseState }) {
   const knowledge = caseData.analysis?.legalKnowledge;
   const journey = caseData.analysis?.journey;
-  if (!knowledge || !journey) return null;
+  if (!knowledge && caseData.legalIssues.length === 0) return null;
 
   return (
     <section aria-labelledby="guide-legal-heading" className="rounded-xl border border-violet-300/15 bg-violet-300/[0.025] p-4">
       <h2 id="guide-legal-heading" className="text-[10px] font-semibold uppercase tracking-[0.14em] text-violet-200/80">
-        Legal source check
+        Legal grounding
       </h2>
       <p className="mt-2 text-xs leading-5 text-slate-300">
-        {journey.legalKnowledgeStatus} · source records {knowledge.status === 'records_found' ? 'found' : 'not returned'}
+        {journey?.legalKnowledgeStatus || 'Candidate issues and returned source metadata from the case record'}
+        {knowledge ? ` · source records ${knowledge.status === 'records_found' ? 'found' : 'not returned'}` : ''}
       </p>
-      {knowledge.records.length > 0 ? (
-        <LegalSourceCandidates caseData={caseData} records={knowledge.records} variant="dark" />
-      ) : (
-        <p className="mt-2 text-xs leading-5 text-slate-400">
-          No matching source was returned for this issue. The local source catalog has limited coverage; an empty lookup does not mean that no law applies.
-        </p>
-      )}
-      <p className="mt-3 text-[10px] leading-4 text-slate-500">
-        Procedural paths remain candidates until the relevant law and jurisdiction are verified.
+      <p className="mt-2 text-xs leading-5 text-slate-400">
+        Issue candidates and source details are kept together in the case overview. Returned records remain subject to jurisdiction and applicability checks.
       </p>
+      <Link
+        href={`/case/${encodeURIComponent(caseData.id)}#analysis`}
+        className="mt-3 inline-flex min-h-9 items-center gap-2 rounded-lg border border-violet-200/20 bg-violet-200/[0.04] px-3 text-xs font-semibold text-violet-100 transition hover:bg-violet-200/[0.09] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-200 motion-reduce:transition-none"
+      >
+        Open legal issues and source records <span aria-hidden="true">→</span>
+      </Link>
     </section>
   );
 }
@@ -374,71 +317,22 @@ function EvidenceSummary({ caseData, journey }: { caseData: CaseState; journey?:
   return (
     <section aria-labelledby="guide-evidence-heading" className="rounded-xl border border-white/[0.07] bg-[#0c111a] p-4">
       <h2 id="guide-evidence-heading" className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-        Evidence and records
+        Evidence and documents
       </h2>
-
-      {attachedEvidence.length > 0 && (
-        <div className="mt-3">
-          <h3 className="text-xs font-medium text-slate-300">Attached to this case</h3>
-          <ul className="mt-2 space-y-2">
-            {attachedEvidence.map((item) => (
-              <li key={item.id} className="rounded-lg border border-white/[0.05] bg-white/[0.02] px-3 py-2">
-                <p className="text-xs text-slate-200">{item.title}</p>
-                <p className="mt-1 text-[10px] leading-4 text-slate-500">
-                  {humanize(item.type)} · {humanize(item.source)} source · {humanize(item.status)}
-                </p>
-              </li>
-            ))}
-          </ul>
-        </div>
+      <p className="mt-2 text-xs leading-5 text-slate-300">
+        {attachedEvidence.length} evidence item{attachedEvidence.length === 1 ? '' : 's'} · {attachedDocuments.length} document{attachedDocuments.length === 1 ? '' : 's'} attached to this case.
+      </p>
+      {(requestedEvidence.length > 0 || requestedDocuments.length > 0) && (
+        <p className="mt-2 text-xs leading-5 text-slate-400">
+          The journey lists {requestedEvidence.length} evidence item{requestedEvidence.length === 1 ? '' : 's'} and {requestedDocuments.length} document{requestedDocuments.length === 1 ? '' : 's'} to consider.
+        </p>
       )}
-
-      {attachedDocuments.length > 0 && (
-        <div className="mt-4">
-          <h3 className="text-xs font-medium text-slate-300">Documents attached to this case</h3>
-          <ul className="mt-2 space-y-2">
-            {attachedDocuments.map((document) => (
-              <li key={document.id} className="rounded-lg border border-white/[0.05] bg-white/[0.02] px-3 py-2">
-                <p className="text-xs text-slate-200">{document.filename}</p>
-                <p className="mt-1 text-[10px] leading-4 text-slate-500">
-                  {humanize(document.classification)} · {humanize(document.processingStatus)} · {document.pageCount} page{document.pageCount === 1 ? '' : 's'}
-                </p>
-                {document.errors.length > 0 && (
-                  <p className="mt-1 text-[10px] leading-4 text-amber-200/80">{document.errors.join(' · ')}</p>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {requestedEvidence.length > 0 && (
-        <div className="mt-4">
-          <h3 className="text-xs font-medium text-slate-300">Evidence listed by the journey analysis</h3>
-          <ul className="mt-2 space-y-2">
-            {requestedEvidence.map((item) => (
-              <li key={item.id} className="text-xs leading-5 text-slate-300">
-                <span>{item.item}</span>
-                <span className="text-slate-500"> · {humanize(item.availability)} · {item.purpose}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {requestedDocuments.length > 0 && (
-        <div className="mt-4">
-          <h3 className="text-xs font-medium text-slate-300">Documents listed by the journey analysis</h3>
-          <ul className="mt-2 space-y-2">
-            {requestedDocuments.map((item) => (
-              <li key={item.id} className="text-xs leading-5 text-slate-300">
-                <span>{item.document}</span>
-                <span className="text-slate-500"> · {humanize(item.availability)} · {item.purpose}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      <Link
+        href={`/case/${encodeURIComponent(caseData.id)}/documents`}
+        className="mt-3 inline-flex min-h-9 items-center gap-2 rounded-lg border border-white/[0.09] bg-white/[0.025] px-3 text-xs font-semibold text-slate-200 transition hover:bg-white/[0.06] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8C9EFF] motion-reduce:transition-none"
+      >
+        Open the evidence workspace <span aria-hidden="true">→</span>
+      </Link>
     </section>
   );
 }
@@ -449,7 +343,7 @@ export default function GuidePage({ id }: { id: string }) {
   const [previewState, setPreviewState] = useState<GuideStateName | undefined>();
 
   const isDevelopment = process.env.NODE_ENV === 'development';
-  const safetyState = caseData ? getSafetyState(caseData) : undefined;
+  const runtimeState = caseData ? deriveRuntimeGuideState(caseData) : null;
 
   if (loading) {
     return (
@@ -478,7 +372,7 @@ export default function GuidePage({ id }: { id: string }) {
   if (!caseData) {
     return (
       <div className="min-h-screen bg-[#070A0F] text-slate-100">
-        <GuideHeader id={id} onBack={() => router.push('/')} />
+        <GuideHeader id={id} onBack={() => router.push(`/case/${encodeURIComponent(id)}`)} />
         <main className="mx-auto max-w-2xl px-4 py-8 sm:px-6">
           <TrustNotice variant="dark" />
           <div className="rounded-2xl border border-rose-400/20 bg-[#111722] p-5 sm:p-7">
@@ -509,10 +403,14 @@ export default function GuidePage({ id }: { id: string }) {
     );
   }
 
-  const derivedState = deriveGuideState(caseData);
-  // Preview controls are compiled into the development UI only. An API safety state
-  // always takes priority over the preview selection.
-  const guideState = safetyState ?? (isDevelopment && previewState ? previewState : derivedState);
+  const derivedState = runtimeState ? guidePageStateFromRuntime(runtimeState) : 'listening';
+  // Development previews change only the visual preview; the safety state returned
+  // by the shared Guide Runtime always keeps priority.
+  const guideState = runtimeState?.name === 'safety'
+    ? 'safety_warning'
+    : isDevelopment && previewState
+      ? previewState
+      : derivedState;
   const journey = caseData.analysis?.journey;
   const unknowns = getUnknowns(caseData);
   const safetyActive = guideState === 'safety_warning';
@@ -525,6 +423,7 @@ export default function GuidePage({ id }: { id: string }) {
     caseData.documents.length > 0 ||
     caseData.facts.length > 0 ||
     caseData.events.length > 0 ||
+    caseData.legalIssues.length > 0 ||
     isDevelopment;
 
   return (
@@ -564,10 +463,10 @@ export default function GuidePage({ id }: { id: string }) {
                 <SafetySummary caseData={caseData} />
               ) : (
                 <>
-                  {journey && <JourneySummary journey={journey} />}
+                  {journey && <JourneySummary journey={journey} caseId={id} />}
                   <UnknownsSummary items={unknowns} />
                   <EvidenceSummary caseData={caseData} journey={journey} />
-                  {guideState === 'legal_verification' && <LegalVerificationSummary caseData={caseData} />}
+                  {(guideState === 'legal_verification' || caseData.legalIssues.length > 0) && <LegalVerificationSummary caseData={caseData} />}
                 </>
               )}
 

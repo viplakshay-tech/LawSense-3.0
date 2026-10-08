@@ -1,23 +1,54 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { CircleHelp, Loader2, Send } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { ArrowRight, Check, CircleHelp, CornerDownRight, LoaderCircle, MessageCircle, SkipForward } from 'lucide-react';
 import {
   answerClarificationQuestion,
   getClarificationQuestions,
+  skipClarificationQuestion,
   type CaseState,
   type ClarificationQuestions,
 } from '@/lib/api';
+import { GuidePresence, type GuidePresenceState } from '@/components/guide-presence';
+import styles from './ClarificationPanel.module.css';
 
 export function ClarificationPanel({
   caseId,
   updatedAt,
   revision,
+  skippedClarificationIds,
   onCaseUpdate,
 }: {
   caseId: string;
   updatedAt: string;
   revision: number;
+  skippedClarificationIds: string[];
+  onCaseUpdate: (caseState: CaseState) => void;
+}) {
+  return (
+    <ClarificationSession
+      key={caseId}
+      caseId={caseId}
+      updatedAt={updatedAt}
+      revision={revision}
+      skippedClarificationIds={skippedClarificationIds}
+      onCaseUpdate={onCaseUpdate}
+    />
+  );
+}
+
+function ClarificationSession({
+  caseId,
+  updatedAt,
+  revision,
+  skippedClarificationIds,
+  onCaseUpdate,
+}: {
+  caseId: string;
+  updatedAt: string;
+  revision: number;
+  skippedClarificationIds: string[];
   onCaseUpdate: (caseState: CaseState) => void;
 }) {
   const [queue, setQueue] = useState<ClarificationQuestions | null>(null);
@@ -27,9 +58,13 @@ export function ClarificationPanel({
     updatedAt: string;
     revision: number;
   } | null>(null);
+  const [reviewingSkipped, setReviewingSkipped] = useState(false);
+  const [hiddenQuestionIds, setHiddenQuestionIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [reaction, setReaction] = useState<string | null>(null);
+  const [reactionKind, setReactionKind] = useState<'answer' | 'skip' | null>(null);
+  const actionInFlightRef = useRef(false);
   const loading =
     loadedVersion?.caseId !== caseId ||
     loadedVersion?.updatedAt !== updatedAt ||
@@ -38,7 +73,7 @@ export function ClarificationPanel({
   useEffect(() => {
     let active = true;
 
-    getClarificationQuestions(caseId)
+    getClarificationQuestions(caseId, { includeSkipped: true })
       .then((result) => {
         if (!active) return;
         setQueue(result);
@@ -46,17 +81,11 @@ export function ClarificationPanel({
       })
       .catch((cause: unknown) => {
         if (active) {
-          setError(
-            cause instanceof Error
-              ? cause.message
-              : 'Could not load open questions.',
-          );
+          setError(cause instanceof Error ? cause.message : 'Could not load open questions.');
         }
       })
       .finally(() => {
-        if (active) {
-        setLoadedVersion({ caseId, updatedAt, revision });
-        }
+        if (active) setLoadedVersion({ caseId, updatedAt, revision });
       });
 
     return () => {
@@ -64,173 +93,218 @@ export function ClarificationPanel({
     };
   }, [caseId, revision, updatedAt]);
 
-  const question = queue?.questions[0] ?? null;
+  const skippedIds = new Set(skippedClarificationIds);
+  const hiddenIds = new Set(hiddenQuestionIds);
+  const skippedQuestions = queue?.questions.filter((question) => skippedIds.has(question.id)) ?? [];
+  const openQuestions = queue?.questions.filter((question) => !skippedIds.has(question.id)) ?? [];
+  const reviewQuestions = reviewingSkipped ? [...skippedQuestions, ...openQuestions] : openQuestions;
+  const remainingQuestions = reviewQuestions.filter((item) => !hiddenIds.has(item.id));
+  const question = remainingQuestions[0] ?? null;
 
-  async function submitAnswer(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  const guideState: GuidePresenceState = loading || saving
+    ? 'PROCESSING'
+    : error
+      ? 'ERROR'
+      : reactionKind === 'skip'
+        ? 'UNCERTAIN'
+        : reaction
+          ? 'EXPLAINING'
+          : question
+            ? 'ASKING'
+            : 'GROUNDED';
+  const guideDetail = loading
+    ? 'I’m checking the open details in your case.'
+    : saving
+      ? 'I’m adding your response as you gave it.'
+      : reaction || (question ? 'One useful question at a time. You can always leave a detail unanswered.' : 'No open question is available right now.');
 
-    if (!question || !answer.trim()) return;
+  async function saveAnswer(value: string) {
+    if (!question || !value.trim() || actionInFlightRef.current) return;
 
+    actionInFlightRef.current = true;
     setSaving(true);
     setError(null);
-    setNotice(null);
+    setReaction('I’m adding your response to the case before I continue.');
+    setReactionKind('answer');
 
     try {
-      const updated = await answerClarificationQuestion(
-        caseId,
-        question.id,
-        answer.trim(),
-      );
-
+      const updated = await answerClarificationQuestion(caseId, question.id, value.trim());
       onCaseUpdate(updated);
+      setHiddenQuestionIds((current) => current.filter((id) => id !== question.id));
+      setReviewingSkipped(false);
       setAnswer('');
-      setNotice('Answer saved to the case. The workspace and Legal Twin are updating from the returned case state.');
+      setReaction('Thanks for sharing that. I’ve added it as a user-reported answer. Let’s look at the next useful detail.');
+      setReactionKind('answer');
     } catch (cause) {
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : 'Could not save this answer.',
-      );
+      setError(cause instanceof Error ? cause.message : 'Could not save this answer.');
+      setReaction('Your answer is still here. You can try again when you are ready.');
+      setReactionKind(null);
     } finally {
+      actionInFlightRef.current = false;
       setSaving(false);
     }
   }
 
+  async function skipQuestion() {
+    if (!question || actionInFlightRef.current) return;
+    actionInFlightRef.current = true;
+    setSaving(true);
+    setAnswer('');
+    setError(null);
+    setReaction('I’ll leave this unanswered. It remains unknown, and I won’t fill it in for you.');
+    setReactionKind('skip');
+    try {
+      const updated = await skipClarificationQuestion(caseId, question.id);
+      onCaseUpdate(updated);
+      setHiddenQuestionIds((current) => current.includes(question.id) ? current : [...current, question.id]);
+      setReviewingSkipped(false);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not skip this question.');
+      setReaction('This question is still open. You can try again when you are ready.');
+      setReactionKind(null);
+    } finally {
+      actionInFlightRef.current = false;
+      setSaving(false);
+    }
+  }
+
+  function reopenSkipped() {
+    setHiddenQuestionIds([]);
+    setReviewingSkipped(true);
+    setReaction('These questions are still open. Choose one if you want to return to it.');
+    setReactionKind(null);
+  }
+
   return (
-    <section
-      aria-labelledby="clarification-heading"
-      className="rounded-3xl border border-violet-200 bg-white p-6 shadow-sm dark:border-violet-900/60 dark:bg-[#111] sm:p-8"
-    >
-      <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-50 text-violet-600 dark:bg-violet-900/30 dark:text-violet-300">
-          <CircleHelp aria-hidden="true" className="h-5 w-5" />
+    <section className={styles.panel} aria-labelledby="clarification-heading">
+      <div className={styles.topline}>
+        <div className={styles.headingBlock}>
+          <p className={styles.eyebrow}><span /> A GUIDED CASE QUESTION</p>
+          <h2 id="clarification-heading" tabIndex={-1}>Let’s fill in one detail at a time.</h2>
+          <p className={styles.intro}>These questions come from details still open in your case. Your response is saved as user-reported information with its source.</p>
         </div>
-
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-violet-600 dark:text-violet-300">
-            Clarify this case
-          </p>
-
-          <h2
-            id="clarification-heading"
-            className="mt-1 text-lg font-semibold"
-          >
-            Questions from open case details
-          </h2>
-
-          <p className="mt-1 text-sm leading-6 text-zinc-500 dark:text-zinc-400">
-            Each question is tied to an unknown in this case or its current
-            journey. Your answer is saved as user-reported information with
-            its source.
-          </p>
-        </div>
+        <GuidePresence state={guideState} size="compact" detail={guideDetail} className={styles.guidePresence} />
       </div>
 
       {loading ? (
-        <p className="mt-5 flex items-center gap-2 text-sm text-zinc-500">
-          <Loader2
-            aria-hidden="true"
-            className="h-4 w-4 animate-spin"
-          />
-          Checking open questions…
-        </p>
+        <div className={styles.loadingState} role="status">
+          <LoaderCircle aria-hidden="true" className={styles.spinner} size={17} />
+          Checking the case for its next useful question…
+        </div>
       ) : question ? (
-        <form
-          onSubmit={submitAnswer}
-          className="mt-5 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800 sm:p-5"
-        >
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700 dark:bg-violet-950/50 dark:text-violet-200">
-              {question.category.replaceAll('_', ' ')}
-            </span>
-
-            <span className="text-xs text-zinc-500">
-              {queue?.questions.length ?? 1} open question
-              {(queue?.questions.length ?? 1) === 1 ? '' : 's'}
-            </span>
-          </div>
-
-          <p className="mt-4 font-medium leading-6">{question.question}</p>
-
-          <div
-            className="mt-3 flex flex-wrap gap-2"
-            aria-label="Question sources"
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.article
+            key={question.id}
+            className={styles.questionCard}
+            initial={{ opacity: 0, y: 12, scale: 0.99 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8, scale: 0.99 }}
+            transition={{ duration: 0.22, ease: 'easeOut' }}
           >
-            {question.sources.map((source, index) => (
-              <span
-                key={`${source.source_id ?? 'source'}-${source.source_path ?? 'unknown'}-${index}`}
-                title={source.source_path}
-                className="rounded-full border border-zinc-200 px-2.5 py-1 text-xs text-zinc-500 dark:border-zinc-700 dark:text-zinc-400"
-              >
-                {source.text}
+            <div className={styles.cardTopline}>
+              <span className={styles.category}>{question.category.replaceAll('_', ' ')}</span>
+              <span className={styles.questionCount}>
+                <span className={styles.liveDot} />
+                {remainingQuestions.length} open {remainingQuestions.length === 1 ? 'question' : 'questions'}
               </span>
-            ))}
-          </div>
+            </div>
 
-          <label
-            htmlFor="clarification-answer"
-            className="mt-4 block text-sm font-medium text-zinc-700 dark:text-zinc-300"
-          >
-            Your answer
-          </label>
+            <div className={styles.questionCopy}>
+              <span className={styles.questionGlyph}><MessageCircle aria-hidden="true" size={17} /></span>
+              <div>
+                {question.target && <p className={styles.target}>ABOUT {question.target.replaceAll('_', ' ')}</p>}
+                <h3>{question.question}</h3>
+              </div>
+            </div>
 
-          <textarea
-            id="clarification-answer"
-            value={answer}
-            onChange={(event) => setAnswer(event.target.value)}
-            rows={3}
-            maxLength={10_000}
-            disabled={saving}
-            placeholder="Type what you know. You can also say that you do not know or prefer not to share."
-            className="mt-2 w-full resize-y rounded-xl border border-zinc-200 bg-transparent p-3 text-sm leading-6 outline-none focus:border-violet-400 dark:border-zinc-700 dark:focus:border-violet-500"
-          />
+            {question.sources.length > 0 && (
+              <div className={styles.sourceContext}>
+                <span className={styles.contextLabel}><CornerDownRight aria-hidden="true" size={13} /> WHY I’M ASKING</span>
+                <div className={styles.sourceList} aria-label="Question sources">
+                  {question.sources.map((source, index) => (
+                    <span key={source.source_id + '-' + source.source_path + '-' + index} title={source.source_path}>
+                      {source.text}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
 
-          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-xs text-zinc-500">
-              Only this answer is added. It does not change your original
-              statement.
-            </p>
-
-            <button
-              type="submit"
-              disabled={saving || !answer.trim()}
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-zinc-900 px-4 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
+            <form
+              className={styles.answerForm}
+              onSubmit={(event) => {
+                event.preventDefault();
+                void saveAnswer(answer);
+              }}
             >
-              {saving ? (
-                <Loader2
-                  aria-hidden="true"
-                  className="h-4 w-4 animate-spin"
-                />
-              ) : (
-                <Send aria-hidden="true" className="h-4 w-4" />
-              )}
-              Save answer
-            </button>
-          </div>
-        </form>
+              <label htmlFor={'clarification-answer-' + question.id}>Your answer</label>
+              <textarea
+                id={'clarification-answer-' + question.id}
+                value={answer}
+                onChange={(event) => setAnswer(event.target.value)}
+                rows={3}
+                maxLength={10_000}
+                disabled={saving}
+                placeholder="Share what you know in your own words…"
+              />
+
+              <div className={styles.answerActions}>
+                <p>Your words stay attached to their source. You can leave this open instead.</p>
+                <button type="submit" className={styles.answerButton} disabled={saving || !answer.trim()}>
+                  {saving ? <LoaderCircle aria-hidden="true" className={styles.spinner} size={15} /> : <ArrowRight aria-hidden="true" size={15} />}
+                  Answer
+                </button>
+              </div>
+            </form>
+
+            <div className={styles.choiceShelf} aria-label="Other ways to respond">
+              <span className={styles.choiceLabel}>OR CHOOSE A RESPONSE</span>
+              <div className={styles.choiceButtons}>
+                <button type="button" onClick={() => void saveAnswer('I don’t know.')} disabled={saving}>
+                  <CircleHelp aria-hidden="true" size={14} /> I don’t know
+                </button>
+                <button type="button" onClick={() => void saveAnswer('I prefer not to say.')} disabled={saving}>
+                  <MessageCircle aria-hidden="true" size={14} /> Prefer not to say
+                </button>
+                <button type="button" onClick={skipQuestion} disabled={saving}>
+                  <SkipForward aria-hidden="true" size={14} /> Skip
+                </button>
+              </div>
+            </div>
+          </motion.article>
+        </AnimatePresence>
       ) : (
-        <p className="mt-5 rounded-2xl border border-dashed border-zinc-200 px-4 py-5 text-sm text-zinc-500 dark:border-zinc-800">
-          No open questions are currently grounded in this case.
+        <div className={styles.emptyState}>
+          <span className={styles.emptyIcon}><Check aria-hidden="true" size={17} /></span>
+          <div>
+            <h3>No further question is ready.</h3>
+            <p>Any detail you skipped is still open and remains unknown in your case.</p>
+          </div>
+          {skippedQuestions.length > 0 && (
+            <button type="button" onClick={reopenSkipped} className={styles.reopenButton}>
+              Return to {skippedQuestions.length} skipped {skippedQuestions.length === 1 ? 'question' : 'questions'}
+            </button>
+          )}
+        </div>
+      )}
+
+      {skippedQuestions.length > 0 && question && (
+        <button type="button" onClick={reopenSkipped} className={styles.skippedSummary}>
+          <span><CircleHelp aria-hidden="true" size={14} /> {skippedQuestions.length} skipped {skippedQuestions.length === 1 ? 'detail is' : 'details are'} still unknown</span>
+          <span>Review skipped <ArrowRight aria-hidden="true" size={13} /></span>
+        </button>
+      )}
+
+      {reaction && !loading && (
+        <p className={styles.reaction} role="status" aria-live="polite">
+          <span className={reactionKind === 'skip' ? styles.reactionUnknown : styles.reactionMark}>
+            {reactionKind === 'skip' ? <CircleHelp aria-hidden="true" size={14} /> : <Check aria-hidden="true" size={14} />}
+          </span>
+          {reaction}
         </p>
       )}
 
-      {error && (
-        <p
-          role="alert"
-          className="mt-3 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-950/30 dark:text-amber-200"
-        >
-          {error}
-        </p>
-      )}
-
-      {notice && (
-        <p
-          role="status"
-          className="mt-3 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200"
-        >
-          {notice}
-        </p>
-      )}
+      {error && <p className={styles.error} role="alert">{error}</p>}
     </section>
   );
 }
