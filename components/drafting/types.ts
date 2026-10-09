@@ -45,7 +45,7 @@ export const DRAFT_DOCUMENT_TYPES = [
 
 export type DraftDocumentType = (typeof DRAFT_DOCUMENT_TYPES)[number]['id'];
 
-export type DraftFactStatus = 'user_reported' | 'evidence_supported' | 'system_inferred' | 'assumption' | 'conflicting' | 'unknown' | 'missing';
+export type DraftFactStatus = 'user_reported' | 'evidence_supported' | 'system_inferred' | 'assumption' | 'conflicting' | 'unknown' | 'missing' | 'unsupported';
 
 export interface DraftFields {
   documentHeading: string;
@@ -66,6 +66,10 @@ export interface DraftFields {
   legalText: string;
   legalSourceLabel: string;
   legalSourceUrl: string;
+  noticeReference: string;
+  noticeDate: string;
+  noticeDetails: string;
+  responsePosition: string;
 }
 
 export interface DraftState {

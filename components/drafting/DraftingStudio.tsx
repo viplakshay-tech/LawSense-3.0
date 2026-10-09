@@ -29,6 +29,8 @@ import {
   refreshDraftSources,
 } from './model';
 import { DRAFT_DOCUMENT_TYPES, type DraftDocumentType, type DraftFields, type DraftSourceFact, type DraftState } from './types';
+import type { CaseState } from '@/lib/api';
+import { DocumentPackagePanel } from './DocumentPackagePanel';
 import './DraftingStudio.css';
 
 const styles = new Proxy<Record<string, string>>({} as Record<string, string>, {
@@ -43,6 +45,7 @@ const STATUS_LABELS: Record<DraftSourceFact['status'], string> = {
   conflicting: 'Conflicting',
   unknown: 'Unknown',
   missing: 'Missing',
+  unsupported: 'Unsupported',
 };
 
 function storageKey(caseId: string) {
@@ -58,6 +61,20 @@ function safeSourceUrl(url: string | null | undefined): string | null {
   } catch {
     return null;
   }
+}
+
+function hasVerifiedLegalSource(caseState: CaseState, label: string, url: string): boolean {
+  const normalizedLabel = label.trim().toLocaleLowerCase();
+  const normalizedUrl = safeSourceUrl(url);
+  return Boolean(caseState.analysis?.legalKnowledge.records.some((record) => {
+    if (record.status !== 'verified' || (record.sourceVerificationStatus && record.sourceVerificationStatus !== 'verified')) return false;
+    const recordUrl = safeSourceUrl(record.sourceUrl || record.provenance.find((item) => item.sourceUrl)?.sourceUrl);
+    const normalizedReference = (record.reference ?? '').trim().toLocaleLowerCase();
+    return Boolean(
+      (normalizedLabel && (record.title.trim().toLocaleLowerCase() === normalizedLabel || normalizedReference === normalizedLabel))
+      || (normalizedUrl && recordUrl === normalizedUrl),
+    );
+  }));
 }
 
 function FactStatus({ status }: { status: DraftSourceFact['status'] }) {
@@ -172,9 +189,17 @@ export function DraftingStudio({ caseId }: { caseId: string }) {
       : null,
     [draft, draftIsStale],
   );
+  const verifiedLegalSourceMissing = Boolean(
+    caseState && previewDraft?.fields.legalText.trim()
+    && !hasVerifiedLegalSource(caseState, previewDraft.fields.legalSourceLabel, previewDraft.fields.legalSourceUrl),
+  );
   const unresolved = useMemo(
-    () => (previewDraft ? getUnresolvedFields(previewDraft, sourceFacts) : []),
-    [previewDraft, sourceFacts],
+    () => {
+      const missing = previewDraft ? getUnresolvedFields(previewDraft, sourceFacts) : [];
+      if (verifiedLegalSourceMissing) missing.push('Verified legal source already recorded in this case');
+      return missing;
+    },
+    [previewDraft, sourceFacts, verifiedLegalSourceMissing],
   );
   const previewText = useMemo(
     () => (previewDraft ? createDocumentText(previewDraft, sourceFacts, unresolved) : ''),
@@ -206,7 +231,7 @@ export function DraftingStudio({ caseId }: { caseId: string }) {
   const selectedFacts = sourceFacts.filter((fact) => previewDraft?.includedFactIds.includes(fact.id));
   const safeLegalSources = (caseState.analysis?.legalKnowledge.records ?? [])
     .map((record) => ({ record, url: safeSourceUrl(record.sourceUrl || record.provenance.find((item) => item.sourceUrl)?.sourceUrl) }))
-    .filter((item) => item.url);
+    .filter((item) => item.url && item.record.status === 'verified' && (!item.record.sourceVerificationStatus || item.record.sourceVerificationStatus === 'verified'));
 
   function changeField(field: keyof DraftFields, value: string) {
     setDraft((current) => current ? {
@@ -268,13 +293,13 @@ export function DraftingStudio({ caseId }: { caseId: string }) {
   }
 
   function confirmReview() {
-    if (draftIsStale) return;
+    if (draftIsStale || verifiedLegalSourceMissing) return;
     if (unresolved.length > 0 && !activeDraft.unresolvedAcknowledged) return;
     setDraft((current) => current ? { ...current, reviewConfirmed: true } : current);
   }
 
   function downloadDraft() {
-    if (!activeDraft.reviewConfirmed || draftIsStale) return;
+    if (!activeDraft.reviewConfirmed || draftIsStale || verifiedLegalSourceMissing) return;
     const blob = new Blob([previewText], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const anchor = window.document.createElement('a');
@@ -286,7 +311,7 @@ export function DraftingStudio({ caseId }: { caseId: string }) {
 
   function printDraft() {
     const paper = paperRef.current;
-    if (!activeDraft.reviewConfirmed || draftIsStale || !paper) return;
+    if (!activeDraft.reviewConfirmed || draftIsStale || verifiedLegalSourceMissing || !paper) return;
     const previousBodyVisibility = window.document.body.style.visibility;
     const previousPaperVisibility = paper.style.visibility;
     const restore = () => {
@@ -400,6 +425,16 @@ export function DraftingStudio({ caseId }: { caseId: string }) {
             <div className={styles.stackFields}>
               <Field label="Details section heading" value={draft.fields.detailsHeading} onChange={(value) => changeField('detailsHeading', value)} placeholder="Details from the case" required />
               <Field label="Why you are writing" value={draft.fields.purpose} onChange={(value) => changeField('purpose', value)} placeholder="Briefly describe the purpose of this document" required multiline rows={2} maxLength={1200} />
+              {draft.documentType === 'response-correspondence' && (
+                <div className={styles.stackFields}>
+                  <div className={styles.formGrid}>
+                    <Field label="Notice reference" value={draft.fields.noticeReference} onChange={(value) => changeField('noticeReference', value)} placeholder="Reference shown on the notice" required />
+                    <Field label="Date of notice" value={draft.fields.noticeDate} onChange={(value) => changeField('noticeDate', value)} placeholder="Enter the date shown on the notice" />
+                  </div>
+                  <Field label="Notice details" value={draft.fields.noticeDetails} onChange={(value) => changeField('noticeDetails', value)} placeholder="Enter or summarize the notice details" required multiline rows={3} maxLength={5000} hint="Use your wording or quote the notice. The compiler will not infer its contents." />
+                  <Field label="Your response to the notice" value={draft.fields.responsePosition} onChange={(value) => changeField('responsePosition', value)} placeholder="State your response in your own words" required multiline rows={3} maxLength={5000} />
+                </div>
+              )}
               <div className={styles.factsCard}>
                 <div className={styles.factsHeader}>
                   <div><h4>Case facts to include</h4><p>{selectedFacts.length} selected · unchecked details stay out of the draft</p></div>
@@ -434,7 +469,7 @@ export function DraftingStudio({ caseId }: { caseId: string }) {
                             ? 'Missing value · not included'
                             : fact.status === 'conflicting'
                               ? 'Conflicting · review the source before including'
-                              : fact.status === 'system_inferred' || fact.status === 'assumption'
+                            : fact.status === 'system_inferred' || fact.status === 'assumption' || fact.status === 'unsupported'
                                 ? `${STATUS_LABELS[fact.status]} · not inserted as a confirmed fact`
                                 : 'Unknown · not inserted as a confirmed fact'}</p>}
                         </article>
@@ -461,12 +496,12 @@ export function DraftingStudio({ caseId }: { caseId: string }) {
 
           <details className={styles.legalCard}>
             <summary><span><span className={styles.sectionKicker}>OPTIONAL</span><strong>Add legal wording you already have</strong></span><span className={styles.legalSummaryHint}>No legal provisions are added automatically</span></summary>
-            <p className={styles.legalIntro}>Law Sense does not invent or insert legal sections. If you add legal wording, include the source you used so it travels with this draft.</p>
+            <p className={styles.legalIntro}>Law Sense does not invent or insert legal sections. Legal wording can be exported only when its source matches a verified legal record already saved in this case.</p>
             <div className={styles.stackFields}>
               <Field label="Legal wording · copied or written by you" value={draft.fields.legalText} onChange={(value) => changeField('legalText', value)} placeholder="Optional · leave empty to use no legal wording" multiline rows={4} maxLength={6000} />
               {draft.fields.legalText.trim() && (
                 <div className={styles.formGrid}>
-                  <Field label="Source title or reference" value={draft.fields.legalSourceLabel} onChange={(value) => changeField('legalSourceLabel', value)} placeholder="Enter the source title or citation" required />
+                  <Field label="Source title or reference" value={draft.fields.legalSourceLabel} onChange={(value) => changeField('legalSourceLabel', value)} placeholder="Use the title or reference of a verified case source" required hint="A source link by itself does not count as verification." />
                   <Field label="Source link" value={draft.fields.legalSourceUrl} onChange={(value) => changeField('legalSourceUrl', value)} placeholder="https://…" hint="Optional · only a valid web link will be clickable in the preview." />
                 </div>
               )}
@@ -530,7 +565,7 @@ export function DraftingStudio({ caseId }: { caseId: string }) {
             )}
             <div className={styles.reviewActions}>
               {!draft.reviewConfirmed || draftIsStale ? (
-                <button type="button" className={styles.primaryButton} onClick={confirmReview} disabled={draftIsStale || (unresolved.length > 0 && !draft.unresolvedAcknowledged)}>
+                <button type="button" className={styles.primaryButton} onClick={confirmReview} disabled={draftIsStale || verifiedLegalSourceMissing || (unresolved.length > 0 && !draft.unresolvedAcknowledged)}>
                   <ShieldCheck size={15} aria-hidden="true" /> I reviewed this draft
                 </button>
               ) : (
@@ -560,6 +595,12 @@ export function DraftingStudio({ caseId }: { caseId: string }) {
           <p className={styles.reviewNote}><ShieldCheck size={14} aria-hidden="true" /> This is a generated draft. No professional review is recorded.</p>
         </aside>
       </div>
+      <DocumentPackagePanel
+        caseId={caseId}
+        caseState={caseState}
+        draft={activeDraft}
+        stale={draftIsStale}
+      />
       <span className={styles.srOnly} aria-live="polite">{draftIsStale ? 'The case changed after this draft was prepared. Review and refresh its sources before export.' : draft.reviewConfirmed ? 'Review complete. Download and print are available.' : 'Export is locked until you confirm your review.'}</span>
     </main>
   );

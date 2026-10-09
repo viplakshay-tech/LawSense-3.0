@@ -56,6 +56,10 @@ export function createInitialDraft(caseState: CaseState): DraftState {
       legalText: '',
       legalSourceLabel: '',
       legalSourceUrl: '',
+      noticeReference: '',
+      noticeDate: '',
+      noticeDetails: '',
+      responsePosition: '',
     },
     includedFactIds: getDraftSourceFacts(caseState)
       .filter((fact) => fact.canInclude)
@@ -90,12 +94,17 @@ function sourceNoteForEvidence(evidence: EvidenceItem, caseState: CaseState): st
   return `${evidence.title} · ${origin} · ${evidence.status.replaceAll('_', ' ')}`;
 }
 
-function factSources(ids: string[], caseState: CaseState): string[] {
+function factSources(ids: string[], caseState: CaseState, provenance: CaseState['facts'][number]['provenance'] = []): string[] {
   const byId = new Map(caseState.evidence.map((evidence) => [evidence.id, evidence]));
-  return [...new Set(ids)].map((id) => {
+  const notes = [...new Set(ids)].map((id) => {
     const evidence = byId.get(id);
-    return evidence ? sourceNoteForEvidence(evidence, caseState) : `Source reference ${id}`;
+    return evidence ? sourceNoteForEvidence(evidence, caseState) : `Unresolved source reference ${id}`;
   });
+  provenance.forEach((item) => {
+    const document = caseState.documents.find((entry) => entry.id === item.documentId);
+    notes.push(`${document?.filename ?? `Source document ${item.documentId}`} · page ${item.pageNumber} · ${item.status.replaceAll('_', ' ')}`);
+  });
+  return [...new Set(notes)];
 }
 
 function statusForFact(status: CaseState['facts'][number]['status']): DraftSourceFact['status'] {
@@ -127,13 +136,26 @@ export function getDraftSourceFacts(caseState: CaseState): DraftSourceFact[] {
 
   for (const fact of caseState.facts) {
     const value = printableValue(fact.value);
+    const sourceNotes = factSources(fact.sourceIds, caseState, fact.provenance);
+    const linkedEvidence = fact.sourceIds
+      .map((id) => caseState.evidence.find((item) => item.id === id))
+      .filter((item): item is EvidenceItem => Boolean(item));
+    const sourceStatuses = [
+      ...linkedEvidence.map((item) => item.status),
+      ...fact.provenance.map((item) => item.status),
+    ];
+    const hasSupportedSource = sourceStatuses.some((status) => status === 'user_reported' || status === 'evidence_supported');
+    const factStatus = value ? statusForFact(fact.status) : 'missing';
+    const status = value && (factStatus === 'user_reported' || factStatus === 'evidence_supported') && !hasSupportedSource
+      ? 'unsupported'
+      : factStatus;
     result.push({
       id: `fact:${fact.id}`,
       label: fact.key.replace(/[_-]+/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()),
       value,
-      status: value ? statusForFact(fact.status) : 'missing',
-      sourceNotes: factSources(fact.sourceIds, caseState),
-      canInclude: Boolean(value) && (fact.status === 'user_reported' || fact.status === 'evidence_supported'),
+      status,
+      sourceNotes,
+      canInclude: Boolean(value) && (status === 'user_reported' || status === 'evidence_supported'),
     });
   }
 
@@ -150,11 +172,9 @@ export function getDraftSourceFacts(caseState: CaseState): DraftSourceFact[] {
       ? 'conflicting'
       : evidence.some((item) => item.status === 'evidence_supported')
         ? 'evidence_supported'
-        : evidence.some((item) => item.status === 'system_inferred')
-          ? 'system_inferred'
-          : evidence.some((item) => item.status === 'assumption')
-            ? 'assumption'
-            : 'user_reported';
+        : evidence.some((item) => item.status === 'user_reported')
+          ? 'user_reported'
+          : 'unsupported';
     result.push({
       id: `event:${event.id}`,
       label: event.type.replace(/[_-]+/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()),
@@ -173,7 +193,7 @@ export function getUnknownCaseItems(caseState: CaseState): string[] {
     ...caseState.unknowns,
     ...(caseState.analysis?.journey.unknowns ?? []).map((item) => item.question),
     ...caseState.facts
-      .filter((fact) => fact.status === 'unknown' || fact.status === 'conflicting' || fact.status === 'assumption' || fact.status === 'system_inferred')
+    .filter((fact) => fact.status === 'unknown' || fact.status === 'conflicting' || fact.status === 'assumption' || fact.status === 'system_inferred')
       .map((fact) => `${fact.key.replace(/[_-]+/g, ' ')}: ${printableValue(fact.value) || 'not recorded'}`),
   ].map((item) => item.trim()).filter(Boolean))];
 }
@@ -196,6 +216,13 @@ export function getUnresolvedFields(draft: DraftState, facts: DraftSourceFact[])
     ['requestedAction', getDocumentType(draft.documentType).requestLabel],
     ['signature', 'Signature name'],
   ];
+  if (draft.documentType === 'response-correspondence') {
+    required.push(
+      ['noticeReference', 'Notice reference'],
+      ['noticeDetails', 'Details of the notice'],
+      ['responsePosition', 'Your response to the notice'],
+    );
+  }
   const missing = required
     .filter(([key]) => !draft.fields[key as keyof DraftFields].trim())
     .map(([, label]) => label);
@@ -245,6 +272,15 @@ export function createDocumentText(draft: DraftState, facts: DraftSourceFact[], 
     ...(includedFacts.length > 0
       ? includedFacts.map((fact, index) => `${index + 1}. ${valueOrPrompt(draft.factEdits[fact.id] ?? fact.value, `${fact.label.toLowerCase()} details`)} [S${index + 1}]`)
       : ['[Add relevant details or select case facts to include.]']),
+    ...(draft.documentType === 'response-correspondence'
+      ? [
+        '',
+        `Notice reference: ${valueOrPrompt(fields.noticeReference, 'notice reference')}`,
+        `Date of notice: ${valueOrPrompt(fields.noticeDate, 'date of notice')}`,
+        `Notice details: ${valueOrPrompt(fields.noticeDetails, 'notice details')}`,
+        `Your response: ${valueOrPrompt(fields.responsePosition, 'your response to the notice')}`,
+      ]
+      : []),
     ...(fields.additionalDetails.trim() ? ['', 'Additional details:', fields.additionalDetails.trim()] : []),
     '',
     `${fields.requestHeading.trim() || '[Add request heading]'}: ${valueOrPrompt(fields.requestedAction, type.requestLabel.toLowerCase())}`,
@@ -286,6 +322,9 @@ export function isDraftState(value: unknown): value is PersistedDraftState {
     && DRAFT_DOCUMENT_TYPES.some((type) => type.id === candidate.documentType)
     && Boolean(candidate.fields && typeof candidate.fields === 'object')
     && fieldNames.every((field) => typeof candidate.fields?.[field] === 'string')
+    && ['noticeReference', 'noticeDate', 'noticeDetails', 'responsePosition'].every((field) =>
+      candidate.fields?.[field as keyof DraftFields] === undefined
+      || typeof candidate.fields?.[field as keyof DraftFields] === 'string')
     && Array.isArray(candidate.includedFactIds)
     && candidate.includedFactIds.every((id) => typeof id === 'string')
     && Boolean(candidate.factEdits && typeof candidate.factEdits === 'object')
