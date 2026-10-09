@@ -686,6 +686,7 @@ export default function LegalTwinClient({ id }: { id: string }) {
   const [twinRetryKey, setTwinRetryKey] = useState(0);
   const [twinRevision, setTwinRevision] = useState(-1);
   const [selectedAsOf, setSelectedAsOf] = useState<string | null>(null);
+  const [selectedMilestoneId, setSelectedMilestoneId] = useState<string | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [requestedFocusId, setRequestedFocusId] = useState<string | null>(null);
@@ -844,6 +845,9 @@ export default function LegalTwinClient({ id }: { id: string }) {
       const eventTime = timestamp(event.occurredAt);
       return eventTime !== null && eventTime <= selectedTimestamp ? event : latest;
     }, null);
+  const activeMilestoneId = selectedMilestoneId && datedEvents.some((event) => event.id === selectedMilestoneId)
+    ? selectedMilestoneId
+    : activeEvent?.id ?? null;
 
   useEffect(() => {
     if (!selectedAsOf || !id || !legalTwin || twinRevision !== revision) return;
@@ -887,10 +891,11 @@ export default function LegalTwinClient({ id }: { id: string }) {
     () => (snapshot ? makeGraph(snapshot, caseData, includeCurrentActions) : { nodes: [], edges: [] }),
     [caseData, includeCurrentActions, snapshot],
   );
-  const setTimelineDate = useCallback((value: string | null, pausePlayback = true) => {
+  const setTimelineDate = useCallback((value: string | null, pausePlayback = true, milestoneId: string | null = null) => {
     if (pausePlayback) setIsPlaying(false);
     setSnapshotError(null);
     setSelectedAsOf(value);
+    setSelectedMilestoneId(milestoneId);
     setSelectedEdgeId(null);
   }, []);
   const activeMilestoneIndex = selectedTimestamp === null
@@ -903,7 +908,7 @@ export default function LegalTwinClient({ id }: { id: string }) {
     if (nextMilestoneIndex >= datedMilestones.length) return;
     const nextEvent = datedMilestones[nextMilestoneIndex].event;
     const timer = window.setTimeout(() => {
-      setTimelineDate(nextEvent.occurredAt ?? null, false);
+      setTimelineDate(nextEvent.occurredAt ?? null, false, nextEvent.id);
       if (nextMilestoneIndex === datedMilestones.length - 1) setIsPlaying(false);
     }, 1800);
     return () => window.clearTimeout(timer);
@@ -1566,12 +1571,12 @@ export default function LegalTwinClient({ id }: { id: string }) {
                 <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
                   {datedEvents.map((event) => {
                     const eventTime = timestamp(event.occurredAt);
-                    const isActive = event.id === activeEvent?.id;
+                    const isActive = event.id === activeMilestoneId;
                     return (
                       <button
                         key={event.id}
                         type="button"
-                        onClick={() => setTimelineDate(event.occurredAt ?? null)}
+                        onClick={() => setTimelineDate(event.occurredAt ?? null, true, event.id)}
                         aria-pressed={isActive}
                         className="group flex min-w-[104px] flex-1 flex-col items-center rounded-lg px-1 py-1 text-center transition hover:bg-[#252a39] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#ffc174]"
                         title={`${formatCaseDate(event.occurredAt)} · ${event.summary}`}
@@ -1592,13 +1597,13 @@ export default function LegalTwinClient({ id }: { id: string }) {
                     <button
                       type="button"
                       onClick={() => setTimelineDate(legalTwin.snapshot.asOf)}
-                      aria-pressed={isCurrentCaseProjection}
-                      className={`group flex min-w-[132px] flex-1 flex-col items-center rounded-lg px-1 py-1 text-center transition hover:bg-[#252a39] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#ffc174] ${isCurrentCaseProjection ? 'bg-[#252a39]' : ''}`}
+                      aria-pressed={selectedDateIsCurrent}
+                      className={`group flex min-w-[132px] flex-1 flex-col items-center rounded-lg px-1 py-1 text-center transition hover:bg-[#252a39] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#ffc174] ${selectedDateIsCurrent ? 'bg-[#252a39]' : ''}`}
                     >
-                      <span className={`flex h-4 w-4 items-center justify-center rounded-full ring-2 ring-[#161b2a] ${isCurrentCaseProjection ? 'bg-[#f59e0b]' : 'bg-[#3e495d]'}`}>
+                      <span className={`flex h-4 w-4 items-center justify-center rounded-full ring-2 ring-[#161b2a] ${selectedDateIsCurrent ? 'bg-[#f59e0b]' : 'bg-[#3e495d]'}`}>
                         <span className="h-1.5 w-1.5 rounded-full bg-[#bcc7de]" />
                       </span>
-                      <span className={`mt-1.5 max-w-full truncate font-mono text-[9px] ${isCurrentCaseProjection ? 'font-semibold text-[#ffc174]' : 'text-[#8e9ab1]'}`}>
+                      <span className={`mt-1.5 max-w-full truncate font-mono text-[9px] ${selectedDateIsCurrent ? 'font-semibold text-[#ffc174]' : 'text-[#8e9ab1]'}`}>
                         {formatCaseDate(legalTwin.snapshot.asOf)}
                       </span>
                       <span className="mt-0.5 max-w-full truncate text-[10px] text-[#aeb9d0]">Latest CaseState</span>
@@ -1610,7 +1615,7 @@ export default function LegalTwinClient({ id }: { id: string }) {
                     type="button"
                     aria-label="Previous dated milestone"
                     disabled={!previousMilestone}
-                    onClick={() => previousMilestone && setTimelineDate(previousMilestone.occurredAt ?? null)}
+                    onClick={() => previousMilestone && setTimelineDate(previousMilestone.occurredAt ?? null, true, previousMilestone.id)}
                     className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[#bcc7de] transition hover:bg-[#252a39] hover:text-[#ffc174] disabled:opacity-30"
                   >
                     <ArrowLeft className="h-4 w-4" />
@@ -1631,7 +1636,7 @@ export default function LegalTwinClient({ id }: { id: string }) {
                     type="button"
                     aria-label="Next dated milestone"
                     disabled={!nextMilestone || activeMilestoneIndex === datedEvents.length - 1}
-                    onClick={() => nextMilestone && setTimelineDate(nextMilestone.occurredAt ?? null)}
+                    onClick={() => nextMilestone && setTimelineDate(nextMilestone.occurredAt ?? null, true, nextMilestone.id)}
                     className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[#bcc7de] transition hover:bg-[#252a39] hover:text-[#ffc174] disabled:opacity-30"
                   >
                     <ArrowRight className="h-4 w-4" />

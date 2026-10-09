@@ -228,7 +228,6 @@ export function CaseShell({ caseId, children }: { caseId: string; children: Reac
   const { caseState, loading } = useCaseState();
   const [hash, setHash] = useState('');
   const basePath = `/case/${encodeURIComponent(caseId)}`;
-  const isPrivateLegalRoom = pathname === `${basePath}/guide`;
 
   useEffect(() => {
     const syncHash = () => setHash(window.location.hash);
@@ -486,7 +485,7 @@ export function CaseShell({ caseId, children }: { caseId: string; children: Reac
           Legal source records have not been returned for this case.
         </span>
       )}
-      {!isPrivateLegalRoom && <GuideControlSurface />}
+      <GuideControlSurface />
       <Suspense fallback={null}><CaseContextPanel caseId={caseId} /></Suspense>
     </div>
   );
