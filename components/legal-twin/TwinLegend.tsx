@@ -12,7 +12,7 @@ const CATEGORY_LABELS: Record<TwinNodeCategory, string> = {
   DOCUMENT: 'Document',
   EVIDENCE: 'Evidence',
   LEGAL_ISSUE: 'Legal issue',
-  LAW: 'Law',
+  LAW: 'Law / provision',
   PROCEDURE: 'Procedure',
   AUTHORITY: 'Authority',
   ACTION: 'Action',

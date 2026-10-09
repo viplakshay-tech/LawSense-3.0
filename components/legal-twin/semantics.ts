@@ -9,6 +9,7 @@ export const TWIN_COLORS = {
   unknown: '#94a3b8',
   conflict: '#fb7185',
   procedure: '#818cf8',
+  law: '#c084fc',
   action: '#a3e635',
 } as const;
 
@@ -16,8 +17,9 @@ export function categoryColor(category: TwinNodeCategory): string {
   switch (category) {
     case 'EVENT':
       return TWIN_COLORS.event;
-    case 'LEGAL_ISSUE':
     case 'LAW':
+      return TWIN_COLORS.law;
+    case 'LEGAL_ISSUE':
     case 'PROCEDURE':
     case 'AUTHORITY':
       return TWIN_COLORS.procedure;

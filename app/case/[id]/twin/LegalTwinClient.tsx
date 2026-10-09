@@ -240,8 +240,8 @@ function relationLabel(kind: string): string {
 }
 
 function depthForKind(kind: TwinKind): number {
-  if (kind === 'person' || kind === 'party' || kind === 'authority') return 26;
-  if (kind === 'event' || kind === 'issue' || kind === 'law' || kind === 'procedure') return 8;
+  if (kind === 'person' || kind === 'party' || kind === 'law' || kind === 'authority') return 26;
+  if (kind === 'event' || kind === 'issue' || kind === 'procedure') return 8;
   return -12;
 }
 
@@ -1142,10 +1142,10 @@ export default function LegalTwinClient({ id }: { id: string }) {
     : 0;
   const previousMilestone = selectedTimestamp === null
     ? null
-    : [...datedEvents].reverse().find((event) => (timestamp(event.occurredAt) ?? 0) < selectedTimestamp) ?? null;
+    : [...datedMilestones].reverse().find((milestone) => milestone.at < selectedTimestamp) ?? null;
   const nextMilestone = selectedTimestamp === null
-    ? datedEvents[0] ?? null
-    : datedEvents.find((event) => (timestamp(event.occurredAt) ?? 0) > selectedTimestamp) ?? null;
+    ? datedMilestones[0] ?? null
+    : datedMilestones.find((milestone) => milestone.at > selectedTimestamp) ?? null;
 
   return (
     <div className="min-h-screen bg-[#0e1321] text-[#dee2f6]">
@@ -1524,10 +1524,11 @@ export default function LegalTwinClient({ id }: { id: string }) {
             </div>
             <button
               type="button"
-              disabled={datedEvents.length < 2 || reducedMotion}
+              disabled={datedMilestones.length < 2 || reducedMotion}
               onClick={() => {
-                if (!isPlaying && activeMilestoneIndex >= datedEvents.length - 1 && datedEvents[0]) {
-                  setTimelineDate(datedEvents[0].occurredAt ?? null);
+                if (!isPlaying && activeMilestoneIndex >= datedMilestones.length - 1 && datedMilestones[0]) {
+                  const firstMilestone = datedMilestones[0].event;
+                  setTimelineDate(firstMilestone.occurredAt ?? null, true, firstMilestone.id);
                 }
                 setIsPlaying((playing) => !playing);
               }}
@@ -1552,7 +1553,7 @@ export default function LegalTwinClient({ id }: { id: string }) {
                   </span>
                 </div>
                 <span className="rounded bg-[#303444] px-2 py-1 font-mono text-[9px] uppercase tracking-wide text-[#c7c8ff]">
-                  {datedEvents.length} dated milestones
+                  {datedMilestones.length} dated milestones
                 </span>
               </div>
               {activeEvent && (
@@ -1569,8 +1570,9 @@ export default function LegalTwinClient({ id }: { id: string }) {
                   <div className="h-full rounded-full bg-gradient-to-r from-[#bcc7de] to-[#f59e0b] transition-[width] duration-300" style={{ width: `${activeProgress}%` }} />
                 </div>
                 <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
-                  {datedEvents.map((event) => {
-                    const eventTime = timestamp(event.occurredAt);
+                  {datedMilestones.map((milestone) => {
+                    const { event } = milestone;
+                    const eventTime = milestone.at;
                     const isActive = event.id === activeMilestoneId;
                     return (
                       <button
@@ -1615,7 +1617,7 @@ export default function LegalTwinClient({ id }: { id: string }) {
                     type="button"
                     aria-label="Previous dated milestone"
                     disabled={!previousMilestone}
-                    onClick={() => previousMilestone && setTimelineDate(previousMilestone.occurredAt ?? null, true, previousMilestone.id)}
+                    onClick={() => previousMilestone && setTimelineDate(previousMilestone.event.occurredAt ?? null, true, previousMilestone.event.id)}
                     className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[#bcc7de] transition hover:bg-[#252a39] hover:text-[#ffc174] disabled:opacity-30"
                   >
                     <ArrowLeft className="h-4 w-4" />
@@ -1635,8 +1637,8 @@ export default function LegalTwinClient({ id }: { id: string }) {
                   <button
                     type="button"
                     aria-label="Next dated milestone"
-                    disabled={!nextMilestone || activeMilestoneIndex === datedEvents.length - 1}
-                    onClick={() => nextMilestone && setTimelineDate(nextMilestone.occurredAt ?? null, true, nextMilestone.id)}
+                    disabled={!nextMilestone || activeMilestoneIndex === datedMilestones.length - 1}
+                    onClick={() => nextMilestone && setTimelineDate(nextMilestone.event.occurredAt ?? null, true, nextMilestone.event.id)}
                     className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[#bcc7de] transition hover:bg-[#252a39] hover:text-[#ffc174] disabled:opacity-30"
                   >
                     <ArrowRight className="h-4 w-4" />

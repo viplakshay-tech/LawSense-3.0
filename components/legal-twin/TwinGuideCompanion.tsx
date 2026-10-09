@@ -143,10 +143,12 @@ function nodeExplanation(
       : `Current CaseState metadata lists ${document.filename} as ${humanize(document.processingStatus)} with review status ${humanize(document.reviewStatus)} and ${document.pageCount} page${document.pageCount === 1 ? '' : 's'}. These current document details are outside the selected historical projection.`;
   }
 
-  if (node.kind === 'authority' || node.kind === 'procedure') {
+  if (node.kind === 'law' || node.kind === 'authority' || node.kind === 'procedure') {
     const description = node.kind === 'procedure'
       ? 'This procedure is recorded in the selected Twin projection.'
-      : 'This source is linked to the selected Twin projection.';
+      : node.kind === 'law'
+        ? 'This law or provision is included as a legal knowledge record in the selected Twin projection.'
+        : 'This source is linked to the selected Twin projection.';
     return `${description} Its applicability still depends on your jurisdiction, the established facts, timing, and source verification. The Twin records its status as ${humanize(node.status)}.`;
   }
 
@@ -315,7 +317,7 @@ function presenceFor(
   if (status === 'assumption' || status === 'system_inferred' || node?.temporallyUncertain) return 'UNCERTAIN';
   if (caseStateName === 'uncertain') return 'UNCERTAIN';
   if (node?.kind === 'evidence') return 'THINKING';
-  if (node?.kind === 'authority') return 'UNCERTAIN';
+  if (node?.kind === 'authority' || node?.kind === 'law') return 'UNCERTAIN';
 
   return guidePresenceStateFromSnapshot(snapshot);
 }
