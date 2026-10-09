@@ -7,7 +7,6 @@ import { useCaseState } from '@/app/case/[id]/CaseStateProvider';
 import { createGuideActionBridge } from '@/components/guide-actions';
 import type {
   GuideActionAdapter,
-  GuideActionBridge,
   GuideActionCommand,
   GuideActionResult,
   GuideRoute,
@@ -22,6 +21,8 @@ import type {
   GuideRuntimeResult,
   GuideRuntimeSnapshot,
 } from './types';
+import { guideContextualMessage } from './presence';
+import type { GuideContextualMessage } from './presence';
 
 export interface GuideTranscriptEntry {
   id: string;
@@ -32,9 +33,11 @@ export interface GuideTranscriptEntry {
 export interface GuideRuntimeContextValue {
   snapshot: GuideRuntimeSnapshot;
   presentation: ReturnType<typeof createGuidePresentation>;
+  contextualMessage: GuideContextualMessage;
   messages: readonly GuideTranscriptEntry[];
   actionRunning: boolean;
   dispatch: (event: GuideEvent) => GuideRuntimeResult;
+  interruptSpeech: () => void;
   runAction: (action: GuideAction) => Promise<GuideActionResult | null>;
   dismissError: () => void;
 }
@@ -119,11 +122,18 @@ export function GuideRuntimeProvider({ caseId, children }: { caseId: string; chi
   const [snapshot, setSnapshot] = useState(() => controller.getSnapshot());
   const [messages, setMessages] = useState<GuideTranscriptEntry[]>([]);
   const [actionRunning, setActionRunning] = useState(false);
+  const activeUtterance = useRef<SpeechSynthesisUtterance | null>(null);
+  const settleSpeech = useRef<(() => void) | null>(null);
+  const speechWasInterrupted = useRef(false);
   const messageSequence = useRef(0);
   const lastCaseRevision = useRef(0);
   const presentation = useMemo(
     () => createGuidePresentation(snapshot.caseState, snapshot.state.name),
     [snapshot.caseState, snapshot.state.name],
+  );
+  const contextualMessage = useMemo(
+    () => guideContextualMessage(snapshot, presentation, messages.at(-1)),
+    [messages, presentation, snapshot],
   );
 
   const appendMessage = useCallback((kind: GuideTranscriptEntry['kind'], text: string) => {
@@ -131,11 +141,43 @@ export function GuideRuntimeProvider({ caseId, children }: { caseId: string; chi
     setMessages((current) => [...current.slice(-5), { id, kind, text }]);
   }, []);
 
+  const stopSpeechPlayback = useCallback((): boolean => {
+    if (!activeUtterance.current) return false;
+    activeUtterance.current = null;
+    speechWasInterrupted.current = true;
+    const settle = settleSpeech.current;
+    settleSpeech.current = null;
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+    settle?.();
+    return true;
+  }, []);
+
   const dispatch = useCallback((event: GuideEvent): GuideRuntimeResult => {
+    const current = controller.getSnapshot();
+    const interruptsPlayback = current.speechState === 'speaking' && [
+      'CASE_STATE_UPDATED',
+      'CASE_STATE_CLEARED',
+      'GUIDE_USER_INPUT_STARTED',
+      'GUIDE_PROCESSING_STARTED',
+      'GUIDE_RESPONSE_READY',
+      'GUIDE_ERROR',
+      'GUIDE_RESET',
+    ].includes(event.type);
+    if (interruptsPlayback) stopSpeechPlayback();
     const result = controller.dispatch(event);
     setSnapshot(result.snapshot);
     return result;
-  }, [controller]);
+  }, [controller, stopSpeechPlayback]);
+
+  const interruptSpeech = useCallback(() => {
+    if (!stopSpeechPlayback()) return;
+    const result = controller.dispatch({ type: 'GUIDE_SPEECH_INTERRUPTED' });
+    setSnapshot(result.snapshot);
+  }, [controller, stopSpeechPlayback]);
+
+  useEffect(() => () => {
+    stopSpeechPlayback();
+  }, [stopSpeechPlayback]);
 
   const adapter = useMemo<GuideActionAdapter>(() => {
     const base = `/case/${encodeURIComponent(caseId)}`;
@@ -158,14 +200,39 @@ export function GuideRuntimeProvider({ caseId, children }: { caseId: string; chi
 
         return new Promise<void>((resolve, reject) => {
           const utterance = new SpeechSynthesisUtterance(text);
-          utterance.onstart = () => dispatch({ type: 'GUIDE_SPEECH_STARTED' });
-          utterance.onend = () => {
+          let settled = false;
+          const finish = (error?: Error) => {
+            if (activeUtterance.current !== utterance || settled) return;
+            settled = true;
+            activeUtterance.current = null;
+            settleSpeech.current = null;
             dispatch({ type: 'GUIDE_SPEECH_ENDED' });
+            if (error) reject(error);
+            else resolve();
+          };
+          activeUtterance.current = utterance;
+          speechWasInterrupted.current = false;
+          settleSpeech.current = () => {
+            if (settled) return;
+            settled = true;
             resolve();
           };
+          utterance.onstart = () => dispatch({ type: 'GUIDE_SPEECH_STARTED' });
+          utterance.onend = () => finish();
           utterance.onerror = (event) => {
-            dispatch({ type: 'GUIDE_SPEECH_ENDED' });
-            reject(new Error(`Speech playback failed: ${event.error}.`));
+            if (event.error === 'canceled' || event.error === 'interrupted') {
+              if (activeUtterance.current !== utterance) return;
+              speechWasInterrupted.current = true;
+              activeUtterance.current = null;
+              settleSpeech.current = null;
+              dispatch({ type: 'GUIDE_SPEECH_INTERRUPTED' });
+              if (!settled) {
+                settled = true;
+                resolve();
+              }
+              return;
+            }
+            finish(new Error(`Speech playback failed: ${event.error}.`));
           };
           window.speechSynthesis.speak(utterance);
         });
@@ -174,7 +241,6 @@ export function GuideRuntimeProvider({ caseId, children }: { caseId: string; chi
       openClarification: () => push(`${base}#clarification`),
     };
   }, [caseId, dispatch, router]);
-  const bridge: GuideActionBridge = useMemo(() => createGuideActionBridge(adapter), [adapter]);
 
   useEffect(() => {
     if (!caseState || revision === 0 || lastCaseRevision.current === revision) return;
@@ -208,13 +274,16 @@ export function GuideRuntimeProvider({ caseId, children }: { caseId: string; chi
 
     setActionRunning(true);
     try {
-      const result = await bridge.dispatch(commandForAction(action));
+      const result = await createGuideActionBridge(adapter).dispatch(commandForAction(action));
       if (result.status === 'success') {
         const completion = action.type === 'START_VOICE'
           ? 'Voice capture opened. Start the microphone on that page when you are ready.'
           : action.type === 'SPEAK_RESPONSE'
-            ? 'Guide speech completed.'
+            ? speechWasInterrupted.current
+              ? 'Guide speech stopped. The response remains available to read.'
+              : 'Guide speech completed.'
             : `${actionLabel(action)} workspace opened.`;
+        if (action.type === 'SPEAK_RESPONSE') speechWasInterrupted.current = false;
         appendMessage('action', completion);
       } else if (result.status === 'unavailable') {
         appendMessage('error', `Action unavailable · ${result.reason}`);
@@ -226,7 +295,7 @@ export function GuideRuntimeProvider({ caseId, children }: { caseId: string; chi
     } finally {
       setActionRunning(false);
     }
-  }, [appendMessage, bridge, dispatch]);
+  }, [adapter, appendMessage, dispatch]);
 
   const dismissError = useCallback(() => {
     if (snapshot.state.name === 'error') dispatch({ type: 'GUIDE_RESET' });
@@ -235,12 +304,14 @@ export function GuideRuntimeProvider({ caseId, children }: { caseId: string; chi
   const value = useMemo<GuideRuntimeContextValue>(() => ({
     snapshot,
     presentation,
+    contextualMessage,
     messages,
     actionRunning,
     dispatch,
+    interruptSpeech,
     runAction,
     dismissError,
-  }), [actionRunning, dismissError, dispatch, messages, presentation, runAction, snapshot]);
+  }), [actionRunning, contextualMessage, dismissError, dispatch, interruptSpeech, messages, presentation, runAction, snapshot]);
 
   return <GuideRuntimeContext.Provider value={value}>{children}</GuideRuntimeContext.Provider>;
 }

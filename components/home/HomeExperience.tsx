@@ -495,7 +495,7 @@ export default function HomeExperience() {
                   </p>
                 </div>
                 <GuidePresence
-                  state={isSubmitting || voiceCaptureStatus === 'processing' ? 'PROCESSING' : voiceCaptureStatus === 'listening' ? 'LISTENING' : entryMode === 'voice' && Boolean(text.trim()) ? 'ASKING' : 'IDLE'}
+                  state={isSubmitting || voiceCaptureStatus === 'processing' ? 'THINKING' : voiceCaptureStatus === 'listening' ? 'LISTENING' : entryMode === 'voice' && Boolean(text.trim()) ? 'CLARIFYING' : 'IDLE'}
                   size="compact"
                   detail={isSubmitting
                     ? submissionStage === 'reviewing_transcript'

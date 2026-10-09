@@ -82,10 +82,17 @@ export interface AvatarSurfaceProps {
   speechState: AvatarSpeechState;
   speechTiming?: AvatarSpeechTiming;
   expression: GuideExpression;
+  expressionIntent: string;
   emotion: AvatarEmotion;
   context: AvatarContext;
   gazeTarget: AvatarGazeTarget;
+  gazeIntent: string;
   gestureHint: AvatarGestureHint;
+  listeningBehavior: string;
+  speakingBehavior: string;
+  interruptionBehavior: string;
+  reducedMotionFallback: string;
+  contextualMessagePriority: number;
   reducedMotion?: boolean;
 }
 

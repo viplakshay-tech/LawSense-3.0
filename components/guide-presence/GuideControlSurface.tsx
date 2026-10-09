@@ -3,32 +3,11 @@
 import { useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { Activity, ArrowLeft, ChevronDown, ChevronUp, CircleHelp, Mic2, Radio, ShieldAlert, Volume2 } from 'lucide-react';
-import { useGuideRuntime } from '@/components/guide-runtime';
-import { guideStateLabel } from '@/components/guide-runtime/presentation';
+import { Activity, ArrowLeft, ChevronDown, ChevronUp, CircleHelp, Mic2, Radio, ShieldAlert, Volume2, VolumeX } from 'lucide-react';
+import { guidePresenceStateFromSnapshot, useGuideRuntime } from '@/components/guide-runtime';
 import type { GuideAction } from '@/components/guide-runtime/types';
 import { GuidePresence } from './GuidePresence';
-import type { GuidePresenceState } from './types';
-
-function presenceState(state: GuideAction['type'] | string): GuidePresenceState {
-  const states: Record<string, GuidePresenceState> = {
-    idle: 'IDLE',
-    listening: 'LISTENING',
-    processing: 'PROCESSING',
-    explaining: 'EXPLAINING',
-    asking: 'ASKING',
-    evidence: 'EVIDENCE',
-    grounded: 'GROUNDED',
-    uncertain: 'UNCERTAIN',
-    conflict: 'CONFLICT',
-    action: 'ACTION',
-    safety: 'SAFETY',
-    completion: 'EXPLAINING',
-    speaking: 'SPEAKING',
-    error: 'ERROR',
-  };
-  return states[state] ?? 'IDLE';
-}
+import { GUIDE_PRESENCE_LABELS } from './types';
 
 function actionLabel(action: GuideAction): string {
   switch (action.type) {
@@ -57,7 +36,7 @@ function statusLabel(value: string): string {
 export function GuideControlSurface() {
   const pathname = usePathname();
   const router = useRouter();
-  const { snapshot, presentation: model, messages, actionRunning, runAction, dismissError } = useGuideRuntime();
+  const { snapshot, presentation: model, contextualMessage, messages, actionRunning, runAction, interruptSpeech, dismissError } = useGuideRuntime();
   const [expanded, setExpanded] = useState(false);
   const expandedRef = useRef(expanded);
   const toggleRef = useRef<HTMLButtonElement>(null);
@@ -91,7 +70,9 @@ export function GuideControlSurface() {
     ? snapshot.availableActions.find((action) => action.type === model.nextAction?.actionType)
     : undefined;
   const otherActions = snapshot.availableActions.filter((action) => action !== primaryAction);
-  const stateText = guideStateLabel(snapshot.state.name);
+  const presenceState = guidePresenceStateFromSnapshot(snapshot);
+  const stateText = GUIDE_PRESENCE_LABELS[presenceState];
+  const voiceMode = pathname.split('/').filter(Boolean).at(-1) === 'voice';
   const safetyMode = pathname.split('/').filter(Boolean).at(-1) === 'safety';
 
   function handleSurfaceKeyDown(event: KeyboardEvent<HTMLElement>) {
@@ -113,7 +94,7 @@ export function GuideControlSurface() {
             <p className="text-[9px] font-semibold uppercase tracking-[0.2em] text-slate-500">LawSense · Guide</p>
             <p className="mt-1 text-xs font-semibold text-slate-100">Safety mode</p>
           </div>
-          <span className="rounded-full border border-teal-100/20 bg-teal-100/[0.06] px-2.5 py-1 text-[10px] font-bold tracking-[0.14em] text-teal-50">SAFETY</span>
+          <span className="rounded-full border border-teal-100/20 bg-teal-100/[0.06] px-2.5 py-1 text-[10px] font-bold tracking-[0.14em] text-teal-50">{presenceState}</span>
         </div>
         <div className="space-y-3 p-3.5">
           <p className="text-xs leading-5 text-slate-300">Use the safety options on this page at your pace. The Guide does not contact anyone on your behalf.</p>
@@ -155,8 +136,19 @@ export function GuideControlSurface() {
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <span className={`inline-flex min-h-9 items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${snapshot.state.name === 'safety' || snapshot.state.name === 'conflict' ? 'border-amber-200/20 bg-amber-200/[0.07] text-amber-100' : 'border-white/[0.09] bg-white/[0.035] text-slate-200'}`}>
-              <span className={`h-1.5 w-1.5 rounded-full ${snapshot.state.name === 'processing' || snapshot.state.name === 'listening' || snapshot.state.name === 'speaking' ? 'animate-pulse bg-[#e9bd7b]' : snapshot.state.name === 'error' ? 'bg-rose-300' : 'bg-emerald-300'}`} />
+            {snapshot.speechState === 'speaking' && !voiceMode && (
+              <button
+                type="button"
+                onClick={interruptSpeech}
+                className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-[#e9bd7b]/25 bg-[#e9bd7b]/[0.08] px-2.5 text-[10px] font-semibold text-[#f2d7aa] hover:bg-[#e9bd7b]/[0.14] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e9bd7b] motion-reduce:transition-none"
+                aria-label="Stop Guide speech"
+              >
+                <VolumeX aria-hidden="true" className="h-3.5 w-3.5" />
+                Stop
+              </button>
+            )}
+            <span className={`inline-flex min-h-9 items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${presenceState === 'SAFETY' || presenceState === 'IMMEDIATE_DANGER' || presenceState === 'CONFLICT' ? 'border-amber-200/20 bg-amber-200/[0.07] text-amber-100' : 'border-white/[0.09] bg-white/[0.035] text-slate-200'}`}>
+              <span className={`h-1.5 w-1.5 rounded-full ${presenceState === 'THINKING' || presenceState === 'LISTENING' || snapshot.speechState === 'speaking' ? 'animate-pulse bg-[#e9bd7b]' : presenceState === 'ACTION_REQUIRED' ? 'bg-rose-300' : 'bg-emerald-300'}`} />
               {stateText}
             </span>
             <button
@@ -180,9 +172,10 @@ export function GuideControlSurface() {
         className="max-h-[min(72dvh,38rem)] space-y-3 overflow-y-auto p-3.5 [scrollbar-color:rgba(148,163,184,0.25)_transparent] [scrollbar-width:thin]"
       >
           <GuidePresence
-            state={presenceState(snapshot.state.name)}
+            state={presenceState}
+            speechState={snapshot.speechState}
             size="compact"
-            detail={snapshot.state.reason.replaceAll('_', ' ')}
+            detail={contextualMessage.text}
             accessibleLabel={`Guide state: ${stateText}`}
           />
 

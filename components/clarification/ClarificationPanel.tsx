@@ -103,16 +103,14 @@ function ClarificationSession({
   const question = remainingQuestions[0] ?? null;
 
   const guideState: GuidePresenceState = loading || saving
-    ? 'PROCESSING'
+    ? 'THINKING'
     : error
-      ? 'ERROR'
+      ? 'ACTION_REQUIRED'
       : reactionKind === 'skip'
         ? 'UNCERTAIN'
-        : reaction
-          ? 'EXPLAINING'
-          : question
-            ? 'ASKING'
-            : 'GROUNDED';
+        : question
+          ? 'CLARIFYING'
+          : 'IDLE';
   const guideDetail = loading
     ? 'I’m checking the open details in your case.'
     : saving

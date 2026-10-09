@@ -9,6 +9,8 @@ export type {
 export { deriveGuideState, transitionGuideState } from './state';
 export { createGuidePresentation, guideStateChangeMessage, guideStateLabel } from './presentation';
 export type { GuideNextAction, GuidePresentationModel, GuideRecordedFact } from './presentation';
+export { guideContextualMessage, guidePresenceStateFromSnapshot, guidePresenceStateFromState } from './presence';
+export type { GuideContextualMessage } from './presence';
 export { GuideRuntimeProvider, useGuideRuntime } from './GuideRuntimeProvider';
 export type { GuideRuntimeContextValue, GuideTranscriptEntry } from './GuideRuntimeProvider';
 export {
@@ -34,6 +36,7 @@ export type {
   GuideRuntimeEmission,
   GuideRuntimeResult,
   GuideRuntimeSnapshot,
+  GuideSpeechLifecycleState,
   GuideStateName,
   GuideStateReason,
   GuideStateSnapshot,

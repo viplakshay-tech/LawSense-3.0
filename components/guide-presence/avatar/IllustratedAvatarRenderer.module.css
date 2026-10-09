@@ -51,19 +51,17 @@
 }
 
 .surface[data-state='LISTENING'] .halo { fill: rgba(120, 216, 197, 0.2); }
-.surface[data-state='PROCESSING'] .halo { fill: rgba(135, 185, 237, 0.18); }
-.surface[data-state='ASKING'] .halo { fill: rgba(189, 171, 232, 0.17); }
-.surface[data-state='EXPLAINING'] .halo,
+.surface[data-state='THINKING'] .halo { fill: rgba(135, 185, 237, 0.18); }
+.surface[data-state='CLARIFYING'] .halo { fill: rgba(189, 171, 232, 0.17); }
 .surface[data-state='SPEAKING'] .halo { fill: rgba(210, 192, 146, 0.2); }
-.surface[data-state='EVIDENCE'] .halo { fill: rgba(140, 201, 229, 0.18); }
-.surface[data-state='GROUNDED'] .halo { fill: rgba(147, 197, 162, 0.17); }
 .surface[data-state='UNCERTAIN'] .halo { fill: rgba(226, 181, 118, 0.17); }
 .surface[data-state='CONFLICT'] .halo { fill: rgba(229, 160, 128, 0.18); }
 .surface[data-state='SAFETY'] .halo { fill: rgba(240, 173, 123, 0.16); }
-.surface[data-state='ERROR'] .halo { fill: rgba(223, 137, 139, 0.16); }
+.surface[data-state='ACTION_REQUIRED'] .halo { fill: rgba(223, 137, 139, 0.16); }
+.surface[data-state='IMMEDIATE_DANGER'] .halo { fill: rgba(240, 173, 123, 0.2); }
 
 .surface[data-state='LISTENING'] .statusRing,
-.surface[data-state='PROCESSING'] .statusRing,
+.surface[data-state='THINKING'] .statusRing,
 .surface[data-speech-state='speaking'] .statusRing {
   border-color: rgba(191, 222, 229, 0.23);
   opacity: 1;
@@ -71,7 +69,7 @@
 }
 
 .surface[data-state='LISTENING'] .statusRing { border-color: rgba(120, 216, 197, 0.35); }
-.surface[data-state='PROCESSING'] .statusRing { border-color: rgba(135, 185, 237, 0.32); }
+.surface[data-state='THINKING'] .statusRing { border-color: rgba(135, 185, 237, 0.32); }
 .surface[data-speech-state='speaking'] .statusRing { border-color: rgba(210, 192, 146, 0.38); }
 
 .surface[data-gesture='settle'] .frame {
@@ -79,8 +77,9 @@
 }
 
 .surface[data-state='SAFETY'] .statusRing,
+.surface[data-state='IMMEDIATE_DANGER'] .statusRing,
 .surface[data-state='CONFLICT'] .statusRing,
-.surface[data-state='ERROR'] .statusRing {
+.surface[data-state='ACTION_REQUIRED'] .statusRing {
   opacity: 0.42;
   transform: scale(1);
 }
@@ -89,9 +88,8 @@
 .surface[data-reduced-motion='true'] *::before,
 .surface[data-reduced-motion='true'] *::after {
   scroll-behavior: auto !important;
-  transition-duration: 0.01ms !important;
-  animation-duration: 0.01ms !important;
-  animation-iteration-count: 1 !important;
+  transition: none !important;
+  animation: none !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -99,9 +97,8 @@
   .surface *::before,
   .surface *::after {
     scroll-behavior: auto !important;
-    transition-duration: 0.01ms !important;
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
+    transition: none !important;
+    animation: none !important;
   }
 }
 

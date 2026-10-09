@@ -5,7 +5,7 @@ import { ArrowRight, Check, CircleHelp, FileCheck2, LoaderCircle, Pencil, Shield
 import { addVoiceStatement, type CaseFact, type CaseState } from '@/lib/api';
 import { GuidePresence } from '@/components/guide-presence';
 import { deriveGuideState } from '@/components/guide-runtime/state';
-import type { GuidePresenceState } from '@/components/guide-presence/types';
+import { guidePresenceStateFromState } from '@/components/guide-runtime/presence';
 
 type ReviewMark = 'confirmed' | 'uncertain';
 
@@ -142,7 +142,7 @@ export function CaseIntakeReview({
       .filter((fact) => fact.status === 'unknown')
       .map((fact) => `${fact.key.replaceAll('_', ' ')}: ${displayValue(fact.value)}`),
   ].filter((item, index, all) => all.indexOf(item) === index);
-  const guideState = deriveGuideState(caseState).name.toUpperCase() as GuidePresenceState;
+  const guideState = guidePresenceStateFromState(deriveGuideState(caseState));
 
   function markItem(item: ReviewItem, mark: ReviewMark) {
     setMarks((current) => ({ ...current, [item.id]: mark }));

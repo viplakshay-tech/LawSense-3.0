@@ -73,16 +73,20 @@ function activeViseme(props: AvatarSurfaceProps): AvatarViseme {
 function headTilt(
   state: AvatarSurfaceProps['visualState'],
   gestureHint: AvatarSurfaceProps['gestureHint'],
+  reducedMotion: boolean | undefined,
 ): number {
+  if (reducedMotion) return 0;
+
   let tilt: number;
   switch (state) {
     case 'LISTENING': tilt = -1.5; break;
-    case 'PROCESSING':
+    case 'THINKING':
     case 'UNCERTAIN': tilt = 2; break;
-    case 'ASKING': tilt = -2.5; break;
-    case 'EVIDENCE': tilt = 1.5; break;
+    case 'CLARIFYING': tilt = -2.5; break;
     case 'SAFETY': tilt = 0; break;
+    case 'IMMEDIATE_DANGER': tilt = 0; break;
     case 'CONFLICT': tilt = -0.5; break;
+    case 'ACTION_REQUIRED': tilt = 0; break;
     default: tilt = 0;
   }
   return gestureHint === 'gentle-nod' ? tilt - 1 : tilt;
@@ -141,7 +145,7 @@ export function IllustratedAvatarRenderer(props: AvatarSurfaceProps) {
             <path d="M91 115c-12 24-12 73-5 101-15-11-24-33-23-61 1-32 13-56 34-70-3 10-5 20-6 30Z" fill="#332637" />
             <path d="M90 177c-8-2-11 5-8 14 3 9 9 13 16 11M190 177c8-2 11 5 8 14-3 9-9 13-16 11" fill="#d49a83" />
 
-            <g className={styles.head} data-head-state={props.visualState} style={{ transform: `rotate(${headTilt(props.visualState, props.gestureHint)}deg)` }}>
+            <g className={styles.head} data-head-state={props.visualState} style={{ transform: `rotate(${headTilt(props.visualState, props.gestureHint, props.reducedMotion)}deg)` }}>
               <path d={BROW_PATHS[props.expression][0]} fill="none" stroke="#65464a" strokeWidth="3.3" strokeLinecap="round" />
               <path d={BROW_PATHS[props.expression][1]} fill="none" stroke="#65464a" strokeWidth="3.3" strokeLinecap="round" />
               <path d="M91 145 Q105 137 119 145 Q106 157 91 145Z" fill="#fbf2e9" />

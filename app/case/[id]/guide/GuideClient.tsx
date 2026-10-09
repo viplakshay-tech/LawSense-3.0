@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, BookOpen, Loader2, ShieldAlert } from 'lucide-react';
 import { type CaseState, type JourneySummary } from '@/lib/api';
@@ -8,7 +7,7 @@ import { useCaseState } from '../CaseStateProvider';
 import { useGuideRuntime } from '@/components/guide-runtime';
 import type { GuideAction, GuideStateSnapshot } from '@/components/guide-runtime';
 import { LegalGuide } from '@/components/legal-guide';
-import { LEGAL_GUIDE_STATES, type GuideActionEvent, type GuideStateName } from '@/components/legal-guide/types';
+import type { GuideActionEvent, GuideStateName } from '@/components/legal-guide/types';
 import { TrustNotice } from '@/components/TrustNotice';
 
 const completedStatuses = new Set(['complete', 'completed', 'done', 'finished']);
@@ -256,9 +255,6 @@ export default function GuidePage({ id }: { id: string }) {
   const router = useRouter();
   const { caseState: caseData, loading, error, refreshCaseState } = useCaseState();
   const { snapshot, presentation, runAction } = useGuideRuntime();
-  const [previewState, setPreviewState] = useState<GuideStateName | undefined>();
-
-  const isDevelopment = process.env.NODE_ENV === 'development';
   const runtimeReady = Boolean(caseData && snapshot.caseState === caseData);
   const runtimeState = runtimeReady ? snapshot.state : null;
 
@@ -340,13 +336,7 @@ export default function GuidePage({ id }: { id: string }) {
   }
 
   const derivedState = guidePageStateFromRuntime(runtimeState);
-  // Development previews change only the visual preview; the safety state returned
-  // by the shared Guide Runtime always keeps priority.
-  const guideState = runtimeState.name === 'safety'
-    ? 'safety_warning'
-    : isDevelopment && previewState
-      ? previewState
-      : derivedState;
+  const guideState = derivedState;
   const journey = caseData.analysis?.journey;
   const safetyActive = runtimeState.name === 'safety';
   const hasGuideDetails =
@@ -357,8 +347,7 @@ export default function GuidePage({ id }: { id: string }) {
     caseData.documents.length > 0 ||
     caseData.facts.length > 0 ||
     caseData.events.length > 0 ||
-    caseData.legalIssues.length > 0 ||
-    isDevelopment;
+    caseData.legalIssues.length > 0;
   const availableActions = new Map(snapshot.availableActions.map((action) => [JSON.stringify(action), action]));
   const guideActions = snapshot.availableActions.map((action) => ({
     id: JSON.stringify(action),
@@ -407,27 +396,6 @@ export default function GuidePage({ id }: { id: string }) {
                   <EvidenceSummary caseData={caseData} journey={journey} />
                   {(guideState === 'legal_verification' || caseData.legalIssues.length > 0) && <LegalVerificationSummary caseData={caseData} />}
                 </>
-              )}
-
-              {isDevelopment && (
-                <fieldset className="mt-4 rounded-xl border border-white/[0.05] bg-black/10 p-3">
-                  <legend className="px-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-                    Guide state preview · development
-                  </legend>
-                  <div className="flex flex-wrap gap-1.5">
-                    {LEGAL_GUIDE_STATES.map((state) => (
-                      <button
-                        key={state}
-                        type="button"
-                        aria-pressed={guideState === state && previewState === state}
-                        onClick={() => setPreviewState((current) => (current === state ? undefined : state))}
-                        className="min-h-9 rounded-md border border-white/[0.08] bg-transparent px-2 text-[10px] font-medium capitalize text-slate-400 transition hover:text-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8C9EFF]"
-                      >
-                        {state}
-                      </button>
-                    ))}
-                  </div>
-                </fieldset>
               )}
             </div>
           )}
