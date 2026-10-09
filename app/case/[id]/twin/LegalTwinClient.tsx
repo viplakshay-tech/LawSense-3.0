@@ -64,6 +64,7 @@ type TwinKind =
   | 'evidence'
   | 'document'
   | 'issue'
+  | 'law'
   | 'procedure'
   | 'authority'
   | 'action';
@@ -105,6 +106,7 @@ const KIND_ORDER: TwinKind[] = [
   'evidence',
   'document',
   'issue',
+  'law',
   'procedure',
   'authority',
   'action',
@@ -119,6 +121,7 @@ const KIND_LABELS: Record<TwinKind, string> = {
   evidence: 'Evidence',
   document: 'Documents',
   issue: 'Legal issues',
+  law: 'Laws',
   procedure: 'Procedures',
   authority: 'Authorities',
   action: 'Actions',
@@ -133,6 +136,7 @@ const KIND_STYLES: Record<TwinKind, { icon: typeof UserRound; dot: string; tint:
   evidence: { icon: FileText, dot: 'bg-cyan-300', tint: 'text-cyan-200 bg-cyan-300/10', border: 'border-cyan-300/30' },
   document: { icon: FileText, dot: 'bg-orange-300', tint: 'text-orange-200 bg-orange-300/10', border: 'border-orange-300/30' },
   issue: { icon: Landmark, dot: 'bg-violet-300', tint: 'text-violet-200 bg-violet-300/10', border: 'border-violet-300/30' },
+  law: { icon: Scale, dot: 'bg-cyan-200', tint: 'text-cyan-100 bg-cyan-200/10', border: 'border-cyan-200/30' },
   procedure: { icon: GitBranch, dot: 'bg-zinc-400', tint: 'text-zinc-300 bg-zinc-300/10', border: 'border-zinc-400/30' },
   authority: { icon: Landmark, dot: 'bg-cyan-300', tint: 'text-cyan-200 bg-cyan-300/10', border: 'border-cyan-300/30' },
   action: { icon: ArrowUpRight, dot: 'bg-lime-300', tint: 'text-lime-200 bg-lime-300/10', border: 'border-lime-300/30' },
@@ -207,10 +211,12 @@ function viewKind(record: TwinNodeRecord): TwinKind {
     case 'PERSON': return 'person';
     case 'PARTY': return 'party';
     case 'EVENT': return 'event';
+    case 'FACT': return 'fact';
     case 'CLAIM': return record.properties.record_type === 'case_fact' ? 'fact' : 'claim';
     case 'DOCUMENT': return 'document';
     case 'EVIDENCE': return 'evidence';
     case 'LEGAL_ISSUE': return 'issue';
+    case 'LAW': return 'law';
     case 'PROCEDURE': return 'procedure';
     case 'AUTHORITY': return 'authority';
     case 'ACTION': return 'action';
@@ -228,13 +234,14 @@ function relationLabel(kind: string): string {
     APPLIES_TO: 'applies to',
     LEADS_TO: 'leads to',
     PROCEDURE_AVAILABLE_AT_AUTHORITY: 'available at',
+    DEPENDS_ON: 'depends on',
   };
   return labels[kind] ?? humanize(kind);
 }
 
 function depthForKind(kind: TwinKind): number {
   if (kind === 'person' || kind === 'party' || kind === 'authority') return 26;
-  if (kind === 'event' || kind === 'issue' || kind === 'procedure') return 8;
+  if (kind === 'event' || kind === 'issue' || kind === 'law' || kind === 'procedure') return 8;
   return -12;
 }
 
@@ -242,11 +249,12 @@ const TWIN_CANVAS_CATEGORIES: Record<TwinKind, TwinNodeCategory> = {
   person: 'PERSON',
   party: 'PARTY',
   event: 'EVENT',
-  fact: 'CLAIM',
+  fact: 'FACT',
   claim: 'CLAIM',
   evidence: 'EVIDENCE',
   document: 'DOCUMENT',
   issue: 'LEGAL_ISSUE',
+  law: 'LAW',
   procedure: 'PROCEDURE',
   authority: 'AUTHORITY',
   action: 'ACTION',
@@ -368,12 +376,70 @@ function getProjectionChanges(previous: TwinSnapshotSummary, next: TwinSnapshotS
     }
   }
   for (const recordKey of previousRecords.keys()) {
-    if (!nextRecords.has(recordKey)) removed += 1;
+    if (!nextRecords.has(recordKey)) {
+      removed += 1;
+      changedRecordIds.add(recordKey);
+    }
   }
 
   const changedNodeKeys = new Set([...changedRecordIds]
     .filter((recordKey) => recordKey.startsWith('node:'))
     .map((recordKey) => recordKey.slice(5)));
+  const changedEdgeKeys = new Set([...changedRecordIds]
+    .filter((recordKey) => recordKey.startsWith('edge:'))
+    .map((recordKey) => recordKey.slice(5)));
+  const previousEdges = new Map(previous.edges.map((edge) => [edge.id, edge]));
+  const nextEdges = new Map(next.edges.map((edge) => [edge.id, edge]));
+  changedEdgeKeys.forEach((edgeId) => {
+    const edge = nextEdges.get(edgeId) ?? previousEdges.get(edgeId);
+    if (edge) {
+      changedNodeKeys.add(edge.sourceId);
+      changedNodeKeys.add(edge.targetId);
+    }
+  });
+
+  const allNodes = new Map([...previous.nodes, ...next.nodes].map((node) => [node.id, node]));
+  const dependentNodes = new Map<string, Array<{ id: string; edgeId: string }>>();
+  const allEdges = new Map([...previous.edges, ...next.edges].map((edge) => [edge.id, edge]));
+  allEdges.forEach((edge) => {
+    let prerequisite: string | null = null;
+    let dependent: string | null = null;
+    if (['SUPPORTS', 'CONTRADICTS', 'APPLIES_TO', 'LEADS_TO'].includes(edge.kind)) {
+      prerequisite = edge.sourceId;
+      dependent = edge.targetId;
+    } else if (edge.kind === 'REFERENCES' || edge.kind === 'DEPENDS_ON') {
+      prerequisite = edge.targetId;
+      dependent = edge.sourceId;
+    }
+    if (prerequisite && dependent) {
+      const current = dependentNodes.get(prerequisite) ?? [];
+      current.push({ id: dependent, edgeId: edge.id });
+      dependentNodes.set(prerequisite, current);
+    }
+  });
+  const impactedNodeIds = new Set<string>();
+  const impactedEdgeIds = new Set<string>();
+  const visited = new Set(changedNodeKeys);
+  const pending = [...changedNodeKeys];
+  while (pending.length) {
+    const prerequisite = pending.shift()!;
+    for (const dependent of dependentNodes.get(prerequisite) ?? []) {
+      impactedEdgeIds.add(dependent.edgeId);
+      if (visited.has(dependent.id)) continue;
+      visited.add(dependent.id);
+      impactedNodeIds.add(dependent.id);
+      pending.push(dependent.id);
+    }
+  }
+  const affectedActionIds = new Set([...changedNodeKeys, ...impactedNodeIds]
+    .filter((nodeId) => allNodes.get(nodeId)?.kind === 'ACTION'));
+  const actionReadinessChanges = [...previous.nodes]
+    .filter((node) => node.kind === 'ACTION' && next.nodes.some((candidate) => candidate.id === node.id))
+    .flatMap((node) => {
+      const beforeStatus = node.properties.readiness_status;
+      const afterStatus = next.nodes.find((candidate) => candidate.id === node.id)?.properties.readiness_status;
+      return beforeStatus !== afterStatus ? [{ id: node.id, beforeStatus, afterStatus }] : [];
+    });
   const provenance = next.nodes
     .filter((node) => changedNodeKeys.has(node.id))
     .flatMap((node) => node.provenance)
@@ -386,6 +452,9 @@ function getProjectionChanges(previous: TwinSnapshotSummary, next: TwinSnapshotS
     added,
     changed,
     removed,
+    impactedRelationshipCount: impactedEdgeIds.size,
+    affectedActionIds: [...affectedActionIds].sort(),
+    actionReadinessChanges,
     explanation: [...new Set(provenance)].slice(0, 2).join(' · '),
   };
 }
@@ -479,7 +548,7 @@ function makeGraph(
       .map((edge) => edge.source === record.id ? edge.target : edge.source);
     const recordType = textProperty(record, 'record_type');
     const value = record.properties.value;
-    const isLegalKnowledgeRecord = kind === 'authority' || kind === 'procedure';
+    const isLegalKnowledgeRecord = kind === 'authority' || kind === 'procedure' || kind === 'law';
     const statusLabel = isLegalKnowledgeRecord
       ? `Catalog · ${humanize(textProperty(record, 'knowledge_status') ?? 'not established')}`
       : STATUS_LABELS[record.status];
@@ -517,6 +586,13 @@ function makeGraph(
       const category = textProperty(record, 'category');
       subtitle = confidence ? `Candidate issue · ${humanize(confidence)}` : statusLabel;
       summary = stringListProperty(record, 'rationale').join(' ') || category || record.label;
+    } else if (kind === 'law') {
+      subtitle = textProperty(record, 'citation') ?? textProperty(record, 'provision') ?? statusLabel;
+      summary = textProperty(record, 'text') ?? textProperty(record, 'rule_text') ?? textProperty(record, 'description') ?? record.label;
+    } else if (kind === 'action') {
+      const readiness = textProperty(record, 'readiness_status');
+      subtitle = readiness ? `Inputs · ${humanize(readiness)}` : statusLabel;
+      summary = textProperty(record, 'reason') ?? record.provenance[0]?.details ?? record.label;
     } else {
       subtitle = statusLabel;
       summary = record.provenance[0]?.details ?? `${KIND_LABELS[kind]} record from the Legal Twin.`;
@@ -657,7 +733,12 @@ export default function LegalTwinClient({ id }: { id: string }) {
             changes.changed ? `${changes.changed} changed` : '',
             changes.removed ? `${changes.removed} removed` : '',
           ].filter(Boolean);
-          setChangeSummary(`Updated from the saved CaseState · ${parts.join(', ')}.${changes.explanation ? ` Source detail: ${changes.explanation}` : ''}`);
+          const impactParts = [
+            changes.impactedRelationshipCount ? `${changes.impactedRelationshipCount} impacted relationships` : '',
+            changes.affectedActionIds.length ? `${changes.affectedActionIds.length} affected actions` : '',
+            changes.actionReadinessChanges.length ? `${changes.actionReadinessChanges.length} readiness updates` : '',
+          ].filter(Boolean);
+          setChangeSummary(`Updated from the saved CaseState · ${parts.join(', ')}.${impactParts.length ? ` Impacted state: ${impactParts.join(', ')}.` : ''}${changes.explanation ? ` Source detail: ${changes.explanation}` : ''}`);
         } else {
           setChangeSummary('Twin refreshed from the saved CaseState. The returned projection contains no graph record changes.');
         }

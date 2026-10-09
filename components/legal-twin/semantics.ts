@@ -17,12 +17,14 @@ export function categoryColor(category: TwinNodeCategory): string {
     case 'EVENT':
       return TWIN_COLORS.event;
     case 'LEGAL_ISSUE':
+    case 'LAW':
     case 'PROCEDURE':
     case 'AUTHORITY':
       return TWIN_COLORS.procedure;
     case 'ACTION':
       return TWIN_COLORS.action;
     case 'EVIDENCE':
+    case 'FACT':
     case 'CLAIM':
       return TWIN_COLORS.unknown;
     case 'PERSON':
