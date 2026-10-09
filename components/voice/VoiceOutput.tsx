@@ -129,6 +129,7 @@ export default function VoiceOutput({ text, language, responseId = 'guide-respon
       clearTimeout(voiceListTimeout);
       synthesis?.removeEventListener('voiceschanged', refreshVoices);
       clearStartTimer();
+      if (utterance.current || audio.current) emit({ type: 'speech_cancelled' });
       synthesis?.cancel();
       utterance.current = null;
       releaseAudio();

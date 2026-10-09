@@ -21,6 +21,28 @@ function sameValue(left: unknown, right: unknown): boolean {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
+function nextSpeechState(
+  current: GuideRuntimeSnapshot['speechState'],
+  event: GuideEvent,
+): GuideRuntimeSnapshot['speechState'] {
+  switch (event.type) {
+    case 'GUIDE_SPEECH_STARTED': return 'speaking';
+    case 'GUIDE_SPEECH_PAUSED': return 'paused';
+    case 'GUIDE_SPEECH_INTERRUPTED': return 'interrupted';
+    case 'GUIDE_SPEECH_ENDED': return 'idle';
+    case 'CASE_STATE_UPDATED':
+    case 'CASE_STATE_CLEARED':
+    case 'GUIDE_USER_INPUT_STARTED':
+    case 'GUIDE_PROCESSING_STARTED':
+    case 'GUIDE_RESPONSE_READY':
+    case 'GUIDE_ERROR':
+    case 'GUIDE_RESET':
+      return current === 'speaking' || current === 'paused' ? 'interrupted' : 'idle';
+    default:
+      return current;
+  }
+}
+
 export function createInitialGuideRuntime(
   caseState: GuideRuntimeSnapshot['caseState'] = null,
   registry: GuideActionRegistry = defaultGuideActionRegistry,
@@ -31,6 +53,7 @@ export function createInitialGuideRuntime(
     state,
     availableActions: [],
     response: null,
+    speechState: 'idle',
   };
   return {
     ...snapshot,
@@ -76,6 +99,7 @@ export function orchestrateGuideEvent(
     state: nextState,
     availableActions: [],
     response,
+    speechState: responseIsEmpty ? current.speechState : nextSpeechState(current.speechState, event),
   };
   const nextSnapshot: GuideRuntimeSnapshot = {
     ...candidate,
@@ -95,6 +119,14 @@ export function orchestrateGuideEvent(
     emissions.push({
       type: 'available_actions_changed',
       actions: nextSnapshot.availableActions,
+    });
+  }
+
+  if (current.speechState !== nextSnapshot.speechState) {
+    emissions.push({
+      type: 'speech_state_changed',
+      previous: current.speechState,
+      current: nextSnapshot.speechState,
     });
   }
 

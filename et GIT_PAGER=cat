@@ -1,0 +1,26 @@
+warning: in the working copy of 'components/guide-presence/presentation-contract.ts', LF will be replaced by CRLF the next time Git touches it
+ app/case/[id]/guide/GuideClient.tsx                |  38 [32m+[m[31m---[m
+ app/case/[id]/voice/VoiceCaseClient.tsx            |  10 [32m+[m[31m-[m
+ components/clarification/ClarificationPanel.tsx    |  12 [32m+[m[31m-[m
+ components/guide-presence/GuideControlSurface.tsx  |  55 [32m+++[m[31m--[m
+ components/guide-presence/GuidePresence.module.css |  27 [32m+[m[31m--[m
+ components/guide-presence/GuidePresence.tsx        |  20 [32m+[m[31m-[m
+ components/guide-presence/README.md                |  14 [32m+[m[31m-[m
+ components/guide-presence/avatar/AvatarSurface.tsx |   2 [32m+[m[31m-[m
+ .../avatar/IllustratedAvatarRenderer.module.css    |  27 [32m++[m[31m-[m
+ .../avatar/IllustratedAvatarRenderer.tsx           |  12 [32m+[m[31m-[m
+ components/guide-presence/avatar/types.ts          |   7 [32m+[m
+ components/guide-presence/presentation-contract.ts | 222 [32m+++++++++++[m[31m----------[m
+ components/guide-presence/types.ts                 |  28 [32m+[m[31m--[m
+ components/guide-runtime/GuideRuntimeProvider.tsx  |  93 [32m++++++++[m[31m-[m
+ components/guide-runtime/index.ts                  |   3 [32m+[m
+ components/guide-runtime/runtime.ts                |  32 [32m+++[m
+ components/guide-runtime/state.ts                  |   2 [32m+[m
+ components/guide-runtime/types.ts                  |  12 [32m+[m[31m-[m
+ components/guide-runtime/voice-adapter/README.md   |  12 [32m+[m[31m-[m
+ components/guide-runtime/voice-adapter/runtime.ts  |  59 [32m+++[m[31m---[m
+ components/home/CaseIntakeReview.tsx               |   4 [32m+[m[31m-[m
+ components/home/HomeExperience.tsx                 |   2 [32m+[m[31m-[m
+ components/legal-twin/TwinGuideCompanion.tsx       |  15 [32m+[m[31m-[m
+ components/voice/VoiceOutput.tsx                   |   1 [32m+[m
+ 24 files changed, 416 insertions(+), 293 deletions(-)

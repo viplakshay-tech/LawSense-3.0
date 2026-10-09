@@ -13,37 +13,31 @@ import type {
 export const GUIDE_PRESENCE_STATES = [
   'IDLE',
   'LISTENING',
-  'PROCESSING',
-  'ASKING',
-  'EXPLAINING',
-  'EVIDENCE',
-  'GROUNDED',
+  'THINKING',
+  'SPEAKING',
+  'CLARIFYING',
   'UNCERTAIN',
   'CONFLICT',
+  'ACTION_REQUIRED',
   'SAFETY',
-  'SPEAKING',
-  'ERROR',
+  'IMMEDIATE_DANGER',
 ] as const;
 
 export type CanonicalGuidePresenceState = (typeof GUIDE_PRESENCE_STATES)[number];
 
-/** ACTION remains accepted for callers on the previous Guide Presence contract. */
-export type GuidePresenceState = CanonicalGuidePresenceState | 'ACTION';
+export type GuidePresenceState = CanonicalGuidePresenceState;
 
 export const GUIDE_PRESENCE_LABELS: Record<GuidePresenceState, string> = {
   IDLE: 'Ready when you are',
   LISTENING: 'Listening closely',
-  PROCESSING: 'Thinking through your information',
-  ASKING: 'Clarifying a detail',
-  EXPLAINING: 'Explaining',
-  EVIDENCE: 'Reviewing evidence',
-  GROUNDED: 'Grounded in the record',
+  THINKING: 'Thinking through your information',
+  SPEAKING: 'Speaking',
+  CLARIFYING: 'Clarifying a detail',
   UNCERTAIN: 'Some details are uncertain',
   CONFLICT: 'Sources appear to conflict',
+  ACTION_REQUIRED: 'A next step needs attention',
   SAFETY: 'Safety guidance',
-  SPEAKING: 'Speaking',
-  ERROR: 'Unable to continue',
-  ACTION: 'A next step is recorded',
+  IMMEDIATE_DANGER: 'Urgent safety context',
 };
 
 export type GuidePresenceSize = 'compact' | 'regular' | 'hero';

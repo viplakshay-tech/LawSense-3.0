@@ -6,6 +6,7 @@ import type { GuideActionCommand } from '@/components/guide-actions';
 import {
   createInitialGuideRuntime,
   deriveGuideState,
+  guidePresenceStateFromSnapshot,
   orchestrateGuideEvent,
   type GuideAction,
   type GuideRuntimeSnapshot,
@@ -302,22 +303,20 @@ function presenceFor(
   timeline: TwinGuideTimelineContext,
 ): GuidePresenceState {
   const caseStateName = deriveGuideState(caseState).name;
-  if (caseStateName === 'safety') return 'SAFETY';
-  if (!timeline.projectionReady) return 'PROCESSING';
+  if (caseStateName === 'safety') return guidePresenceStateFromSnapshot(snapshot);
+  if (!timeline.projectionReady) return 'THINKING';
 
   const status = edge?.status ?? node?.status;
   if (status === 'conflicting') return 'CONFLICT';
   if (caseStateName === 'conflict') return 'CONFLICT';
-  if (status === 'unknown' || node?.unresolved) return 'ASKING';
-  if (caseStateName === 'asking') return 'ASKING';
+  if (status === 'unknown' || node?.unresolved) return 'CLARIFYING';
+  if (caseStateName === 'asking') return 'CLARIFYING';
   if (status === 'assumption' || status === 'system_inferred' || node?.temporallyUncertain) return 'UNCERTAIN';
   if (caseStateName === 'uncertain') return 'UNCERTAIN';
-  if (node?.kind === 'evidence') return 'EVIDENCE';
+  if (node?.kind === 'evidence') return 'THINKING';
   if (node?.kind === 'authority') return 'UNCERTAIN';
 
-  return snapshot.state.name === 'action' || snapshot.state.name === 'completion'
-    ? 'EXPLAINING'
-    : snapshot.state.name.toUpperCase() as GuidePresenceState;
+  return guidePresenceStateFromSnapshot(snapshot);
 }
 
 function presenceDetail(

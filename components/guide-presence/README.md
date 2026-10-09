@@ -12,18 +12,16 @@ The default `AvatarSurface` is a polished vector illustration, clearly labeled *
 | --- | --- | --- | --- |
 | `IDLE` | Calm; available gaze toward camera | Settled posture; silent until Runtime says otherwise | Open, still pose; interruption returns to rest; reduced motion uses a still portrait |
 | `LISTENING` | Attentive; gentle direct gaze toward the user | One subtle lean on entry; remains quiet | No repeated nodding or scanning; speech stops on interruption; static listening pose when motion is reduced |
-| `PROCESSING` | Thoughtful; gaze toward the case record | Small downward tilt; remains silent until a response is ready | Focused stillness; new state replaces it immediately; static processing pose when motion is reduced |
-| `ASKING` | Curious; direct gaze toward the user | Slight inquiry tilt; speaks only while speech is active | Holds space for a reply; interruption ends speech; static clarification pose when motion is reduced |
-| `EXPLAINING` | Warm; oriented toward the user | Phrase emphasis only from explicit timing; visemes come from external cues | Closes mouth when audio ends; interruption closes mouth immediately; text remains available outside the avatar |
-| `EVIDENCE` | Attentive; gaze toward evidence | Settled review tilt; no animated eye scanning | Holds evidence focus; interruption ends speech; static evidence-facing gaze when motion is reduced |
-| `GROUNDED` | Calmly confident; direct gaze | Upright and composed; no celebratory motion | Quiet resting expression; interruption ends speech; static grounded pose when motion is reduced |
+| `THINKING` | Thoughtful; gaze toward the case record | Small downward tilt; remains silent until a response is ready | Focused stillness; new Runtime state replaces it; static thoughtful pose when motion is reduced |
+| `SPEAKING` | Warm and engaged; gaze toward the user | Uses supplied viseme timing; does not invent mouth timing | Closes mouth on pause or completion; interruption clears visemes; reduced motion disables head movement |
+| `CLARIFYING` | Curious; direct gaze toward the user | Slight inquiry tilt; speaks only while speech is active | Holds space for a reply; interruption ends speech; static clarification pose when motion is reduced |
 | `UNCERTAIN` | Reflective; direct gaze | Small, held tilt; even-paced speech | Steady while details are clarified; interruption does not change Runtime state; static reflective pose when motion is reduced |
 | `CONFLICT` | Composed concern; attends to evidence | Centered posture; no alternating gaze loop | Holds a neutral expression; interruption leaves conflict handling with Runtime; static pose with explicit state label |
+| `ACTION_REQUIRED` | Steady; direct gaze toward the recorded action | Upright, still posture; explains only supplied action or error text | Keeps the action visible without repeated prompts; static portrait and action label when motion is reduced |
 | `SAFETY` | Compassionate; gentle attention toward the user | Grounded and still; calm, concise speech | No urgent motion or pulsing; interruption leaves state changes with Runtime; static portrait with visible safety label |
-| `SPEAKING` | Warm and engaged; gaze toward the user | Uses supplied phoneme/viseme timing; gesture timing is explicit | Closes mouth on pause or completion; interruption clears visemes immediately; reduced motion disables head movement |
-| `ERROR` | Calmly apologetic; direct gaze | Still posture; speaks only when an explanation is active | Error copy carries the explanation; interruption ends speech; static portrait with accessible error label |
+| `IMMEDIATE_DANGER` | Compassionate; calm, direct attention | Grounded, still posture; uses supplied safety response and speech timing | Keeps the urgent label visible without alarm animation; assertive announcement and still portrait when motion is reduced |
 
-`ACTION` remains accepted as a compatibility alias for the previous Guide Presence API and uses the `GROUNDED` visual contract.
+Errors and recorded next steps map to `ACTION_REQUIRED`. `IMMEDIATE_DANGER` is reserved for urgent safety context supplied by the case record; ordinary sensitive safety context maps to `SAFETY`.
 
 ## Avatar surface adapter
 

@@ -216,6 +216,8 @@ export function transitionGuideState(
         : caseDerivedState;
     case 'GUIDE_SPEECH_STARTED':
       return makeSnapshot('speaking', 'speech_started', caseState);
+    case 'GUIDE_SPEECH_PAUSED':
+    case 'GUIDE_SPEECH_INTERRUPTED':
     case 'GUIDE_SPEECH_ENDED': {
       const caseDerivedState = deriveGuideState(caseState);
       return caseDerivedState.name === 'idle'

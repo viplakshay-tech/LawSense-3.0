@@ -18,6 +18,7 @@ export const GUIDE_STATES = [
 ] as const;
 
 export type GuideStateName = (typeof GUIDE_STATES)[number];
+export type GuideSpeechLifecycleState = 'idle' | 'speaking' | 'paused' | 'interrupted';
 
 export type GuideStateReason =
   | 'no_case_loaded'
@@ -144,6 +145,8 @@ export type GuideEvent =
   | { type: 'GUIDE_PROCESSING_STARTED' }
   | { type: 'GUIDE_RESPONSE_READY'; response: GuideResponse }
   | { type: 'GUIDE_SPEECH_STARTED' }
+  | { type: 'GUIDE_SPEECH_PAUSED' }
+  | { type: 'GUIDE_SPEECH_INTERRUPTED' }
   | { type: 'GUIDE_SPEECH_ENDED' }
   | { type: 'GUIDE_ERROR'; message: string }
   | { type: 'GUIDE_ACTION_SELECTED'; action: GuideAction }
@@ -163,13 +166,20 @@ export type GuideRuntimeEmission =
       reason: 'not_available';
     }
   | { type: 'response_available'; response: GuideResponse }
-  | { type: 'response_rejected'; reason: 'empty_text' };
+  | { type: 'response_rejected'; reason: 'empty_text' }
+  | {
+      type: 'speech_state_changed';
+      previous: GuideSpeechLifecycleState;
+      current: GuideSpeechLifecycleState;
+    };
 
 export interface GuideRuntimeSnapshot {
   caseState: CaseState | null;
   state: GuideStateSnapshot;
   availableActions: readonly GuideAction[];
   response: GuideResponse | null;
+  /** Runtime-owned playback lifecycle; presentation never guesses from animation. */
+  speechState: GuideSpeechLifecycleState;
 }
 
 export interface GuideRuntimeResult {

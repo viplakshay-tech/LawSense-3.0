@@ -16,7 +16,7 @@ import {
   type VoiceTranscriptResponse,
 } from '@/lib/api';
 import { useCaseState } from '../CaseStateProvider';
-import { useGuideRuntime } from '@/components/guide-runtime';
+import { guidePresenceStateFromSnapshot, useGuideRuntime } from '@/components/guide-runtime';
 
 const LANGUAGES: RecognitionLanguage[] = ['English', 'Hindi', 'Hinglish'];
 
@@ -69,7 +69,11 @@ export default function VoiceCaseClient({ id }: { id: string }) {
     ? { id: runtimeResponse.id, text: runtimeResponse.text, language: 'english' as const }
     : null;
   const guideSnapshot = guideResponse
-    ? { visualState: 'EXPLAINING' as const, detail: 'Guide response ready. Choose Play to hear it.' }
+    ? {
+        visualState: guidePresenceStateFromSnapshot(guideRuntimeSnapshot),
+        detail: 'Guide response ready. Choose Play to hear it.',
+        speechState: guideRuntimeSnapshot.speechState,
+      }
     : voiceSnapshot;
   const visibleError = error;
 
@@ -309,7 +313,7 @@ export default function VoiceCaseClient({ id }: { id: string }) {
           </header>
 
           <div className="mt-6 rounded-2xl border border-zinc-200 bg-zinc-50/80 p-4 dark:border-zinc-800 dark:bg-zinc-950/50">
-            <GuidePresence state={guideSnapshot.visualState} detail={guideSnapshot.detail} size="regular" />
+            <GuidePresence state={guideSnapshot.visualState} speechState={guideSnapshot.speechState} detail={guideSnapshot.detail} size="regular" />
             {!guideResponse && (
               <p className="mt-2 text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
                 Start with what happened, in your own words. I’ll keep the transcript visible so you can correct it before anything is added to the case.

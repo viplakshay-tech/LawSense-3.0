@@ -1,10 +1,11 @@
+'use client';
+
+import { useReducedMotion } from 'framer-motion';
 import styles from './GuidePresence.module.css';
 import { AvatarSurface } from './avatar/AvatarSurface';
 import { GUIDE_PRESENCE_LABELS } from './types';
 import type { GuidePresenceProps } from './types';
 import { canonicalGuidePresenceState, getGuideStatePresentation } from './presentation-contract';
-
-const URGENT_STATES = new Set(['SAFETY', 'ERROR']);
 
 export function GuidePresence({
   state,
@@ -22,10 +23,12 @@ export function GuidePresence({
   reducedMotion = false,
   className,
 }: GuidePresenceProps) {
+  const systemReducedMotion = useReducedMotion() ?? false;
+  const shouldReduceMotion = reducedMotion || systemReducedMotion;
   const label = accessibleLabel ?? GUIDE_PRESENCE_LABELS[state];
   const canonicalState = canonicalGuidePresenceState(state);
   const presentation = getGuideStatePresentation(canonicalState);
-  const isUrgent = URGENT_STATES.has(canonicalState);
+  const isUrgent = canonicalState === 'IMMEDIATE_DANGER';
   const rootClassName = [styles.presence, className].filter(Boolean).join(' ');
   const rendererIsIllustrated = (avatarAdapter?.kind ?? 'illustrated') === 'illustrated';
 
@@ -34,7 +37,7 @@ export function GuidePresence({
       className={rootClassName}
       data-state={canonicalState}
       data-size={size}
-      data-reduced-motion={reducedMotion ? 'true' : undefined}
+      data-reduced-motion={shouldReduceMotion ? 'true' : undefined}
       role={isUrgent ? 'alert' : 'status'}
       aria-live={isUrgent ? 'assertive' : 'polite'}
       aria-atomic="true"
@@ -50,11 +53,18 @@ export function GuidePresence({
               speechState={speechState ?? (canonicalState === 'SPEAKING' ? 'speaking' : 'idle')}
               speechTiming={speechTiming}
               expression={presentation.expression}
+              expressionIntent={presentation.expressionIntent}
               emotion={emotion ?? presentation.emotion}
               context={context ?? presentation.context}
               gazeTarget={gazeTarget ?? presentation.attention.gaze}
+              gazeIntent={presentation.attention.intent}
               gestureHint={gestureHint ?? presentation.headMovement.gestureHint}
-              reducedMotion={reducedMotion}
+              listeningBehavior={presentation.listeningBehavior}
+              speakingBehavior={presentation.speakingBehavior}
+              interruptionBehavior={presentation.interruptionBehavior}
+              reducedMotionFallback={presentation.reducedMotionFallback}
+              contextualMessagePriority={presentation.contextualMessagePriority}
+              reducedMotion={shouldReduceMotion}
             />
             {rendererIsIllustrated && (
               <span className={styles.illustrationLabel}>

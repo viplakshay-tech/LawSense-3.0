@@ -7,7 +7,7 @@ export const illustratedAvatarAdapter: AvatarAdapter = {
   capabilities: {
     visemeTiming: true,
     speechInterruption: true,
-    emotion: true,
+    emotion: false,
     gaze: true,
     gestures: false,
     liveAudioOutput: false,
