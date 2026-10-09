@@ -162,6 +162,81 @@ export interface SafetyIndicatorSummary {
   status: 'system_inferred';
 }
 
+export type WomenSafetyDomain =
+  | 'domestic_abuse'
+  | 'sexual_violence'
+  | 'workplace_sexual_harassment'
+  | 'stalking'
+  | 'threats_coercion'
+  | 'cyber_harassment'
+  | 'intimate_image_abuse'
+  | 'dowry_related_abuse'
+  | 'financial_control_abuse'
+  | 'trafficking_exploitation';
+
+export type WomenSafetyUrgency =
+  | 'NORMAL'
+  | 'CONCERNING'
+  | 'URGENT'
+  | 'IMMEDIATE_DANGER'
+  | 'NOT_SURE';
+
+export interface WomenSafetyContextSummary {
+  domains: WomenSafetyDomain[];
+  domainEvidence: Array<{
+    domain: WomenSafetyDomain;
+    triggerCategories: string[];
+    status: 'system_inferred';
+  }>;
+  urgency: WomenSafetyUrgency;
+  immediateDangerAnswer?: 'yes' | 'no' | 'not_sure' | null;
+  jurisdictionStatus: 'known' | 'unknown';
+  jurisdiction?: string | null;
+  state?: string | null;
+  legalIssueMappings: Array<{
+    domain: WomenSafetyDomain;
+    status: string;
+    candidateIssueCategories: string[];
+    matchedCaseIssueIds: string[];
+    sourceRecordIds: string[];
+  }>;
+  procedures: Array<{
+    recordId: string;
+    title: string;
+    jurisdiction?: string | null;
+    verificationStatus?: string | null;
+    applicabilityStatus?: string | null;
+    jurisdictionMatchStatus?: string | null;
+    sourceIds: string[];
+    status: 'candidate_record_requires_review';
+  }>;
+  evidencePreservationGuidance: string[];
+  actions: Array<{
+    id: string;
+    type: string;
+    status: string;
+    condition?: string | null;
+    requiresUserChoice: boolean;
+    jurisdictionRequired: boolean;
+    sourceIds: string[];
+    automaticContact: false;
+  }>;
+  legalSources: Array<{
+    recordId: string;
+    sourceId: string;
+    retrievalTime?: string | null;
+    sourceUrl?: string | null;
+    provisionId?: string | null;
+    pageSectionReference?: string | null;
+    jurisdiction?: string | null;
+    verificationStatus?: string | null;
+    freshnessStatus?: string | null;
+    applicabilityStatus?: string | null;
+    jurisdictionMatchStatus?: string | null;
+  }>;
+  contactedAnyone: false;
+}
+
 export interface SafetyContextSummary {
   context: 'none' | 'sensitive' | 'potentially_unsafe' | 'urgent_safety_context';
   confidence: string;
@@ -170,6 +245,7 @@ export interface SafetyContextSummary {
   sourceIds: string[];
   assessmentStatus: 'system_inferred';
   recommendedSafetyPrompt?: string | null;
+  womenSafetyContext?: WomenSafetyContextSummary | null;
 }
 
 export interface LegalKnowledgeProvenance {

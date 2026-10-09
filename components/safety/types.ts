@@ -1,8 +1,11 @@
+import type { WomenSafetyContextSummary } from '@/lib/api';
+
 export type ImmediateDangerAnswer = 'yes' | 'no' | 'not_sure';
 export type SafetyLanguage = 'en' | 'hi' | 'hinglish';
 export type SafetyLanguagePreference = 'auto' | SafetyLanguage;
 
 export interface SafetySupportResource {
+  resource_id?: string | null;
   name?: string | null;
   category?: string | null;
   jurisdiction?: string | null;
@@ -11,6 +14,18 @@ export interface SafetySupportResource {
   url?: string | null;
   phone?: string | null;
   description?: string | null;
+  provenance?: Array<{
+    source_id?: string | null;
+    source_url?: string | null;
+    verified_on?: string | null;
+  }>;
+}
+
+export interface SafetyResourceAvailability {
+  category: string;
+  status: string;
+  jurisdiction: string | null;
+  state: string | null;
 }
 
 export interface SafetySupportAssessment {
@@ -32,11 +47,13 @@ export interface SafetySupportAssessment {
   escalation_options: string[];
   resource_categories: string[];
   resources: SafetySupportResource[];
+  resource_availability?: SafetyResourceAvailability[];
   safe_next_step_sequence: string[];
   language: SafetyLanguage;
   workflow_disposition: string;
   legal_workflow_allowed: boolean;
   contacted_anyone: false;
+  women_safety_context?: WomenSafetyContextSummary;
 }
 
 export interface SafetySupportResponse {
