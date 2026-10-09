@@ -16,11 +16,11 @@ export function SafetyPathway({
   return (
     <SafetySurface>
       <div className="flex items-start gap-3">
-        <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl border border-teal-100/10 bg-teal-100/[0.045] text-teal-100/75">
+        <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl border border-rose-100/10 bg-rose-100/[0.045] text-rose-100/75">
           <HandHeart aria-hidden="true" className="size-4" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-teal-100/65">{copy.pathwayEyebrow}</p>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-rose-100/65">{copy.pathwayEyebrow}</p>
           <h2 className="mt-2 text-lg font-medium tracking-tight text-zinc-100">{copy.pathwayTitle}</h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">{copy.pathwayDescription}</p>
         </div>

@@ -82,9 +82,9 @@ export function ImmediateDangerPrompt({
                   disabled={disabled}
                   onClick={() => onChoose(option.value)}
                   className={cn(
-                    'inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border px-4 text-xs font-semibold tracking-[0.12em] transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-200/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#13161d]',
+                    'inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border px-4 text-xs font-semibold tracking-[0.12em] transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-200/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#13161d]',
                     selected
-                      ? 'border-teal-100/45 bg-teal-100/[0.12] text-teal-50 shadow-[0_0_22px_rgba(111,212,199,0.08)]'
+                      ? 'border-rose-100/40 bg-rose-100/[0.11] text-rose-50 shadow-[0_0_22px_rgba(187,111,128,0.08)]'
                       : 'border-white/[0.12] bg-white/[0.035] text-zinc-200 hover:border-white/25 hover:bg-white/[0.07]',
                     disabled && 'cursor-not-allowed opacity-45 hover:border-white/[0.12] hover:bg-white/[0.035]',
                   )}

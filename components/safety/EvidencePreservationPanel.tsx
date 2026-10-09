@@ -21,7 +21,7 @@ export function EvidencePreservationPanel({
   };
 }) {
   return (
-    <SafetySurface id="evidence-preservation-guidance" tabIndex={-1} className="scroll-mt-6 outline-none focus-visible:ring-2 focus-visible:ring-teal-100/50">
+    <SafetySurface id="evidence-preservation-guidance" tabIndex={-1} className="scroll-mt-6 outline-none focus-visible:ring-2 focus-visible:ring-rose-100/50">
       <div className="flex items-start gap-3">
         <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl border border-sky-100/10 bg-sky-100/[0.045] text-sky-100/75">
           <FileLock2 aria-hidden="true" className="size-4" />
@@ -37,7 +37,7 @@ export function EvidencePreservationPanel({
         aria-expanded={expanded}
         aria-controls="evidence-guidance-list"
         onClick={onToggle}
-        className="mt-4 inline-flex min-h-10 items-center rounded-lg border border-white/[0.1] bg-white/[0.035] px-3 text-xs font-semibold text-zinc-200 transition hover:bg-white/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-100/50"
+        className="mt-4 inline-flex min-h-10 items-center rounded-lg border border-white/[0.1] bg-white/[0.035] px-3 text-xs font-semibold text-zinc-200 transition hover:bg-white/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-100/50"
       >
         {expanded ? copy.hideEvidenceAction : copy.evidenceAction}
       </button>

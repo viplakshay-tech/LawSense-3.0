@@ -10,7 +10,7 @@ export function SafetySurface({
     <section
       {...props}
       className={cn(
-        'rounded-2xl border border-white/[0.08] bg-[#10131b] p-5 shadow-[0_18px_55px_rgba(0,0,0,0.18)] sm:p-6',
+        'rounded-2xl border border-white/[0.08] bg-[#171418] p-5 shadow-[0_18px_55px_rgba(0,0,0,0.18)] sm:p-6',
         className,
       )}
     >
@@ -31,7 +31,7 @@ export function SafetySectionHeading({
   return (
     <div className="mb-5 space-y-2">
       {eyebrow && (
-        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-teal-200/70">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-rose-200/70">
           {eyebrow}
         </p>
       )}

@@ -121,8 +121,12 @@
   box-shadow: inset 2px 0 var(--ls-accent);
 }
 
-.ls-case-navigation > div > a > span:last-of-type {
+.ls-case-navigation > div > a > .case-stage-label {
   font-size: 0.875rem;
+}
+
+.ls-case-navigation > div > a > .case-stage-status {
+  font-size: 0.56rem;
 }
 
 .ls-case-navigation > div > div a {
@@ -302,6 +306,7 @@
 
 .ls-case-mobile-item > a {
   min-width: 4.75rem;
+  height: 100%;
   color: var(--ls-text-secondary);
 }
 
@@ -309,9 +314,19 @@
   color: var(--ls-accent-bright);
 }
 
-.ls-case-mobile-item > a > span:last-of-type {
-  font-size: 0.75rem;
-  line-height: 1.25rem;
+.ls-case-mobile-item > a > .case-stage-label {
+  max-width: 100%;
+  font-size: 0.6rem;
+  line-height: 0.75rem;
+}
+
+.ls-case-mobile-item > a > .case-stage-status {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.5rem;
+  line-height: 0.6rem;
 }
 
 @media (max-width: 639px) {

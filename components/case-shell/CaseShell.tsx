@@ -10,8 +10,8 @@ import {
   ClipboardList,
   FilePenLine,
   FileStack,
+  LockKeyhole,
   MapPin,
-  Mic,
   Network,
   Route,
   Scale,
@@ -24,63 +24,48 @@ import { Suspense } from 'react';
 import type { ReactNode } from 'react';
 import type { JourneyStageName } from '@/lib/api';
 import { rememberSessionCase } from '@/lib/case-continuity';
+import { CASE_JOURNEY_STAGES, getCaseJourneyStageStatus, type CaseJourneyStageId } from '@/lib/case-journey';
 import { useCaseState } from '../../app/case/[id]/CaseStateProvider';
 import { GuideControlSurface } from '@/components/guide-presence';
 import { StatusPill, type StatusTone } from '@/components/design-system/StatusPill';
 import { CaseContextPanel } from './CaseContextPanel';
 
-type CaseSectionId = 'understand' | 'evidence' | 'grounding' | 'journey' | 'twin' | 'drafting' | 'safety';
+type CaseSectionId = CaseJourneyStageId;
 
 type CaseSection = {
   id: CaseSectionId;
+  name: string;
   label: string;
   mobileLabel: string;
   href: string;
   icon: LucideIcon;
-  safety?: boolean;
 };
 
-const COMPLETE_STATUSES = new Set(['complete', 'completed', 'done', 'finished']);
-const ACTIVE_STATUSES = new Set(['active', 'current', 'in_progress', 'started']);
-
-const STAGE_LABELS: Record<JourneyStageName, string> = {
-  UNDERSTAND: 'Understand the situation',
-  FACTS: 'Review what is known',
-  EVIDENCE: 'Build the evidence record',
-  LAW: 'Ground the legal picture',
-  OPTIONS: 'Explore possible paths',
-  NEXT_STEP: 'Choose a useful next step',
+const LEGACY_NAV_LABELS: Record<CaseJourneyStageId, string> = {
+  understand: 'Understand',
+  clarify: 'Clarify',
+  protect: 'Safety',
+  evidence: 'Evidence',
+  law: 'Legal Grounding',
+  twin: 'Living Twin',
+  prepare: 'Document Drafting',
+  act: 'Act',
+  monitor: 'Journey',
 };
-
-function isComplete(status: string): boolean {
-  return COMPLETE_STATUSES.has(status.toLowerCase());
-}
-
-function isActive(status: string): boolean {
-  return ACTIVE_STATUSES.has(status.toLowerCase());
-}
 
 function getActiveSection(pathname: string, hash: string, basePath: string): CaseSectionId | null {
-  if (pathname.startsWith(`${basePath}/documents`) || pathname.startsWith(`${basePath}/voice`)) return 'evidence';
-  if (pathname.startsWith(`${basePath}/guide`)) return 'grounding';
+  if (pathname.startsWith(`${basePath}/privacy`)) return null;
+  if (pathname.startsWith(`${basePath}/action`)) return hash.startsWith('#monitor') ? 'monitor' : 'act';
+  if (pathname.startsWith(`${basePath}/documents`)) return 'evidence';
+  if (pathname.startsWith(`${basePath}/voice`)) return 'clarify';
+  if (pathname.startsWith(`${basePath}/guide`)) return 'law';
   if (pathname.startsWith(`${basePath}/twin`)) return 'twin';
-  if (pathname.startsWith(`${basePath}/draft`)) return 'drafting';
-  if (pathname.startsWith(`${basePath}/safety`)) return 'safety';
-  if (pathname === basePath && hash.startsWith('#journey')) return 'journey';
+  if (pathname.startsWith(`${basePath}/draft`)) return 'prepare';
+  if (pathname.startsWith(`${basePath}/safety`)) return 'protect';
+  if (pathname === basePath && hash.startsWith('#journey')) return 'monitor';
+  if (pathname === basePath && hash.startsWith('#clarification')) return 'clarify';
   if (pathname === basePath || pathname === `${basePath}/`) return 'understand';
   return null;
-}
-
-function getFallbackStage({
-  facts,
-  events,
-  evidence,
-  analysis,
-}: NonNullable<ReturnType<typeof useCaseState>['caseState']>): JourneyStageName {
-  if (analysis?.legalKnowledge.status === 'records_found') return 'LAW';
-  if (evidence.length > 0) return 'EVIDENCE';
-  if (facts.length > 0 || events.length > 0) return 'FACTS';
-  return 'UNDERSTAND';
 }
 
 function getDestinationForStage(stage: JourneyStageName | undefined, basePath: string): string {
@@ -114,18 +99,20 @@ function CaseNavigation({
   pathname,
   hash,
   safetyTone,
+  statuses,
   mobile = false,
 }: {
   sections: CaseSection[];
   pathname: string;
   hash: string;
   safetyTone: 'urgent' | 'caution' | 'clear';
+  statuses: Record<CaseJourneyStageId, string>;
   mobile?: boolean;
 }) {
   const shouldReduceMotion = useReducedMotion();
   const basePath = sections[0].href;
   const activeSection = getActiveSection(pathname, hash, basePath);
-  const safetyMode = activeSection === 'safety';
+  const safetyMode = activeSection === 'protect';
 
   const safetySelectedStyle = safetyTone === 'urgent'
     ? 'bg-rose-400/[0.12] text-rose-100 ring-1 ring-inset ring-rose-300/25'
@@ -139,38 +126,34 @@ function CaseNavigation({
       : 'text-rose-200/80 hover:bg-rose-400/[0.06] hover:text-rose-100';
 
   return (
-    <nav aria-label="Case workspace" className={mobile ? 'ls-case-mobile-nav relative flex h-[4.7rem] w-full min-w-0 gap-1' : 'ls-case-navigation space-y-1'}>
-      {mobile && activeSection === 'evidence' && (
-        <Link
-          href={pathname.startsWith(`${basePath}/voice`) ? `${basePath}/documents` : `${basePath}/voice`}
-          className="absolute -top-10 right-2 inline-flex min-h-9 items-center gap-2 rounded-full border border-white/[0.12] bg-[#1b2636] px-3 text-xs font-semibold text-slate-100 shadow-lg"
-        >
-          <Mic className="h-3 w-3 text-[#f0c987]" aria-hidden="true" />
-          {pathname.startsWith(`${basePath}/voice`) ? 'View documents' : 'Add by voice'}
-        </Link>
-      )}
+    <nav aria-label="Case workspace" className={mobile ? 'ls-case-mobile-nav relative flex h-[4.7rem] w-full min-w-0 gap-1' : 'ls-case-navigation min-h-0 flex-1 space-y-1 overflow-y-auto pr-1'}>
       {sections.map((section) => {
         const selected = activeSection === section.id;
         const Icon = section.icon;
-        const isSafety = section.safety;
+        const isSafety = section.id === 'protect';
+        const status = statuses[section.id];
+        const statusTone = status === 'Complete' ? 'text-emerald-300' : status === 'Needs review' ? 'text-amber-200' : status === 'In progress' ? 'text-sky-200' : 'text-slate-600';
         return (
-          <div key={section.id} className={`${isSafety && !mobile ? 'mt-3 border-t border-white/[0.08] pt-3' : ''} ${mobile ? 'ls-case-mobile-item' : ''}`}>
+          <div key={section.id} className={`${isSafety && !mobile ? 'mt-2 border-t border-white/[0.08] pt-2' : ''} ${mobile ? 'ls-case-mobile-item min-w-0' : ''}`}>
             <Link
               href={section.href}
-              aria-label={mobile ? section.label : undefined}
+              aria-label={LEGACY_NAV_LABELS[section.id]}
+              aria-description={`${section.name} stage · ${status}`}
+              title={`${section.name} · ${status}`}
               aria-current={selected ? 'page' : undefined}
+              data-stage-status={status.toLocaleLowerCase().replaceAll(' ', '-')}
               className={[
                 'group relative flex outline-none transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-[#e9bd7b] focus-visible:ring-offset-2 focus-visible:ring-offset-[#111824] motion-reduce:transition-none',
                 mobile
-                  ? 'relative h-full min-w-[4.75rem] flex-col items-center justify-center gap-1 px-1.5 text-center'
-                  : 'min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm',
+                  ? 'min-h-[4.5rem] min-w-[4.75rem] flex-col items-center justify-center gap-0.5 rounded-lg px-1 py-1 text-center'
+                  : 'min-h-9 items-center gap-2 rounded-lg px-2.5 py-1.5 text-[12px]',
                 selected && !isSafety ? 'text-white' : '',
                 selected && isSafety ? safetySelectedStyle : '',
                 !selected && !isSafety ? 'text-slate-400 hover:bg-white/[0.045] hover:text-slate-100' : '',
                 !selected && isSafety ? safetyIdleStyle : '',
                 selected && !isSafety && !mobile ? 'bg-[#263246]' : '',
                 selected && mobile && !isSafety ? 'text-[#f2c98f]' : '',
-                safetyMode && !isSafety ? 'opacity-40' : '',
+                safetyMode && !isSafety ? 'opacity-55' : '',
               ].join(' ')}
             >
               {selected && !isSafety && !mobile && (
@@ -192,26 +175,19 @@ function CaseNavigation({
               <span className={`relative z-[1] flex shrink-0 items-center justify-center ${mobile ? 'h-5 w-5' : 'h-5 w-5'} ${isSafety && safetyTone === 'urgent' ? 'text-rose-300' : isSafety && safetyTone === 'caution' ? 'text-amber-300' : selected ? 'text-[#f2c98f]' : 'text-current'}`}>
                 <Icon className={mobile ? 'h-[17px] w-[17px]' : 'h-[17px] w-[17px]'} strokeWidth={selected ? 2 : 1.8} aria-hidden="true" />
               </span>
-              <span className={`relative z-[1] min-w-0 truncate ${mobile ? 'max-w-full whitespace-nowrap text-[11px] leading-4' : 'flex-1 font-medium'} ${selected && !isSafety ? 'font-semibold' : ''}`}>
+                <span className={`relative z-[1] min-w-0 truncate ${mobile ? 'case-stage-label max-w-full whitespace-nowrap text-[9px] leading-3' : 'flex-1 font-medium'} ${selected && !isSafety ? 'font-semibold' : ''}`}>
                 {mobile ? section.mobileLabel : section.label}
               </span>
-              {!mobile && isSafety && safetyTone === 'urgent' && (
-                <span className="relative z-[1] ml-auto rounded-full bg-rose-400/15 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-rose-200">
-                  Urgent
-                </span>
-              )}
-              {!mobile && isSafety && safetyTone === 'caution' && (
-                <span className="relative z-[1] ml-auto h-1.5 w-1.5 rounded-full bg-amber-300" aria-label="Safety context present" />
-              )}
+              <span className={`relative z-[1] ${mobile ? 'case-stage-status text-[8px] leading-[9px]' : 'ml-auto text-[9px]'} ${statusTone}`}>{status}</span>
             </Link>
-            {!mobile && section.id === 'evidence' && (
+            {!mobile && section.id === 'clarify' && (
               <div className={`ml-[2.65rem] mt-0.5 border-l border-white/[0.08] pl-3 ${safetyMode ? 'opacity-40' : ''}`}>
                 <Link
                   href={`${basePath}/voice`}
                   aria-current={pathname.startsWith(`${basePath}/voice`) ? 'page' : undefined}
                   className={`block rounded-md px-2 py-1.5 text-xs transition hover:text-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e9bd7b] ${pathname.startsWith(`${basePath}/voice`) ? 'font-medium text-[#f2c98f]' : 'text-slate-500'}`}
                 >
-                  Add by voice
+                  Guide Call
                 </Link>
               </div>
             )}
@@ -243,34 +219,29 @@ export function CaseShell({ caseId, children }: { caseId: string; children: Reac
   const activeSafetyTone = getSafetyTone(caseState?.analysis?.safetyContext.context);
   const safetyMode = pathname.startsWith(`${basePath}/safety`);
   const sections: CaseSection[] = [
-    { id: 'understand', label: 'Understand', mobileLabel: 'Understand', href: basePath, icon: ClipboardList },
-    { id: 'evidence', label: 'Evidence', mobileLabel: 'Evidence', href: `${basePath}/documents`, icon: FileStack },
-    { id: 'grounding', label: 'Legal Grounding', mobileLabel: 'Grounding', href: `${basePath}/guide`, icon: Scale },
-    { id: 'journey', label: 'Journey', mobileLabel: 'Journey', href: `${basePath}#journey`, icon: Route },
-    { id: 'twin', label: 'Living Twin', mobileLabel: 'Twin', href: `${basePath}/twin`, icon: Network },
-    { id: 'drafting', label: 'Document Drafting', mobileLabel: 'Draft', href: `${basePath}/draft`, icon: FilePenLine },
-    { id: 'safety', label: 'Safety', mobileLabel: 'Safety', href: `${basePath}/safety`, icon: ShieldAlert, safety: true },
+    { id: 'understand', name: 'UNDERSTAND', label: 'Understand', mobileLabel: 'Understand', href: basePath, icon: ClipboardList },
+    { id: 'clarify', name: 'CLARIFY', label: 'Clarify', mobileLabel: 'Clarify', href: `${basePath}#clarification`, icon: CircleHelp },
+    { id: 'protect', name: 'PROTECT', label: 'Protect', mobileLabel: 'Protect', href: `${basePath}/safety`, icon: ShieldAlert },
+    { id: 'evidence', name: 'EVIDENCE', label: 'Evidence', mobileLabel: 'Evidence', href: `${basePath}/documents`, icon: FileStack },
+    { id: 'law', name: 'LAW', label: 'Law', mobileLabel: 'Law', href: `${basePath}/guide`, icon: Scale },
+    { id: 'twin', name: 'CASE TWIN', label: 'Case Twin', mobileLabel: 'Case Twin', href: `${basePath}/twin`, icon: Network },
+    { id: 'prepare', name: 'PREPARE', label: 'Prepare', mobileLabel: 'Prepare', href: `${basePath}/draft`, icon: FilePenLine },
+    { id: 'act', name: 'ACT', label: 'Act', mobileLabel: 'Act', href: `${basePath}/action`, icon: ArrowUpRight },
+    { id: 'monitor', name: 'MONITOR', label: 'Monitor', mobileLabel: 'Monitor', href: `${basePath}/action#monitor`, icon: Route },
   ];
 
   const journey = caseState?.analysis?.journey;
-  const journeySteps = journey?.steps ?? [];
-  const completedSteps = journeySteps.filter((step) => isComplete(step.status));
-  const currentStep = journeySteps.find((step) => isActive(step.status))
-    ?? journeySteps.find((step) => !isComplete(step.status));
-  const displayedStep = currentStep ?? journeySteps[journeySteps.length - 1];
-  const caseStage = displayedStep?.stage ?? (caseState ? getFallbackStage(caseState) : undefined);
+  const stageStatuses = Object.fromEntries(CASE_JOURNEY_STAGES.map(({ id }) => [id, getCaseJourneyStageStatus(caseState, id)])) as Record<CaseJourneyStageId, string>;
+  const completedStageCount = Object.values(stageStatuses).filter((status) => status === 'Complete').length;
+  const activeSection = getActiveSection(pathname, hash, basePath);
+  const currentStage = sections.find((section) => section.id === activeSection);
   const safetyOverride = activeSafetyTone !== 'clear';
   const stageTitle = safetyOverride
     ? activeSafetyTone === 'urgent' ? 'Review urgent safety support' : 'Review sensitive safety support'
-    : displayedStep?.title?.trim()
-      || (caseStage ? STAGE_LABELS[caseStage] : loading ? 'Loading case details' : 'Case details unavailable');
+    : currentStage?.name ?? (loading ? 'Loading case details' : 'Case details unavailable');
   const progressLabel = safetyOverride
     ? activeSafetyTone === 'urgent' ? 'Safety first' : 'Sensitive support'
-    : currentStep
-    ? isActive(currentStep.status) ? 'In progress' : 'Next up'
-    : journeySteps.length > 0 && completedSteps.length === journeySteps.length
-      ? 'Complete'
-      : caseStage ? 'Building record' : 'Starting';
+    : activeSection ? 'Current stage' : pathname.startsWith(`${basePath}/privacy`) ? 'Privacy & Control' : 'Case workspace';
   const openQuestions = [...new Set([
     ...(journey?.unknowns ?? []).map((item) => item.question.trim()),
     ...(caseState?.unknowns ?? []).map((item) => item.trim()),
@@ -311,11 +282,10 @@ export function CaseShell({ caseId, children }: { caseId: string; children: Reac
   const caseTitle = caseState?.title?.trim() || 'Active case';
   const jurisdictionLabel = caseState ? getJurisdictionLabel(caseState) : 'Case workspace';
   const caseShortId = caseId.length > 13 ? `${caseId.slice(0, 8)}…${caseId.slice(-3)}` : caseId;
-  const activeSection = getActiveSection(pathname, hash, basePath);
-  const currentArea = sections.find((section) => section.id === activeSection)?.label ?? 'Case workspace';
+  const currentArea = currentStage?.label ?? (pathname.startsWith(`${basePath}/privacy`) ? 'Privacy & Control' : 'Case workspace');
   const progressTone: StatusTone = safetyOverride
     ? activeSafetyTone === 'urgent' ? 'danger' : 'caution'
-    : progressLabel === 'Complete' ? 'success' : currentStep ? 'info' : 'neutral';
+    : activeSection ? 'info' : 'neutral';
   const contextualHref = safetyMode ? `${basePath}#journey` : recommendedHref;
   const contextualAction = safetyMode ? 'Return to case journey' : 'Continue to next step';
 
@@ -360,40 +330,11 @@ export function CaseShell({ caseId, children }: { caseId: string; children: Reac
             </div>
           </section>
 
-          <section aria-label="Case progress" className={`ls-case-focus mt-3 rounded-2xl border border-white/[0.06] bg-[#151e2b] p-3.5 ${safetyMode ? 'opacity-40' : ''}`}>
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-[9px] font-semibold uppercase tracking-[0.15em] text-slate-500">Current focus</span>
-              <StatusPill tone={progressTone} className="min-h-7 px-2.5">{progressLabel}</StatusPill>
-            </div>
-            <p className="mt-2 line-clamp-2 text-[12px] font-medium leading-[18px] text-slate-200">{stageTitle}</p>
-            <Link
-              href={`${basePath}#journey`}
-              className="mt-1 inline-flex min-h-6 items-center gap-1 rounded-md text-[10px] font-semibold text-[#e8c891] underline decoration-[#e9bd7b]/25 underline-offset-2 transition hover:text-[#ffe0ad] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#e9bd7b] motion-reduce:transition-none"
-            >
-              Open the Journey plan <ArrowUpRight className="h-3 w-3" aria-hidden="true" />
-            </Link>
-            <div className="mt-3 h-1 overflow-hidden rounded-full bg-white/[0.07]" aria-hidden="true">
-              {journeySteps.length > 0 && (
-                <motion.div
-                  initial={shouldReduceMotion ? false : { width: 0 }}
-                  animate={{ width: `${Math.round((completedSteps.length / journeySteps.length) * 100)}%` }}
-                  transition={{ duration: shouldReduceMotion ? 0 : 0.65, ease: 'easeOut' }}
-                  className="h-full rounded-full bg-gradient-to-r from-[#e0b66f] to-[#f3d6a4]"
-                />
-              )}
-            </div>
-            <p className="mt-2 text-[9px] text-slate-500">
-              {journeySteps.length > 0
-                ? `${completedSteps.length} of ${journeySteps.length} journey steps complete`
-                : 'Journey status will appear as it becomes available'}
-            </p>
-          </section>
-
-          <div className="ls-case-nav-heading mb-2 mt-6 flex items-center justify-between px-2">
-            <span className="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-600">Navigate</span>
-            <span className="text-[9px] text-slate-600">{journeySteps.length > 0 ? `${completedSteps.length}/${journeySteps.length}` : 'CASE'}</span>
+          <div className="ls-case-nav-heading mb-2 mt-4 flex items-center justify-between px-2">
+            <span className="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-600">Case journey</span>
+            <span className="text-[9px] text-slate-600">{completedStageCount}/9 complete</span>
           </div>
-          <CaseNavigation sections={sections} pathname={pathname} hash={hash} safetyTone={activeSafetyTone} />
+          <CaseNavigation sections={sections} pathname={pathname} hash={hash} safetyTone={activeSafetyTone} statuses={stageStatuses} />
 
           <section aria-label="Suggested next step" className={`ls-case-next mt-auto rounded-2xl border p-3.5 ${safetyOverride ? activeSafetyTone === 'urgent' ? 'border-rose-300/30 bg-gradient-to-br from-rose-300/[0.12] to-transparent' : 'border-amber-200/25 bg-gradient-to-br from-amber-200/[0.09] to-transparent' : 'border-[#e9bd7b]/15 bg-gradient-to-br from-[#e9bd7b]/[0.09] to-transparent'}`}>
             <div className={`flex items-center gap-2 ${safetyOverride ? activeSafetyTone === 'urgent' ? 'text-rose-200' : 'text-amber-100' : 'text-[#e8c891]'}`}>
@@ -435,6 +376,10 @@ export function CaseShell({ caseId, children }: { caseId: string; children: Reac
               <span className="max-w-[28rem] truncate normal-case tracking-normal text-slate-200">{caseTitle}</span>
             </div>
             <div className="ml-auto flex shrink-0 items-center gap-2">
+              <Link href={`${basePath}/privacy`} aria-label="Privacy & Control" className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-white/[0.09] bg-white/[0.025] px-2.5 text-[11px] font-medium text-slate-400 transition hover:text-slate-100">
+                <LockKeyhole className="h-3.5 w-3.5" aria-hidden="true" />
+                <span className="hidden sm:inline">Privacy</span>
+              </Link>
               <span className="hidden items-center gap-1.5 rounded-full border border-white/[0.09] bg-white/[0.035] px-3 py-1.5 text-xs font-medium text-slate-300 sm:inline-flex">
                 <CircleHelp className="h-3.5 w-3.5" aria-hidden="true" />
                 {openQuestions.length} open
@@ -453,9 +398,7 @@ export function CaseShell({ caseId, children }: { caseId: string; children: Reac
               <p className="ls-case-context-stage">{stageTitle}</p>
               <div className="ls-case-context-meta">
                 <StatusPill tone={progressTone}>{progressLabel}</StatusPill>
-                <span>{journeySteps.length > 0
-                  ? `${completedSteps.length} of ${journeySteps.length} steps complete`
-                  : 'Journey progress will appear as case details are recorded'}</span>
+                <span>{completedStageCount} of 9 stages complete · statuses follow saved case analysis</span>
               </div>
             </div>
             <Link href={contextualHref} className="ls-case-context-action">
@@ -477,7 +420,7 @@ export function CaseShell({ caseId, children }: { caseId: string; children: Reac
       </div>
 
       <div className="ls-case-mobile-dock fixed inset-x-0 bottom-0 z-[70] border-t border-white/[0.09] bg-[#0c121a]/[0.97] px-1 pb-[env(safe-area-inset-bottom)] pt-0.5 shadow-[0_-10px_35px_rgba(10,16,26,0.18)] backdrop-blur-xl lg:hidden">
-        <CaseNavigation sections={sections} pathname={pathname} hash={hash} safetyTone={activeSafetyTone} mobile />
+        <CaseNavigation sections={sections} pathname={pathname} hash={hash} safetyTone={activeSafetyTone} statuses={stageStatuses} mobile />
       </div>
 
       {caseState?.analysis?.legalKnowledge.status === 'empty' && (

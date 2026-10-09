@@ -28,13 +28,13 @@ export function SafetyContextSummary({
     : fallbackTopics.length > 0;
 
   return (
-    <SafetySurface className="border-white/[0.09] bg-[linear-gradient(135deg,rgba(24,34,42,0.94),rgba(17,22,30,0.98))]">
+    <SafetySurface className="border-rose-100/[0.12] bg-[linear-gradient(135deg,rgba(47,29,37,0.64),rgba(17,19,25,0.98))]">
       <div className="flex items-start gap-4">
-        <span className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-xl border border-teal-200/15 bg-teal-200/[0.06] text-teal-100/80">
+        <span className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-xl border border-rose-200/15 bg-rose-200/[0.06] text-rose-100/80">
           {hasSignal ? <ShieldCheck aria-hidden="true" className="size-5" /> : <Info aria-hidden="true" className="size-5" />}
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-teal-100/70">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-rose-100/70">
             {copy.contextEyebrow}
           </p>
           <h2 className="mt-2 text-lg font-medium tracking-tight text-zinc-100 sm:text-xl">

@@ -53,13 +53,13 @@ export function VerifiedResourceCategories({
   );
 
   return (
-    <SafetySurface id="verified-safety-resources" tabIndex={-1} className="scroll-mt-6 outline-none focus-visible:ring-2 focus-visible:ring-teal-100/50">
+    <SafetySurface id="verified-safety-resources" tabIndex={-1} className="scroll-mt-6 outline-none focus-visible:ring-2 focus-visible:ring-rose-100/50">
       <div className="flex items-start gap-3">
-        <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl border border-indigo-100/10 bg-indigo-100/[0.045] text-indigo-100/75">
+        <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl border border-rose-100/10 bg-rose-100/[0.045] text-rose-100/75">
           <Globe2 aria-hidden="true" className="size-4" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-indigo-100/65">{copy.categoriesEyebrow}</p>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-rose-100/65">{copy.categoriesEyebrow}</p>
           <h2 className="mt-2 text-lg font-medium tracking-tight text-zinc-100">{copy.categoriesTitle}</h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">{copy.categoriesDescription}</p>
         </div>
@@ -68,7 +68,7 @@ export function VerifiedResourceCategories({
       {categories.length > 0 ? (
         <ul className="mt-5 flex flex-wrap gap-2">
           {categories.map((category) => (
-            <li key={category} className="rounded-lg border border-indigo-100/[0.09] bg-indigo-100/[0.035] px-3 py-2 text-xs text-zinc-300">
+            <li key={category} className="rounded-lg border border-rose-100/[0.09] bg-rose-100/[0.035] px-3 py-2 text-xs text-zinc-300">
               {safetyCategoryLabel(category, language)}
             </li>
           ))}
@@ -81,7 +81,7 @@ export function VerifiedResourceCategories({
 
       <div className="mt-6 border-t border-white/[0.06] pt-5">
         <div className="flex items-center gap-2">
-          <BadgeCheck aria-hidden="true" className="size-4 text-teal-100/70" />
+          <BadgeCheck aria-hidden="true" className="size-4 text-rose-100/70" />
           <h3 className="text-sm font-medium text-zinc-200">{copy.verifiedResources}</h3>
         </div>
         {resources.length > 0 ? (
@@ -113,7 +113,7 @@ function ResourceCard({ resource, language }: { resource: SafetySupportResource;
           <h4 className="text-sm font-medium text-zinc-100">{resource.name}</h4>
           {category && <p className="mt-1 text-[11px] text-zinc-500">{category}</p>}
         </div>
-        <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-teal-100/10 bg-teal-100/[0.04] px-2 py-1 text-[9px] font-medium uppercase tracking-wide text-teal-100/65">
+        <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-rose-100/10 bg-rose-100/[0.04] px-2 py-1 text-[9px] font-medium uppercase tracking-wide text-rose-100/65">
           <BadgeCheck aria-hidden="true" className="size-3" />
           {language === 'hi' ? 'आधिकारिक' : language === 'hinglish' ? 'Official' : 'Official'}
         </span>
@@ -126,7 +126,7 @@ function ResourceCard({ resource, language }: { resource: SafetySupportResource;
             href={url}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-white/[0.09] bg-white/[0.04] px-3 text-xs font-medium text-zinc-200 transition hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-200/70"
+            className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-white/[0.09] bg-white/[0.04] px-3 text-xs font-medium text-zinc-200 transition hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-200/70"
           >
             <ExternalLink aria-hidden="true" className="size-3.5" />
             {actionCopy.openWebsite}
@@ -136,7 +136,7 @@ function ResourceCard({ resource, language }: { resource: SafetySupportResource;
           <a
             href={`tel:${phone}`}
             aria-label={`${actionCopy.callResource} ${resource.name} · ${resource.phone}`}
-            className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-white/[0.09] bg-white/[0.04] px-3 text-xs font-medium text-zinc-200 transition hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-200/70"
+            className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-white/[0.09] bg-white/[0.04] px-3 text-xs font-medium text-zinc-200 transition hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-200/70"
           >
             <Phone aria-hidden="true" className="size-3.5" />
             {actionCopy.callResource} · {resource.phone}

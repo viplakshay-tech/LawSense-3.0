@@ -18,6 +18,20 @@ import type {
   SafetyLanguagePreference,
   SafetySupportResponse,
 } from './types';
+import type { WomenSafetyDomain } from '@/lib/api';
+
+const WOMEN_SAFETY_TOPICS: Array<{ id: WomenSafetyDomain; label: string }> = [
+  { id: 'workplace_sexual_harassment', label: 'Workplace harassment' },
+  { id: 'domestic_abuse', label: 'Domestic abuse' },
+  { id: 'stalking', label: 'Stalking' },
+  { id: 'threats_coercion', label: 'Threats / coercion' },
+  { id: 'cyber_harassment', label: 'Cyber harassment' },
+  { id: 'intimate_image_abuse', label: 'Intimate-image abuse' },
+  { id: 'sexual_violence', label: 'Sexual violence' },
+  { id: 'dowry_related_abuse', label: 'Dowry-related abuse' },
+  { id: 'financial_control_abuse', label: 'Financial / control abuse' },
+  { id: 'trafficking_exploitation', label: 'Trafficking / exploitation' },
+];
 
 function isSafetyLanguage(value: string | null | undefined): value is SafetyLanguage {
   return value === 'en' || value === 'hi' || value === 'hinglish';
@@ -40,6 +54,7 @@ export function SafetyExperience({ caseId }: { caseId: string }) {
   const [supportError, setSupportError] = useState(false);
   const [evidenceExpanded, setEvidenceExpanded] = useState(false);
   const [paused, setPaused] = useState(false);
+  const [selectedTopics, setSelectedTopics] = useState<WomenSafetyDomain[]>([]);
 
   const refreshSupport = useCallback(async (
     immediateDanger: ImmediateDangerAnswer | null,
@@ -110,16 +125,16 @@ export function SafetyExperience({ caseId }: { caseId: string }) {
   }
 
   return (
-    <div data-safety-mode="active" className="relative min-h-screen overflow-hidden bg-[#0b0e13] text-zinc-100">
+    <div data-safety-mode="active" className="relative min-h-screen overflow-hidden bg-[#110d12] text-zinc-100">
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -top-56 left-1/2 size-[34rem] -translate-x-1/2 rounded-full bg-teal-100/[0.035] blur-3xl" />
-        <div className="absolute right-[-16rem] top-[34rem] size-[28rem] rounded-full bg-slate-300/[0.025] blur-3xl" />
+        <div className="absolute -top-56 left-1/2 size-[34rem] -translate-x-1/2 rounded-full bg-rose-100/[0.035] blur-3xl" />
+        <div className="absolute right-[-16rem] top-[34rem] size-[28rem] rounded-full bg-[#c8a6a0]/[0.025] blur-3xl" />
       </div>
 
-      <header className="relative z-10 border-b border-white/[0.065] bg-[#0b0e13]/80 backdrop-blur-xl">
+      <header className="relative z-10 border-b border-white/[0.065] bg-[#110d12]/90 backdrop-blur-xl">
         <div className="mx-auto flex min-h-[4.5rem] max-w-5xl items-center justify-between gap-4 px-4 sm:px-6">
           <div className="flex items-center gap-3">
-            <span className="flex size-9 items-center justify-center rounded-xl border border-teal-100/10 bg-teal-100/[0.045] text-teal-100/75">
+            <span className="flex size-9 items-center justify-center rounded-xl border border-rose-200/15 bg-rose-100/[0.045] text-rose-100/80">
               <Shield aria-hidden="true" className="size-4" />
             </span>
             <div>
@@ -134,7 +149,7 @@ export function SafetyExperience({ caseId }: { caseId: string }) {
               <select
                 value={languagePreference}
                 onChange={(event) => handleLanguageChange(event.target.value as SafetyLanguagePreference)}
-                className="min-h-10 appearance-none rounded-lg border border-white/[0.085] bg-white/[0.025] py-2 pl-3 pr-8 text-xs text-zinc-300 outline-none transition focus:border-teal-100/30 focus:ring-2 focus:ring-teal-100/10"
+                className="min-h-10 appearance-none rounded-lg border border-white/[0.085] bg-white/[0.025] py-2 pl-3 pr-8 text-xs text-zinc-300 outline-none transition focus:border-rose-200/30 focus:ring-2 focus:ring-rose-100/10"
               >
                 <option value="auto">{copy.autoLanguage}</option>
                 <option value="en">{copy.english}</option>
@@ -146,7 +161,7 @@ export function SafetyExperience({ caseId }: { caseId: string }) {
             <button
               type="button"
               onClick={() => router.push(`/case/${encodeURIComponent(caseId)}`)}
-              className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/[0.085] bg-white/[0.025] px-3 text-xs font-medium text-zinc-300 transition hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-100/50"
+              className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/[0.085] bg-white/[0.025] px-3 text-xs font-medium text-zinc-300 transition hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-100/50"
             >
               <ArrowLeft aria-hidden="true" className="size-3.5" />
               <span className="hidden sm:inline">{copy.backToCase}</span>
@@ -160,7 +175,7 @@ export function SafetyExperience({ caseId }: { caseId: string }) {
             <select
               value={languagePreference}
               onChange={(event) => handleLanguageChange(event.target.value as SafetyLanguagePreference)}
-              className="min-h-9 appearance-none rounded-lg border border-white/[0.085] bg-white/[0.025] py-1.5 pl-3 pr-8 text-xs text-zinc-300 outline-none focus:border-teal-100/30"
+              className="min-h-9 appearance-none rounded-lg border border-white/[0.085] bg-white/[0.025] py-1.5 pl-3 pr-8 text-xs text-zinc-300 outline-none focus:border-rose-200/30"
             >
               <option value="auto">{copy.autoLanguage}</option>
               <option value="en">{copy.english}</option>
@@ -175,7 +190,7 @@ export function SafetyExperience({ caseId }: { caseId: string }) {
       <main className="relative z-10 mx-auto max-w-5xl px-4 pb-16 pt-8 sm:px-6 sm:pt-12">
         <section className="mb-7 flex flex-col gap-3 sm:mb-9 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-teal-100/65">
+            <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-rose-100/70">
               <Sparkles aria-hidden="true" className="size-3.5" />
               {copy.pageEyebrow}
             </p>
@@ -191,11 +206,34 @@ export function SafetyExperience({ caseId }: { caseId: string }) {
           )}
         </section>
 
-        <div aria-label="Guide state: SAFETY" role="status" className="mb-4 flex items-center gap-3 rounded-xl border border-teal-100/[0.12] bg-teal-100/[0.025] px-4 py-3">
+        <div aria-label="Guide state: SAFETY" role="status" className="mb-4 flex items-center gap-3 rounded-xl border border-rose-100/[0.14] bg-rose-100/[0.025] px-4 py-3">
           <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-500">{actionCopy.guideStateLabel}</span>
-          <span className="rounded-full border border-teal-100/20 bg-teal-100/[0.07] px-2.5 py-1 text-[10px] font-bold tracking-[0.14em] text-teal-50">SAFETY</span>
+          <span className="rounded-full border border-rose-100/20 bg-rose-100/[0.07] px-2.5 py-1 text-[10px] font-bold tracking-[0.14em] text-rose-50">SAFETY</span>
           <span className="text-xs text-zinc-400">{displayLanguage === 'hi' ? 'सुरक्षा सहायता सक्रिय है' : displayLanguage === 'hinglish' ? 'Safety support active hai' : 'Safety support is active'}</span>
         </div>
+
+        <section aria-labelledby="women-safety-topics-heading" className="mb-4 rounded-2xl border border-rose-100/[0.12] bg-[linear-gradient(135deg,rgba(47,29,37,0.7),rgba(19,20,26,0.96)_70%)] p-5 sm:p-6">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-rose-100/70">A user-led safety view</p>
+          <h2 id="women-safety-topics-heading" className="mt-2 text-lg font-medium text-zinc-100">Which topic would you like to keep in view?</h2>
+          <p className="mt-2 max-w-3xl text-xs leading-5 text-zinc-400">Choose any topics that help you navigate this screen. These choices stay in this view, are not saved to the case and do not change the service assessment. LawSense does not infer guilt or diagnose anyone.</p>
+          <ul className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {WOMEN_SAFETY_TOPICS.map((topic) => {
+              const selected = selectedTopics.includes(topic.id);
+              return (
+                <li key={topic.id}>
+                  <button type="button" aria-pressed={selected} onClick={() => setSelectedTopics((current) => selected ? current.filter((item) => item !== topic.id) : [...current, topic.id])} className={`flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left text-xs transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-100/60 ${selected ? 'border-rose-200/30 bg-rose-100/[0.08] text-rose-50' : 'border-white/[0.08] bg-white/[0.02] text-zinc-300 hover:bg-white/[0.045]'}`}>
+                    <span>{topic.label}</span><span className="text-[9px] font-semibold uppercase tracking-wide text-zinc-500">{selected ? 'Selected' : 'Optional'}</span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          <p className="mt-4 border-t border-white/[0.07] pt-3 text-xs leading-5 text-zinc-400">Use a device and location that feel safe to you. No intimate images are needed or requested. You decide whether to open the case Guide or start a Guide Call; this prototype does not promise confidentiality.</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button type="button" onClick={() => router.push(`/case/${encodeURIComponent(caseId)}/guide`)} className="inline-flex min-h-10 items-center rounded-lg border border-white/[0.12] px-3 text-xs font-semibold text-zinc-200 hover:bg-white/[0.05]">Open the case Guide</button>
+            <button type="button" onClick={() => router.push(`/case/${encodeURIComponent(caseId)}/voice`)} className="inline-flex min-h-10 items-center rounded-lg bg-rose-200 px-3 text-xs font-semibold text-[#25161b] hover:bg-rose-100">Start a Guide Call</button>
+          </div>
+        </section>
 
         <div className="space-y-4 sm:space-y-5">
           <SafetyContextSummary
@@ -217,7 +255,7 @@ export function SafetyExperience({ caseId }: { caseId: string }) {
 
           {(caseLoading || assessmentLoading) && (
             <div role="status" className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3 text-xs text-zinc-500">
-              <LoaderCircle aria-hidden="true" className="size-4 animate-spin text-teal-100/65" />
+              <LoaderCircle aria-hidden="true" className="size-4 animate-spin text-rose-100/65" />
               {displayLanguage === 'hi' ? 'Safety Support से सुझाव लोड हो रहे हैं…' : displayLanguage === 'hinglish' ? 'Safety Support se suggestions load ho rahe hain…' : 'Loading guidance from Safety Support…'}
             </div>
           )}
@@ -237,7 +275,7 @@ export function SafetyExperience({ caseId }: { caseId: string }) {
               <button
                 type="button"
                 onClick={retrySupport}
-                className="min-h-10 shrink-0 rounded-lg border border-white/[0.1] bg-white/[0.035] px-3 text-xs font-medium text-zinc-200 transition hover:bg-white/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-100/50"
+                className="min-h-10 shrink-0 rounded-lg border border-white/[0.1] bg-white/[0.035] px-3 text-xs font-medium text-zinc-200 transition hover:bg-white/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-100/50"
               >
                 {copy.retry}
               </button>
