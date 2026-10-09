@@ -329,7 +329,7 @@ export default function VoiceCaseClient({ id }: { id: string }) {
               <p className={"ls-guide-call__intro"}>A guided space to tell your story in your own words. You can review every detail before it changes your case.</p>
             </div>
             <Link href={`/case/${encodeURIComponent(id)}/guide`} className={"ls-guide-call__legalGuideLink"}>
-              <BookOpen aria-hidden="true" />Open private legal room
+              <BookOpen aria-hidden="true" />Open legal guide
             </Link>
           </header>
 

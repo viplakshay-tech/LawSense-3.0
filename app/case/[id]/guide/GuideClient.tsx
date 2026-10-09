@@ -59,7 +59,7 @@ function RoomHeader({ id, title }: { id: string; title?: string }) {
         <span className={"ls-guide-room__brandMark"} aria-hidden="true"><BookOpenCheck /></span>
         <div className={"ls-guide-room__brandCopy"}>
           <p className={"ls-guide-room__eyebrow"}>LawSense 3.0</p>
-          <h1 className={"ls-guide-room__title"}>Private legal room</h1>
+          <h1 className={"ls-guide-room__title"}>Legal guide</h1>
           <p className={"ls-guide-room__caseTitle"}>{title?.trim() || `Case ${id}`}</p>
         </div>
       </div>
@@ -69,7 +69,7 @@ function RoomHeader({ id, title }: { id: string; title?: string }) {
           <span>Camera off</span>
           <span className={"ls-guide-room__visuallyHidden"}>Your camera is off. This room does not request camera access.</span>
         </span>
-        <span className={"ls-guide-room__privateLabel"}>Private consultation</span>
+        <span className={"ls-guide-room__privateLabel"}>Guided consultation</span>
       </div>
     </header>
   );

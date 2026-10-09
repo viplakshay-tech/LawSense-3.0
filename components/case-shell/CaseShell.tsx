@@ -160,7 +160,7 @@ function CaseNavigation({
           <div key={section.id} className={`${isSafety && !mobile ? 'mt-2 border-t border-white/[0.08] pt-2' : ''} ${mobile ? 'ls-case-mobile-item min-w-0' : ''}`}>
             <Link
               href={section.href}
-              aria-label={LEGACY_NAV_LABELS[section.id]}
+              aria-label={mobile && section.id === 'twin' ? section.mobileLabel : LEGACY_NAV_LABELS[section.id]}
               aria-description={`${section.name} stage · ${status}`}
               title={`${section.name} · ${status}`}
               aria-current={selected ? 'page' : undefined}
