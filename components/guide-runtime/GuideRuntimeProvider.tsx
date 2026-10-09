@@ -187,7 +187,7 @@ export function GuideRuntimeProvider({ caseId, children }: { caseId: string; chi
       openEvidence: (evidenceId) => push(`${base}/documents${evidenceId ? `?evidenceId=${encodeURIComponent(evidenceId)}` : ''}`),
       openDocument: () => ({ status: 'unavailable', reason: 'The document workspace does not expose selection by document ID.' }),
       highlightEvidence: () => ({ status: 'unavailable', reason: 'The case view does not expose a Guide finding-highlight callback.' }),
-      openLegalGrounding: () => push(`${base}/guide`),
+      openLegalGrounding: () => push(`${base}#analysis`),
       openJourney: () => push(`${base}#journey`),
       openTwin: () => push(`${base}/twin`),
       selectTwinNode: () => ({ status: 'unavailable', reason: 'The Twin does not expose a Guide node-selection callback.' }),
