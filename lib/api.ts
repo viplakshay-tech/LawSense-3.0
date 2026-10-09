@@ -545,10 +545,12 @@ export type TwinNodeKind =
   | 'PERSON'
   | 'PARTY'
   | 'EVENT'
+  | 'FACT'
   | 'CLAIM'
   | 'DOCUMENT'
   | 'EVIDENCE'
   | 'LEGAL_ISSUE'
+  | 'LAW'
   | 'PROCEDURE'
   | 'AUTHORITY'
   | 'ACTION';
@@ -603,6 +605,30 @@ export interface LegalTwinSummary {
   caseId: string;
   timeline: TwinTimelineEvent[];
   snapshot: TwinSnapshotSummary;
+}
+
+export interface TwinActionReadinessChange {
+  id: string;
+  beforeStatus?: string | null;
+  afterStatus?: string | null;
+}
+
+export interface TwinDeltaSummary {
+  caseId: string;
+  fromAsOf: string;
+  toAsOf: string;
+  addedNodeIds: string[];
+  removedNodeIds: string[];
+  changedNodeIds: string[];
+  addedEdgeIds: string[];
+  removedEdgeIds: string[];
+  changedEdgeIds: string[];
+  impactedNodeIds: string[];
+  impactedEdgeIds: string[];
+  affectedActionIds: string[];
+  impactedDocumentIds: string[];
+  staleDraftDocumentIds: string[];
+  actionReadinessChanges: TwinActionReadinessChange[];
 }
 
 export interface CreateCaseRequest {
@@ -928,6 +954,25 @@ export async function getTwinSnapshot(
     const body = (await res.json().catch(() => null)) as { detail?: unknown } | null;
     const detail = typeof body?.detail === 'string' ? body.detail : res.statusText;
     throw new Error(`Failed to retrieve Legal Twin snapshot: ${detail}`);
+  }
+  return res.json();
+}
+
+export async function getTwinDelta(
+  caseId: string,
+  fromAsOf: string,
+  toAsOf: string,
+  signal?: AbortSignal,
+): Promise<TwinDeltaSummary> {
+  const query = new URLSearchParams({ from_as_of: fromAsOf, to_as_of: toAsOf });
+  const res = await fetch(
+    `${BASE_URL}/cases/${encodeURIComponent(caseId)}/twin/delta?${query.toString()}`,
+    { method: 'GET', headers: { Accept: 'application/json' }, cache: 'no-store', signal },
+  );
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { detail?: unknown } | null;
+    const detail = typeof body?.detail === 'string' ? body.detail : res.statusText;
+    throw new Error(`Failed to retrieve Legal Twin state delta: ${detail}`);
   }
   return res.json();
 }

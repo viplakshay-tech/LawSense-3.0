@@ -21,6 +21,7 @@ export type TwinGuideNodeKind =
   | 'evidence'
   | 'document'
   | 'issue'
+  | 'law'
   | 'procedure'
   | 'authority'
   | 'action';
