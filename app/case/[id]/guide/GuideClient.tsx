@@ -1,42 +1,59 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { ArrowLeft, BookOpen, Loader2, ShieldAlert } from 'lucide-react';
+import Link from 'next/link';
+import {
+  ArrowUpRight,
+  BookOpenCheck,
+  CircleHelp,
+  FileStack,
+  FileText,
+  Loader2,
+  Mic,
+  Network,
+  Route,
+  Scale,
+  ShieldAlert,
+  Sparkles,
+  VideoOff,
+  Volume2,
+} from 'lucide-react';
 import { type CaseState, type JourneySummary } from '@/lib/api';
 import { useCaseState } from '../CaseStateProvider';
 import { useGuideRuntime } from '@/components/guide-runtime';
 import type { GuideAction, GuideStateSnapshot } from '@/components/guide-runtime';
-import { LegalGuide } from '@/components/legal-guide';
-import { LEGAL_GUIDE_STATES, type GuideActionEvent, type GuideStateName } from '@/components/legal-guide/types';
+import { GuidePresence } from '@/components/guide-presence';
+import type { GuidePresenceState } from '@/components/guide-presence';
+import { guideStateLabel } from '@/components/guide-runtime';
 import { TrustNotice } from '@/components/TrustNotice';
+import styles from './GuideClient.module.css';
 
 const completedStatuses = new Set(['complete', 'completed', 'done', 'finished']);
 
-function guidePageStateFromRuntime(snapshot: GuideStateSnapshot): GuideStateName {
+function guidePresenceState(snapshot: GuideStateSnapshot): GuidePresenceState {
   switch (snapshot.name) {
-    case 'idle':
-      return snapshot.reason === 'initial_account_missing' || snapshot.reason === 'analysis_unavailable'
-        ? 'listening'
-        : 'idle';
-    case 'listening': return 'listening';
-    case 'processing': return 'extracting';
-    case 'asking': return 'asking';
-    case 'evidence':
-    case 'uncertain':
-    case 'conflict': return 'evidence_review';
-    case 'grounded': return 'legal_verification';
-    case 'action': return 'journey_action';
-    case 'safety': return 'safety_warning';
-    case 'completion': return 'completion';
-    case 'explaining': return 'explaining';
-    case 'speaking': return 'speaking';
-    case 'error': return 'error';
+    case 'idle': return 'IDLE';
+    case 'listening': return 'LISTENING';
+    case 'processing': return 'PROCESSING';
+    case 'explaining': return 'EXPLAINING';
+    case 'asking': return 'ASKING';
+    case 'evidence': return 'EVIDENCE';
+    case 'grounded': return 'GROUNDED';
+    case 'uncertain': return 'UNCERTAIN';
+    case 'conflict': return 'CONFLICT';
+    case 'action': return 'GROUNDED';
+    case 'safety': return 'SAFETY';
+    case 'completion': return 'EXPLAINING';
+    case 'speaking': return 'SPEAKING';
+    case 'error': return 'ERROR';
     default: {
       const exhaustiveState: never = snapshot.name;
       return exhaustiveState;
     }
   }
+}
+
+function humanize(value: string): string {
+  return value.replace(/[_-]+/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
 function guideActionLabel(action: GuideAction): string {
@@ -47,8 +64,8 @@ function guideActionLabel(action: GuideAction): string {
     case 'OPEN_JOURNEY': return 'Open the Journey plan';
     case 'SHOW_TWIN': return 'Open the Living Twin';
     case 'START_VOICE': return 'Add information by voice';
-    case 'SPEAK_RESPONSE': return 'Speak the Guide response';
-    case 'OPEN_SAFETY': return 'Open safety resources';
+    case 'SPEAK_RESPONSE': return 'Read the case summary aloud';
+    case 'OPEN_SAFETY': return 'Review safety information';
     case 'NAVIGATE': return action.payload.target === 'case'
       ? 'Open the case overview'
       : `Open ${action.payload.target}`;
@@ -59,42 +76,69 @@ function guideActionLabel(action: GuideAction): string {
   }
 }
 
-function humanize(value: string): string {
-  return value.replace(/[_-]+/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase());
-}
-
-function GuideHeader({ id, title, onBack }: { id: string; title?: string; onBack: () => void }) {
+function RoomHeader({ id, title }: { id: string; title?: string }) {
   return (
-    <header className="sticky top-0 z-40 border-b border-white/[0.07] bg-[#070A0F]/90 backdrop-blur-xl">
-      <div className="mx-auto max-w-2xl px-4 sm:px-6">
-        <div className="flex min-h-16 items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <div
-              aria-hidden="true"
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-[#8C9EFF]/20 bg-[#8C9EFF]/10 text-[#8C9EFF]"
-            >
-              <BookOpen className="h-4 w-4" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                Legal Guide
-              </p>
-              <p className="truncate text-sm font-medium text-slate-200">
-                {title?.trim() || `Case ${id}`}
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onBack}
-            className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-lg border border-white/[0.1] bg-white/[0.04] px-3 text-xs font-semibold text-slate-300 transition hover:bg-white/[0.07] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8C9EFF]"
-          >
-            <ArrowLeft aria-hidden="true" className="h-4 w-4" />
-            Back to case
-          </button>
+    <header className={styles.header}>
+      <div className={styles.brand}>
+        <span className={styles.brandMark} aria-hidden="true"><BookOpenCheck /></span>
+        <div className={styles.brandCopy}>
+          <p className={styles.eyebrow}>LawSense 3.0</p>
+          <h1 className={styles.title}>Private legal room</h1>
+          <p className={styles.caseTitle}>{title?.trim() || `Case ${id}`}</p>
         </div>
       </div>
+      <div className={styles.roomIndicators}>
+        <span className={styles.cameraOff}>
+          <VideoOff aria-hidden="true" />
+          <span>Camera off</span>
+          <span className={styles.visuallyHidden}>Your camera is off. This room does not request camera access.</span>
+        </span>
+        <span className={styles.privateLabel}>Private consultation</span>
+      </div>
     </header>
+  );
+}
+
+function WorkspaceNavigation({ caseId }: { caseId: string }) {
+  const base = `/case/${encodeURIComponent(caseId)}`;
+  const links = [
+    { label: 'Evidence', href: `${base}/documents`, Icon: FileStack },
+    { label: 'Law', href: `${base}#analysis`, Icon: Scale },
+    { label: 'Journey', href: `${base}#journey`, Icon: Route },
+    { label: 'Documents', href: `${base}#upload-heading`, Icon: FileText },
+    { label: 'Safety', href: `${base}/safety`, Icon: ShieldAlert },
+    { label: 'Twin', href: `${base}/twin`, Icon: Network },
+  ];
+
+  return (
+    <nav aria-label="Case workspaces" className={styles.workspaceNav}>
+      {links.map(({ label, href, Icon }) => (
+        <Link key={label} href={href} className={styles.workspaceLink}>
+          <Icon aria-hidden="true" />
+          <span>{label}</span>
+          <ArrowUpRight aria-hidden="true" className={styles.workspaceArrow} />
+        </Link>
+      ))}
+    </nav>
+  );
+}
+
+function JourneyStatus({ journey }: { journey: JourneySummary }) {
+  const currentStep = journey.steps.find((step) => ['active', 'current', 'in_progress', 'started'].includes(step.status.toLocaleLowerCase()))
+    ?? journey.steps.find((step) => !completedStatuses.has(step.status.toLocaleLowerCase()));
+  const completedCount = journey.steps.filter((step) => completedStatuses.has(step.status.toLocaleLowerCase())).length;
+
+  return (
+    <section aria-labelledby="room-journey-heading" className={styles.detailCard}>
+      <h2 id="room-journey-heading" className={styles.cardEyebrow}>Journey status</h2>
+      {currentStep && <p className={styles.cardTitle}>{currentStep.title}</p>}
+      <p className={styles.cardCopy}>
+        {journey.steps.length > 0
+          ? `${completedCount} of ${journey.steps.length} steps complete · status from the current case analysis`
+          : 'No journey steps were returned for this case.'}
+      </p>
+      {journey.nextActions[0] && <p className={styles.cardNote}>Next recorded step · {journey.nextActions[0].action}</p>}
+    </section>
   );
 }
 
@@ -104,147 +148,68 @@ function SafetySummary({ caseData }: { caseData: CaseState }) {
   if (!safety || safety.context === 'none') return null;
 
   return (
-    <section
-      aria-labelledby="guide-safety-heading"
-      className="rounded-xl border border-amber-300/20 bg-amber-300/[0.035] p-4"
-    >
-      <div className="flex items-start gap-3">
-        <ShieldAlert aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-amber-200" />
-        <div className="min-w-0">
-          <h2 id="guide-safety-heading" className="text-xs font-semibold text-amber-100">
-            Safety context from the case record
-          </h2>
-          <p className="mt-1 text-xs leading-5 text-slate-300">
-            {humanize(safety.context)} · {humanize(safety.urgency)} urgency · assessment marked as{' '}
-            {humanize(safety.assessmentStatus)}
-          </p>
-          {safety.indicators.length > 0 && (
-            <ul className="mt-3 space-y-1.5">
-              {safety.indicators.map((indicator, index) => (
-                <li key={`${indicator.category}-${index}`} className="text-xs leading-5 text-slate-300">
-                  {humanize(indicator.category)} · {humanize(indicator.confidence)} confidence
-                </li>
-              ))}
-            </ul>
-          )}
-          {journey?.escalationPoints && journey.escalationPoints.length > 0 && (
-            <div className="mt-3 border-t border-amber-100/10 pt-3">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-100/70">
-                Recorded escalation information
-              </p>
-              <ul className="mt-2 space-y-3">
-                {journey.escalationPoints.map((risk) => (
-                  <li key={risk.id}>
-                    <p className="text-xs leading-5 text-slate-200">{risk.description}</p>
-                    {risk.escalationTrigger && (
-                      <p className="mt-1 text-xs leading-5 text-slate-400">{risk.escalationTrigger}</p>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+    <section aria-labelledby="room-safety-heading" className={`${styles.detailCard} ${styles.safetyCard}`}>
+      <div className={styles.cardHeadingWithIcon}>
+        <ShieldAlert aria-hidden="true" />
+        <h2 id="room-safety-heading" className={styles.cardTitle}>Safety context in the case record</h2>
+      </div>
+      <p className={styles.cardCopy}>
+        {humanize(safety.context)} · {humanize(safety.urgency)} urgency · assessment marked as {humanize(safety.assessmentStatus)}
+      </p>
+      {safety.indicators.length > 0 && (
+        <ul className={styles.detailList}>
+          {safety.indicators.map((indicator, index) => (
+            <li key={`${indicator.category}-${index}`}>
+              {humanize(indicator.category)} · {humanize(indicator.confidence)} confidence
+            </li>
+          ))}
+        </ul>
+      )}
+      {journey?.escalationPoints && journey.escalationPoints.length > 0 && (
+        <div className={styles.cardDivider}>
+          <p className={styles.cardEyebrow}>Recorded escalation information</p>
+          <ul className={styles.detailList}>
+            {journey.escalationPoints.map((risk) => (
+              <li key={risk.id}>
+                {risk.description}
+                {risk.escalationTrigger && <span className={styles.cardNote}>{risk.escalationTrigger}</span>}
+              </li>
+            ))}
+          </ul>
         </div>
-      </div>
-    </section>
-  );
-}
-
-function JourneySummary({ journey }: { journey: JourneySummary }) {
-  const currentStep = journey.steps.find((step) => ['active', 'current', 'in_progress', 'started'].includes(step.status.toLocaleLowerCase()))
-    ?? journey.steps.find((step) => !completedStatuses.has(step.status.toLocaleLowerCase()));
-  const completedCount = journey.steps.filter((step) => completedStatuses.has(step.status.toLocaleLowerCase())).length;
-
-  return (
-    <section aria-labelledby="guide-journey-heading" className="space-y-3">
-      <div className="rounded-xl border border-white/[0.07] bg-[#0c111a] p-4">
-        <h2
-          id="guide-journey-heading"
-          className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500"
-        >
-          Case journey
-        </h2>
-        {currentStep && <p className="mt-2 text-sm font-medium text-slate-200">{currentStep.title}</p>}
-        <p className="mt-2 text-[11px] leading-5 text-slate-500">
-          {journey.steps.length > 0
-            ? `Live CaseState progress · ${completedCount} of ${journey.steps.length} steps complete`
-            : 'Journey progress is unknown because no steps were returned.'}
-        </p>
-        {journey.nextActions[0] && (
-          <p className="mt-2 text-xs leading-5 text-slate-400">
-            Next recorded action · {journey.nextActions[0].action}
-          </p>
-        )}
-      </div>
-    </section>
-  );
-}
-
-function LegalVerificationSummary({ caseData }: { caseData: CaseState }) {
-  const knowledge = caseData.analysis?.legalKnowledge;
-  const journey = caseData.analysis?.journey;
-  if (!knowledge && caseData.legalIssues.length === 0) return null;
-
-  return (
-    <section aria-labelledby="guide-legal-heading" className="rounded-xl border border-violet-300/15 bg-violet-300/[0.025] p-4">
-      <h2 id="guide-legal-heading" className="text-[10px] font-semibold uppercase tracking-[0.14em] text-violet-200/80">
-        Legal grounding
-      </h2>
-      <p className="mt-2 text-xs leading-5 text-slate-300">
-        {journey?.legalKnowledgeStatus || 'Candidate issues and returned source metadata from the case record'}
-        {knowledge ? ` · source records ${knowledge.status === 'records_found' ? 'found' : 'not returned'}` : ''}
-      </p>
-      <p className="mt-2 text-xs leading-5 text-slate-400">
-        Issue candidates and source details are kept together in the case overview. Returned records remain subject to jurisdiction and applicability checks.
-      </p>
+      )}
     </section>
   );
 }
 
 function UnknownsSummary({ items }: { items: readonly string[] }) {
   if (items.length === 0) return null;
-
   return (
-    <section aria-labelledby="guide-unknowns-heading" className="rounded-xl border border-amber-300/15 bg-amber-300/[0.025] p-4">
-      <h2 id="guide-unknowns-heading" className="text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-200/80">
-        Information still unknown
-      </h2>
-      <ul className="mt-3 space-y-2">
-        {items.map((question, index) => (
-          <li key={`${question}-${index}`} className="flex gap-2 text-xs leading-5 text-slate-300">
-            <span aria-hidden="true" className="mt-[5px] h-1.5 w-1.5 shrink-0 rounded-full bg-amber-300/60" />
-            <span>{question}</span>
-          </li>
-        ))}
+    <section aria-labelledby="room-unknowns-heading" className={styles.detailCard}>
+      <h2 id="room-unknowns-heading" className={styles.cardEyebrow}>Information still unknown</h2>
+      <ul className={styles.detailList}>
+        {items.slice(0, 4).map((question, index) => <li key={`${question}-${index}`}>{question}</li>)}
+        {items.length > 4 && <li>+{items.length - 4} more open questions in the case record</li>}
       </ul>
     </section>
   );
 }
 
 function EvidenceSummary({ caseData, journey }: { caseData: CaseState; journey?: JourneySummary }) {
-  const attachedEvidence = caseData.evidence;
-  const attachedDocuments = caseData.documents;
   const requestedEvidence = journey?.requiredEvidence ?? [];
   const requestedDocuments = journey?.requiredDocuments ?? [];
-  if (
-    attachedEvidence.length === 0 &&
-    attachedDocuments.length === 0 &&
-    requestedEvidence.length === 0 &&
-    requestedDocuments.length === 0
-  ) {
+  if (caseData.evidence.length === 0 && caseData.documents.length === 0 && requestedEvidence.length === 0 && requestedDocuments.length === 0) {
     return null;
   }
 
   return (
-    <section aria-labelledby="guide-evidence-heading" className="rounded-xl border border-white/[0.07] bg-[#0c111a] p-4">
-      <h2 id="guide-evidence-heading" className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-        Evidence and documents
-      </h2>
-      <p className="mt-2 text-xs leading-5 text-slate-300">
-        {attachedEvidence.length} evidence item{attachedEvidence.length === 1 ? '' : 's'} · {attachedDocuments.length} document{attachedDocuments.length === 1 ? '' : 's'} attached to this case.
+    <section aria-labelledby="room-evidence-heading" className={styles.detailCard}>
+      <h2 id="room-evidence-heading" className={styles.cardEyebrow}>Evidence and documents</h2>
+      <p className={styles.cardCopy}>
+        {caseData.evidence.length} evidence item{caseData.evidence.length === 1 ? '' : 's'} · {caseData.documents.length} document{caseData.documents.length === 1 ? '' : 's'} attached to this case.
       </p>
       {(requestedEvidence.length > 0 || requestedDocuments.length > 0) && (
-        <p className="mt-2 text-xs leading-5 text-slate-400">
+        <p className={styles.cardNote}>
           The journey lists {requestedEvidence.length} evidence item{requestedEvidence.length === 1 ? '' : 's'} and {requestedDocuments.length} document{requestedDocuments.length === 1 ? '' : 's'} to consider.
         </p>
       )}
@@ -252,188 +217,309 @@ function EvidenceSummary({ caseData, journey }: { caseData: CaseState; journey?:
   );
 }
 
-export default function GuidePage({ id }: { id: string }) {
-  const router = useRouter();
-  const { caseState: caseData, loading, error, refreshCaseState } = useCaseState();
-  const { snapshot, presentation, runAction } = useGuideRuntime();
-  const [previewState, setPreviewState] = useState<GuideStateName | undefined>();
+function LegalSummary({ caseData }: { caseData: CaseState }) {
+  const knowledge = caseData.analysis?.legalKnowledge;
+  const journey = caseData.analysis?.journey;
+  if (!knowledge && caseData.legalIssues.length === 0) return null;
 
-  const isDevelopment = process.env.NODE_ENV === 'development';
+  return (
+    <section aria-labelledby="room-law-heading" className={styles.detailCard}>
+      <h2 id="room-law-heading" className={styles.cardEyebrow}>Legal grounding</h2>
+      <p className={styles.cardCopy}>
+        {journey?.legalKnowledgeStatus || 'Candidate issues and source metadata returned with the case'}
+        {knowledge ? ` · ${knowledge.status === 'records_found' ? `${knowledge.records.length} source records returned` : 'no source records returned'}` : ''}
+      </p>
+      <p className={styles.cardNote}>Issue candidates and source details remain subject to jurisdiction and applicability checks.</p>
+    </section>
+  );
+}
+
+function CaseStateStrip({ caseData, openQuestionCount }: { caseData: CaseState; openQuestionCount: number }) {
+  const journey = caseData.analysis?.journey;
+  const completedCount = journey?.steps.filter((step) => completedStatuses.has(step.status.toLocaleLowerCase())).length ?? 0;
+  const journeyStatus = journey && journey.steps.length > 0
+    ? `${completedCount} / ${journey.steps.length}`
+    : 'Not reported';
+  const stats = [
+    { label: 'Facts', value: caseData.facts.length },
+    { label: 'Evidence', value: caseData.evidence.length },
+    { label: 'Documents', value: caseData.documents.length },
+    { label: 'Open questions', value: openQuestionCount },
+    { label: 'Journey steps', value: journeyStatus },
+  ];
+
+  return (
+    <section className={styles.caseStrip} aria-label="Live case state">
+      <div className={styles.caseStripHeading}>
+        <span className={styles.liveDot} aria-hidden="true" />
+        <h2>Live case state</h2>
+      </div>
+      <dl className={styles.caseStats}>
+        {stats.map((stat) => (
+          <div key={stat.label} className={styles.caseStat}>
+            <dt>{stat.label}</dt>
+            <dd>{stat.value}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
+
+function CameraOffIndicator() {
+  return (
+    <div className={styles.cameraIndicator}>
+      <VideoOff aria-hidden="true" />
+      <span>Camera off</span>
+      <span className={styles.visuallyHidden}>Your camera is off. Camera access is not requested in this room.</span>
+    </div>
+  );
+}
+
+function RoomError({ id, title, message, onRetry }: { id: string; title: string; message: string; onRetry?: () => void }) {
+  return (
+    <main className={styles.room}>
+      <div className={styles.roomShell}>
+        <RoomHeader id={id} title={title} />
+        <TrustNotice variant="dark" />
+        <section className={`${styles.detailCard} ${styles.errorCard}`} role="alert">
+          <ShieldAlert aria-hidden="true" />
+          <div>
+            <h2 className={styles.cardTitle}>{title}</h2>
+            <p className={styles.cardCopy}>{message}</p>
+            {onRetry && <button type="button" className={styles.secondaryButton} onClick={onRetry}>Try again</button>}
+          </div>
+        </section>
+      </div>
+    </main>
+  );
+}
+
+export default function GuidePage({ id }: { id: string }) {
+  const { caseState: caseData, loading, error, refreshCaseState } = useCaseState();
+  const { snapshot, presentation, messages, actionRunning, runAction } = useGuideRuntime();
+  const base = `/case/${encodeURIComponent(id)}`;
+  const voiceAction = snapshot.availableActions.find((action) => action.type === 'START_VOICE');
+  const speakAction = snapshot.availableActions.find((action) => action.type === 'SPEAK_RESPONSE');
+  const secondaryActions = snapshot.availableActions.filter((action) => action.type !== 'START_VOICE' && action.type !== 'SPEAK_RESPONSE');
   const runtimeReady = Boolean(caseData && snapshot.caseState === caseData);
-  const runtimeState = runtimeReady ? snapshot.state : null;
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#070A0F] text-slate-100">
-        <GuideHeader id={id} onBack={() => router.push(`/case/${encodeURIComponent(id)}`)} />
-        <main className="mx-auto max-w-2xl px-4 py-8 sm:px-6">
+      <main className={styles.room}>
+        <div className={styles.roomShell}>
+          <RoomHeader id={id} />
           <TrustNotice variant="dark" />
-          <LegalGuide
-            state="listening"
-            label="Legal guide"
-            busy
-            detail="Connecting to the case service"
-            message="Loading the case record."
-            messageKind="notice"
-          >
-            <div role="status" className="flex items-center gap-2 text-xs text-slate-400">
-              <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin text-[#8C9EFF] motion-reduce:animate-none" />
-              Retrieving case data
-            </div>
-          </LegalGuide>
-        </main>
-      </div>
+          <div className={styles.loadingCard} role="status">
+            <Loader2 aria-hidden="true" />
+            <span>Opening the room and loading the saved case record…</span>
+          </div>
+        </div>
+      </main>
     );
   }
 
   if (!caseData) {
     return (
-      <div className="min-h-screen bg-[#070A0F] text-slate-100">
-        <GuideHeader id={id} onBack={() => router.push(`/case/${encodeURIComponent(id)}`)} />
-        <main className="mx-auto max-w-2xl px-4 py-8 sm:px-6">
-          <TrustNotice variant="dark" />
-          <div className="rounded-2xl border border-rose-400/20 bg-[#111722] p-5 sm:p-7">
-            <div className="mb-4 flex items-center gap-3">
-              <ShieldAlert aria-hidden="true" className="h-5 w-5 text-rose-300" />
-              <h1 className="text-lg font-semibold text-slate-100">Case unavailable</h1>
-            </div>
-            <LegalGuide
-              state="error"
-              label="Legal guide"
-              detail="The case record could not be loaded"
-              message={error ?? 'The case service did not return a case record.'}
-              messageKind="notice"
-              actions={[
-                { id: 'retry', label: 'Try again', variant: 'primary' },
-                { id: 'return', label: 'Return to cases', variant: 'secondary' },
-              ]}
-              onAction={(event: GuideActionEvent) => {
-                if (event.actionId === 'retry') {
-                  void refreshCaseState().catch(() => undefined);
-                }
-                if (event.actionId === 'return') router.push('/');
-              }}
-            />
-          </div>
-        </main>
-      </div>
+      <RoomError
+        id={id}
+        title="Case unavailable"
+        message={error ?? 'The case service did not return a case record.'}
+        onRetry={() => void refreshCaseState().catch(() => undefined)}
+      />
     );
   }
 
-  if (!runtimeReady || !runtimeState) {
+  if (!runtimeReady) {
     return (
-      <div className="min-h-screen bg-[#070A0F] text-slate-100">
-        <GuideHeader id={id} title={caseData.title ?? undefined} onBack={() => router.push(`/case/${encodeURIComponent(id)}`)} />
-        <main className="mx-auto max-w-2xl px-4 py-8 sm:px-6">
+      <main className={styles.room}>
+        <div className={styles.roomShell}>
+          <RoomHeader id={id} title={caseData.title ?? undefined} />
           <TrustNotice variant="dark" />
-          <LegalGuide
-            state="listening"
-            label="Legal guide"
-            busy
-            detail="Updating from the current case record"
-            message="The Guide is waiting for the shared runtime to receive the latest case state."
-            messageKind="notice"
-          />
-        </main>
-      </div>
+          <div className={styles.loadingCard} role="status">
+            <Loader2 aria-hidden="true" />
+            <span>Syncing the Guide with the latest CaseState…</span>
+          </div>
+        </div>
+      </main>
     );
   }
 
-  const derivedState = guidePageStateFromRuntime(runtimeState);
-  // Development previews change only the visual preview; the safety state returned
-  // by the shared Guide Runtime always keeps priority.
-  const guideState = runtimeState.name === 'safety'
-    ? 'safety_warning'
-    : isDevelopment && previewState
-      ? previewState
-      : derivedState;
   const journey = caseData.analysis?.journey;
-  const safetyActive = runtimeState.name === 'safety';
-  const hasGuideDetails =
-    safetyActive ||
-    Boolean(journey) ||
-    presentation.unknowns.length > 0 ||
-    caseData.evidence.length > 0 ||
-    caseData.documents.length > 0 ||
-    caseData.facts.length > 0 ||
-    caseData.events.length > 0 ||
-    caseData.legalIssues.length > 0 ||
-    isDevelopment;
-  const availableActions = new Map(snapshot.availableActions.map((action) => [JSON.stringify(action), action]));
-  const guideActions = snapshot.availableActions.map((action) => ({
-    id: JSON.stringify(action),
-    label: guideActionLabel(action),
-    variant: 'secondary' as const,
-  }));
+  const safetyActive = snapshot.state.name === 'safety';
+  const stateLabel = guideStateLabel(snapshot.state.name);
+  const statusDetail = snapshot.state.error ?? (snapshot.response?.text || presentation.whyItMatters);
 
   return (
-    <div className="min-h-screen bg-[#070A0F] text-slate-100">
-      <GuideHeader
-        id={id}
-        title={caseData.title ?? undefined}
-        onBack={() => router.push(`/case/${encodeURIComponent(id)}`)}
-      />
+    <main className={styles.room}>
+      <div className={styles.roomShell}>
+        <RoomHeader id={id} title={caseData.title ?? undefined} />
 
-      <main className="mx-auto max-w-2xl px-4 py-8 sm:px-6">
-        <TrustNotice variant="dark" />
         {error && (
-          <div role="alert" className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300/15 bg-amber-300/[0.04] px-4 py-3 text-xs leading-5 text-amber-100">
+          <div role="alert" className={styles.refreshError}>
             <span>Showing the last saved case state. Refresh failed: {error}</span>
-            <button type="button" onClick={() => void refreshCaseState().catch(() => undefined)} className="min-h-9 rounded-lg border border-amber-200/20 px-3 font-semibold hover:bg-amber-200/[0.06]">Retry</button>
+            <button type="button" onClick={() => void refreshCaseState().catch(() => undefined)}>Retry refresh</button>
           </div>
         )}
 
-        <LegalGuide
-          state={guideState}
-          label="Legal guide"
-          detail={runtimeState.reason.replaceAll('_', ' ')}
-          message={presentation.whyItMatters}
-          messageKind={safetyActive ? 'notice' : 'guide'}
-          messageSpeaker={safetyActive ? 'Safety context' : 'Case record'}
-          actions={guideActions}
-          onAction={(event: GuideActionEvent) => {
-            const action = availableActions.get(event.actionId);
-            if (action) void runAction(action);
-          }}
-        >
-          {hasGuideDetails && (
-            <div className="space-y-3">
-              {safetyActive ? (
-                <SafetySummary caseData={caseData} />
-              ) : (
-                <>
-                  {journey && <JourneySummary journey={journey} />}
-                  <UnknownsSummary items={presentation.unknowns} />
-                  <EvidenceSummary caseData={caseData} journey={journey} />
-                  {(guideState === 'legal_verification' || caseData.legalIssues.length > 0) && <LegalVerificationSummary caseData={caseData} />}
-                </>
-              )}
+        <TrustNotice variant="dark" />
+        <WorkspaceNavigation caseId={id} />
+        <CaseStateStrip caseData={caseData} openQuestionCount={presentation.unknowns.length} />
 
-              {isDevelopment && (
-                <fieldset className="mt-4 rounded-xl border border-white/[0.05] bg-black/10 p-3">
-                  <legend className="px-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-                    Guide state preview · development
-                  </legend>
-                  <div className="flex flex-wrap gap-1.5">
-                    {LEGAL_GUIDE_STATES.map((state) => (
-                      <button
-                        key={state}
-                        type="button"
-                        aria-pressed={guideState === state && previewState === state}
-                        onClick={() => setPreviewState((current) => (current === state ? undefined : state))}
-                        className="min-h-9 rounded-md border border-white/[0.08] bg-transparent px-2 text-[10px] font-medium capitalize text-slate-400 transition hover:text-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8C9EFF]"
-                      >
-                        {state}
-                      </button>
-                    ))}
-                  </div>
-                </fieldset>
-              )}
+        <div className={styles.roomColumns}>
+          <section className={styles.consultation} aria-label="Consultation with the Guide">
+            <div className={styles.stageCard}>
+              <div className={styles.stageHeading}>
+                <div>
+                  <p className={styles.eyebrow}>Your consultation</p>
+                  <p className={styles.stageSubheading}>The Guide follows the current case record</p>
+                </div>
+                <span className={styles.statePill} data-state={snapshot.state.name}>
+                  <span className={styles.stateDot} aria-hidden="true" />{stateLabel}
+                </span>
+              </div>
+
+              <div className={styles.guideStage} data-guide-state={snapshot.state.name}>
+                <div className={styles.stageGlow} aria-hidden="true" />
+                <CameraOffIndicator />
+                <GuidePresence
+                  state={guidePresenceState(snapshot.state)}
+                  size="hero"
+                  detail={humanize(snapshot.state.reason)}
+                  accessibleLabel={`Guide state: ${stateLabel}`}
+                />
+              </div>
+
+              <div className={styles.summaryCard}>
+                <div className={styles.summaryIcon} aria-hidden="true"><Sparkles /></div>
+                <div className={styles.summaryCopy}>
+                  <p className={styles.cardEyebrow}>{safetyActive ? 'Safety context' : 'From the case record'}</p>
+                  <p>{statusDetail}</p>
+                </div>
+              </div>
+
+              {snapshot.state.error && <p role="alert" className={styles.inlineError}>{snapshot.state.error}</p>}
+
+              <div className={styles.controls} aria-label="Consultation controls">
+                <button
+                  type="button"
+                  className={`${styles.controlButton} ${styles.controlPrimary}`}
+                  disabled={!voiceAction || actionRunning}
+                  onClick={() => voiceAction && void runAction(voiceAction)}
+                >
+                  <Mic aria-hidden="true" />
+                  <span>Speak</span>
+                  <small>Open voice capture</small>
+                </button>
+                <Link href={`${base}/voice#voice-transcript`} className={styles.controlButton}>
+                  <span className={styles.controlIcon} aria-hidden="true">T</span>
+                  <span>Type</span>
+                  <small>Review before saving</small>
+                </Link>
+                <Link href={`${base}#upload-heading`} className={styles.controlButton}>
+                  <FileText aria-hidden="true" />
+                  <span>Upload</span>
+                  <small>PDF or image document</small>
+                </Link>
+                {speakAction && (
+                  <button
+                    type="button"
+                    className={`${styles.controlButton} ${styles.controlSecondary}`}
+                    disabled={actionRunning}
+                    onClick={() => void runAction(speakAction)}
+                  >
+                    <Volume2 aria-hidden="true" />
+                    <span>Hear summary</span>
+                    <small>Play the current case summary</small>
+                  </button>
+                )}
+              </div>
+              <p className={styles.cameraNotice}>Camera stays off. This room does not request camera access.</p>
             </div>
-          )}
-        </LegalGuide>
 
-      </main>
-    </div>
+            <section className={styles.activityCard} aria-labelledby="room-activity-heading">
+              <div className={styles.activityHeading}>
+                <h2 id="room-activity-heading">Guide activity</h2>
+                <span>CaseState · GuideRuntime</span>
+              </div>
+              <div role="log" aria-label="Recent Guide activity" aria-live="polite" aria-relevant="additions" className={styles.activityList}>
+                {messages.length > 0 ? messages.slice(-3).map((message) => (
+                  <p key={message.id} data-kind={message.kind}>{message.text}</p>
+                )) : (
+                  <p>The room is showing the latest case record. Updates and completed actions will appear here.</p>
+                )}
+              </div>
+            </section>
+          </section>
+
+          <aside className={styles.caseAside} aria-label="Case details and available actions">
+            <section className={styles.caseIntro} aria-labelledby="case-record-heading">
+              <div className={styles.asideHeading}>
+                <span className={styles.asideIcon} aria-hidden="true"><BookOpenCheck /></span>
+                <div>
+                  <p className={styles.cardEyebrow}>Current case</p>
+                  <h2 id="case-record-heading">Case record</h2>
+                </div>
+              </div>
+              <p className={styles.caseStatement}>
+                {presentation.understanding.initialAccount || 'No initial statement is saved in this case yet.'}
+              </p>
+              <p className={styles.cardCopy}>{presentation.whyItMatters}</p>
+              {presentation.uncertainty.relevant && (
+                <div className={styles.uncertaintyNote}>
+                  <CircleHelp aria-hidden="true" />
+                  <div>
+                    <p>{presentation.uncertainty.label}</p>
+                    <span>{presentation.uncertainty.detail}</span>
+                  </div>
+                </div>
+              )}
+            </section>
+
+            {safetyActive && <SafetySummary caseData={caseData} />}
+            {!safetyActive && journey && <JourneyStatus journey={journey} />}
+            <UnknownsSummary items={presentation.unknowns} />
+            <EvidenceSummary caseData={caseData} journey={journey} />
+            <LegalSummary caseData={caseData} />
+
+            <section className={styles.actionCard} aria-labelledby="room-actions-heading">
+              <div className={styles.actionHeading}>
+                <h2 id="room-actions-heading">Available next steps</h2>
+                <span>{secondaryActions.length}</span>
+              </div>
+              {secondaryActions.length > 0 ? (
+                <div className={styles.actionList}>
+                  {secondaryActions.map((action) => (
+                    <button
+                      key={`${action.type}-${JSON.stringify(action.payload)}`}
+                      type="button"
+                      disabled={actionRunning}
+                      onClick={() => void runAction(action)}
+                    >
+                      <span>{guideActionLabel(action)}</span>
+                      <ArrowUpRight aria-hidden="true" />
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className={styles.cardCopy}>
+                  {snapshot.availableActions.length > 0
+                    ? 'Voice and summary controls are ready above. No other case-specific workspace action is available right now.'
+                    : 'No case-specific action is available yet.'}
+                </p>
+              )}
+              {presentation.nextAction && <p className={styles.cardNote}>Recorded next step · {presentation.nextAction.label}</p>}
+            </section>
+          </aside>
+        </div>
+
+        <footer className={styles.roomFooter}>
+          <span>Guide states, case counts, and activity are supplied by the shared runtime.</span>
+          <Link href={base}>
+            Case overview <ArrowUpRight aria-hidden="true" />
+          </Link>
+        </footer>
+      </div>
+    </main>
   );
 }
