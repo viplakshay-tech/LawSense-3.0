@@ -337,6 +337,121 @@ export interface CaseState {
   analysis?: CaseAnalysis | null;
 }
 
+export type CompiledDocumentType =
+  | 'formal_demand_representation'
+  | 'complaint_draft'
+  | 'grievance_application'
+  | 'notice_response'
+  | 'supporting_statement_chronology'
+  | 'evidence_index'
+  | 'filing_checklist';
+
+export type CompiledDocumentFieldStatus =
+  | 'user_reported'
+  | 'evidence_supported'
+  | 'user_authored'
+  | 'system_inferred'
+  | 'unsupported'
+  | 'missing'
+  | 'conflicting';
+
+export interface CompiledDocumentProvenance {
+  sourceType: string;
+  sourceId: string;
+  label: string;
+  status: string;
+  documentId?: string | null;
+  pageNumber?: number | null;
+  confidence?: number | null;
+  sourceUrl?: string | null;
+  reference?: string | null;
+  confirmedByUser?: boolean | null;
+}
+
+export interface CompiledDocumentField {
+  id: string;
+  label: string;
+  value?: string | null;
+  status: CompiledDocumentFieldStatus;
+  required: boolean;
+  material: boolean;
+  sourceFactIds: string[];
+  sourceEvidenceIds: string[];
+  provenance: CompiledDocumentProvenance[];
+  conflicts: Array<{ value: string; sourceFactIds: string[]; provenance: CompiledDocumentProvenance[] }>;
+  missingMarker?: string | null;
+  legalSourceId?: string | null;
+}
+
+export interface CompiledDocumentDraft {
+  id: string;
+  caseId: string;
+  templateId: string;
+  documentType: CompiledDocumentType;
+  title: string;
+  fields: Record<string, CompiledDocumentField>;
+  factMappings: Array<{
+    factId: string;
+    factKey: string;
+    fieldId: string;
+    mappingRule: string;
+    fieldStatus: CompiledDocumentFieldStatus;
+    provenance: CompiledDocumentProvenance[];
+  }>;
+  conflicts: Array<{ id: string; summary: string; fieldId?: string | null; sourceIds: string[] }>;
+  unsupportedMaterialFactIds: string[];
+  missingInformation: string[];
+  content: string;
+  sourceCaseFingerprint: string;
+  sourceCaseUpdatedAt: string;
+  reviewState: 'draft' | 'reviewed' | 'stale';
+  confirmedAt?: string | null;
+  missingInformationAcknowledged: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CompiledDocumentPackage {
+  id: string;
+  caseId: string;
+  title: string;
+  documents: CompiledDocumentDraft[];
+  sourceCaseFingerprint: string;
+  sourceCaseUpdatedAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ExportReadyDocument {
+  status: 'ready' | 'blocked';
+  documentId: string;
+  caseId: string;
+  filename: string;
+  content: string;
+  contentSha256: string;
+  sourceCaseFingerprint: string;
+  provenance: CompiledDocumentProvenance[];
+  blockers: string[];
+}
+
+export interface ExportReadyPackage {
+  status: 'ready' | 'blocked';
+  packageId: string;
+  caseId: string;
+  filename: string;
+  documents: ExportReadyDocument[];
+  blockers: string[];
+  createdAt: string;
+}
+
+export interface CreateDocumentPackagePayload {
+  templateIds?: string[];
+  fieldValuesByTemplate?: Record<string, Record<string, string>>;
+  legalSourceIdsByTemplate?: Record<string, Record<string, string>>;
+  includedFactIdsByTemplate?: Record<string, string[]>;
+  factEditsByTemplate?: Record<string, Record<string, string>>;
+}
+
 export interface TwinProvenance {
   sourceId: string;
   sourceType: string;
@@ -837,4 +952,66 @@ export function uploadEvidence(
     body.append('file', file, file.name);
     request.send(body);
   });
+}
+
+async function documentApiRequest<T>(url: string, init: RequestInit, action: string): Promise<T> {
+  const response = await fetch(url, init);
+  const body = await response.json().catch(() => null);
+  if (!response.ok) {
+    const detail = typeof body?.detail === 'string' ? body.detail : response.statusText;
+    throw new Error(`${action}: ${detail}`);
+  }
+  return body as T;
+}
+
+export async function getDocumentPackages(caseId: string): Promise<CompiledDocumentPackage[]> {
+  return documentApiRequest(
+    `${BASE_URL}/cases/${encodeURIComponent(caseId)}/document-packages`,
+    { method: 'GET', headers: { Accept: 'application/json' }, cache: 'no-store' },
+    'Failed to retrieve document packages',
+  );
+}
+
+export async function createDocumentPackage(
+  caseId: string,
+  payload: CreateDocumentPackagePayload,
+): Promise<CompiledDocumentPackage> {
+  return documentApiRequest(
+    `${BASE_URL}/cases/${encodeURIComponent(caseId)}/document-packages`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(payload),
+    },
+    'Failed to compile document package',
+  );
+}
+
+export async function confirmDocumentPackage(
+  caseId: string,
+  packageId: string,
+  acknowledgeMissingInformation: boolean,
+): Promise<CompiledDocumentPackage> {
+  return documentApiRequest(
+    `${BASE_URL}/cases/${encodeURIComponent(caseId)}/document-packages/${encodeURIComponent(packageId)}/confirm`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ acknowledgeMissingInformation }),
+    },
+    'Failed to confirm document review',
+  );
+}
+
+export async function exportDocumentPackage(caseId: string, packageId: string): Promise<ExportReadyPackage> {
+  const response = await fetch(
+    `${BASE_URL}/cases/${encodeURIComponent(caseId)}/document-packages/${encodeURIComponent(packageId)}/export`,
+    { method: 'POST', headers: { Accept: 'application/json' } },
+  );
+  const body = await response.json().catch(() => null);
+  if (response.ok) return body as ExportReadyPackage;
+  const blocked = body?.detail?.export as ExportReadyPackage | undefined;
+  if (blocked) return blocked;
+  const detail = typeof body?.detail === 'string' ? body.detail : response.statusText;
+  throw new Error(`Failed to export document package: ${detail}`);
 }
