@@ -22,9 +22,14 @@ import {
 import { useEffect, useState } from 'react';
 import { Suspense } from 'react';
 import type { ReactNode } from 'react';
-import type { JourneyStageName } from '@/lib/api';
+import { getJourneyExecution, type JourneyExecutionResponse, type JourneyExecutionStageName, type JourneyStageName } from '@/lib/api';
 import { rememberSessionCase } from '@/lib/case-continuity';
-import { CASE_JOURNEY_STAGES, getCaseJourneyStageStatus, type CaseJourneyStageId } from '@/lib/case-journey';
+import {
+  CASE_JOURNEY_STAGES,
+  getCaseJourneyStageAssessment,
+  getCaseJourneyStageStatus,
+  type CaseJourneyStageId,
+} from '@/lib/case-journey';
 import { useCaseState } from '../../app/case/[id]/CaseStateProvider';
 import { GuideControlSurface } from '@/components/guide-presence';
 import { StatusPill, type StatusTone } from '@/components/design-system/StatusPill';
@@ -47,7 +52,7 @@ const LEGACY_NAV_LABELS: Record<CaseJourneyStageId, string> = {
   protect: 'Safety',
   evidence: 'Evidence',
   law: 'Legal Grounding',
-  twin: 'Living Twin',
+  twin: 'Living Case Twin',
   prepare: 'Document Drafting',
   act: 'Act',
   monitor: 'Journey',
@@ -73,6 +78,16 @@ function getDestinationForStage(stage: JourneyStageName | undefined, basePath: s
   if (stage === 'FACTS' || stage === 'EVIDENCE') return `${basePath}/documents`;
   if (stage === 'LAW') return `${basePath}/guide`;
   return `${basePath}#journey`;
+}
+
+function getDestinationForExecutionStage(stage: JourneyExecutionStageName, basePath: string): string {
+  if (stage === 'Problem') return basePath;
+  if (stage === 'Clarify' || stage === 'Facts') return `${basePath}#clarification`;
+  if (stage === 'Evidence') return `${basePath}/documents`;
+  if (stage === 'Law') return `${basePath}/guide`;
+  if (stage === 'Possible Paths' || stage === 'Document') return `${basePath}/draft`;
+  if (stage === 'Follow-up') return `${basePath}/action#monitor`;
+  return `${basePath}/action`;
 }
 
 function getJurisdictionLabel(caseState: NonNullable<ReturnType<typeof useCaseState>['caseState']>): string {
@@ -132,7 +147,15 @@ function CaseNavigation({
         const Icon = section.icon;
         const isSafety = section.id === 'protect';
         const status = statuses[section.id];
-        const statusTone = status === 'Complete' ? 'text-emerald-300' : status === 'Needs review' ? 'text-amber-200' : status === 'In progress' ? 'text-sky-200' : 'text-slate-600';
+        const statusTone = status === 'Complete'
+          ? 'text-emerald-300'
+          : status === 'Blocked'
+            ? 'text-amber-200'
+            : status === 'In progress'
+              ? 'text-sky-200'
+              : status === 'Unknown'
+                ? 'text-slate-500'
+                : 'text-slate-600';
         return (
           <div key={section.id} className={`${isSafety && !mobile ? 'mt-2 border-t border-white/[0.08] pt-2' : ''} ${mobile ? 'ls-case-mobile-item min-w-0' : ''}`}>
             <Link
@@ -201,8 +224,9 @@ function CaseNavigation({
 export function CaseShell({ caseId, children }: { caseId: string; children: ReactNode }) {
   const pathname = usePathname();
   const shouldReduceMotion = useReducedMotion();
-  const { caseState, loading } = useCaseState();
+  const { caseState, loading, revision } = useCaseState();
   const [hash, setHash] = useState('');
+  const [journeyExecution, setJourneyExecution] = useState<JourneyExecutionResponse | null>(null);
   const basePath = `/case/${encodeURIComponent(caseId)}`;
 
   useEffect(() => {
@@ -216,6 +240,21 @@ export function CaseShell({ caseId, children }: { caseId: string; children: Reac
     rememberSessionCase(caseId);
   }, [caseId]);
 
+  useEffect(() => {
+    const controller = new AbortController();
+    if (!caseState) {
+      return () => controller.abort();
+    }
+
+    void getJourneyExecution(caseId, controller.signal)
+      .then((snapshot) => setJourneyExecution(snapshot))
+      .catch(() => {
+        if (!controller.signal.aborted) setJourneyExecution(null);
+      });
+
+    return () => controller.abort();
+  }, [caseId, caseState, revision]);
+
   const activeSafetyTone = getSafetyTone(caseState?.analysis?.safetyContext.context);
   const safetyMode = pathname.startsWith(`${basePath}/safety`);
   const sections: CaseSection[] = [
@@ -224,17 +263,24 @@ export function CaseShell({ caseId, children }: { caseId: string; children: Reac
     { id: 'protect', name: 'PROTECT', label: 'Protect', mobileLabel: 'Protect', href: `${basePath}/safety`, icon: ShieldAlert },
     { id: 'evidence', name: 'EVIDENCE', label: 'Evidence', mobileLabel: 'Evidence', href: `${basePath}/documents`, icon: FileStack },
     { id: 'law', name: 'LAW', label: 'Law', mobileLabel: 'Law', href: `${basePath}/guide`, icon: Scale },
-    { id: 'twin', name: 'CASE TWIN', label: 'Case Twin', mobileLabel: 'Case Twin', href: `${basePath}/twin`, icon: Network },
+    { id: 'twin', name: 'LIVING CASE TWIN', label: 'Living Case Twin', mobileLabel: 'Living Twin', href: `${basePath}/twin`, icon: Network },
     { id: 'prepare', name: 'PREPARE', label: 'Prepare', mobileLabel: 'Prepare', href: `${basePath}/draft`, icon: FilePenLine },
     { id: 'act', name: 'ACT', label: 'Act', mobileLabel: 'Act', href: `${basePath}/action`, icon: ArrowUpRight },
     { id: 'monitor', name: 'MONITOR', label: 'Monitor', mobileLabel: 'Monitor', href: `${basePath}/action#monitor`, icon: Route },
   ];
 
   const journey = caseState?.analysis?.journey;
-  const stageStatuses = Object.fromEntries(CASE_JOURNEY_STAGES.map(({ id }) => [id, getCaseJourneyStageStatus(caseState, id)])) as Record<CaseJourneyStageId, string>;
+  const currentJourneyExecution = journeyExecution?.caseId === caseId ? journeyExecution : null;
+  const stageStatuses = Object.fromEntries(CASE_JOURNEY_STAGES.map(({ id }) => [
+    id,
+    getCaseJourneyStageStatus(caseState, currentJourneyExecution, id),
+  ])) as Record<CaseJourneyStageId, string>;
   const completedStageCount = Object.values(stageStatuses).filter((status) => status === 'Complete').length;
   const activeSection = getActiveSection(pathname, hash, basePath);
   const currentStage = sections.find((section) => section.id === activeSection);
+  const activeStageAssessment = activeSection
+    ? getCaseJourneyStageAssessment(caseState, currentJourneyExecution, activeSection)
+    : null;
   const safetyOverride = activeSafetyTone !== 'clear';
   const stageTitle = safetyOverride
     ? activeSafetyTone === 'urgent' ? 'Review urgent safety support' : 'Review sensitive safety support'
@@ -245,17 +291,25 @@ export function CaseShell({ caseId, children }: { caseId: string; children: Reac
   const openQuestions = [...new Set([
     ...(journey?.unknowns ?? []).map((item) => item.question.trim()),
     ...(caseState?.unknowns ?? []).map((item) => item.trim()),
+    ...(currentJourneyExecution?.execution.missing_information ?? [])
+      .filter((item) => item.status === 'open')
+      .map((item) => item.question.trim()),
   ].filter(Boolean))];
   const factsCount = caseState?.facts.length ?? 0;
   const evidenceCount = caseState?.evidence.length ?? 0;
   const nextJourneyAction = journey?.nextActions.find((action) => action.action.trim());
+  const executionAction = [
+    currentJourneyExecution?.execution.next_best_action,
+    ...(currentJourneyExecution?.execution.action_plan ?? []),
+  ].find((action) => action && action.action.trim() && action.status !== 'COMPLETED');
   const decisionAction = caseState?.analysis?.decisionScenario?.nextAction.trim();
   const recommendedAction = safetyOverride
     ? caseState?.analysis?.safetyContext.recommendedSafetyPrompt?.trim()
       || (activeSafetyTone === 'urgent'
         ? 'Review the urgent safety options before continuing the ordinary journey.'
         : 'Review the sensitive safety support before continuing the ordinary journey.')
-    : decisionAction
+    : executionAction?.action.trim()
+    || decisionAction
     || nextJourneyAction?.action.trim()
     || (openQuestions.length > 0
       ? `Review ${openQuestions.length} open question${openQuestions.length === 1 ? '' : 's'} in the journey.`
@@ -266,6 +320,8 @@ export function CaseShell({ caseId, children }: { caseId: string; children: Reac
           : 'Review how the known facts connect in the Living Twin.');
   const recommendedHref = safetyOverride
     ? `${basePath}/safety`
+    : executionAction
+      ? getDestinationForExecutionStage(executionAction.stage, basePath)
     : decisionAction
     ? nextJourneyAction
       ? getDestinationForStage(nextJourneyAction.stage, basePath)
@@ -342,6 +398,28 @@ export function CaseShell({ caseId, children }: { caseId: string; children: Reac
               <p className="text-[9px] font-semibold uppercase tracking-[0.14em]">A useful next step</p>
             </div>
             <p className="mt-2.5 line-clamp-3 text-[11px] leading-[17px] text-slate-300">{recommendedAction}</p>
+            {activeStageAssessment?.blockers[0] && (
+              <p className="mt-2 line-clamp-2 text-[10px] leading-4 text-amber-200">
+                Blocked · {activeStageAssessment.blockers[0]}
+              </p>
+            )}
+            {activeStageAssessment?.unknowns[0] && (
+              <p className="mt-2 line-clamp-2 text-[10px] leading-4 text-slate-400">
+                Still open · {activeStageAssessment.unknowns[0]}
+              </p>
+            )}
+            {activeStageAssessment?.status === 'Unknown'
+              && !activeStageAssessment.blockers.length
+              && !activeStageAssessment.unknowns.length && (
+                <p className="mt-2 text-[10px] leading-4 text-slate-500">
+                  Stage details are not available in the current case snapshot.
+                </p>
+              )}
+            {executionAction?.reason && (
+              <p className="mt-2 line-clamp-2 text-[10px] leading-4 text-slate-500">
+                {executionAction.reason}
+              </p>
+            )}
             <Link
               href={recommendedHref}
               className="mt-3 inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-[#e9bd7b]/20 bg-[#e9bd7b]/[0.08] px-2.5 text-[10px] font-semibold text-[#f0d4a8] transition hover:border-[#e9bd7b]/35 hover:bg-[#e9bd7b]/[0.14] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#e9bd7b] motion-reduce:transition-none"
@@ -398,7 +476,7 @@ export function CaseShell({ caseId, children }: { caseId: string; children: Reac
               <p className="ls-case-context-stage">{stageTitle}</p>
               <div className="ls-case-context-meta">
                 <StatusPill tone={progressTone}>{progressLabel}</StatusPill>
-                <span>{completedStageCount} of 9 stages complete · statuses follow saved case analysis</span>
+                <span>{completedStageCount} of 9 stages complete · stage status {activeStageAssessment?.status ?? 'Unknown'}</span>
               </div>
             </div>
             <Link href={contextualHref} className="ls-case-context-action">

@@ -351,6 +351,232 @@ export interface JourneySummary {
   legalKnowledgeStatus: string;
 }
 
+export type JourneyExecutionStageName =
+  | 'Problem'
+  | 'Clarify'
+  | 'Facts'
+  | 'Evidence'
+  | 'Law'
+  | 'Possible Paths'
+  | 'Document'
+  | 'Official Resource'
+  | 'Action'
+  | 'Follow-up';
+
+export interface JourneyExecutionStageInput {
+  key: string;
+  value: unknown;
+  source_ids: string[];
+  provenance_ids: string[];
+  recorded_at: string | null;
+}
+
+export interface JourneyExecutionStageProgress {
+  stage: JourneyExecutionStageName;
+  required_inputs: string[];
+  inputs: JourneyExecutionStageInput[];
+  completed: boolean;
+  completed_at: string | null;
+}
+
+export interface JourneyExecutionBlocker {
+  code: string;
+  stage: JourneyExecutionStageName;
+  message: string;
+  related_id: string | null;
+  action_id: string | null;
+}
+
+export interface JourneyExecutionMissingInformation {
+  id: string;
+  question: string;
+  status: 'open' | 'answered' | 'cannot_determine';
+  answer: string | null;
+  source_ids: string[];
+  provenance_ids: string[];
+  related_to: string | null;
+}
+
+export interface JourneyExecutionEvidenceRequest {
+  id: string;
+  item: string;
+  purpose: string;
+  status: 'not_confirmed' | 'available' | 'unavailable' | 'not_applicable';
+  notes: string | null;
+  source_ids: string[];
+  provenance_ids: string[];
+}
+
+export interface JourneyExecutionDocumentRequest {
+  id: string;
+  document: string;
+  purpose: string;
+  status: 'not_confirmed' | 'available' | 'unavailable' | 'not_applicable';
+  notes: string | null;
+  source_ids: string[];
+  provenance_ids: string[];
+}
+
+export interface JourneyExecutionUserAction {
+  id: string;
+  action: string;
+  reason: string;
+  stage: JourneyExecutionStageName;
+  condition: string | null;
+  jurisdiction_required: boolean;
+  status: 'proposed' | 'in_progress' | 'waiting' | 'completed' | 'cancelled';
+  completion: {
+    recorded_at: string;
+    user_reported_outcome: string;
+    provenance_ids: string[];
+  } | null;
+}
+
+export interface JourneyExecutionProceduralNextStep {
+  id: string;
+  description: string;
+  reason: string;
+  stage: JourneyExecutionStageName;
+  condition: string | null;
+  jurisdiction_required: boolean;
+}
+
+export interface JourneyExecutionTimelineEvent {
+  id: string;
+  sequence: number;
+  event_type: string;
+  summary: string;
+  actor: string;
+  stage: JourneyExecutionStageName | null;
+  occurred_at: string | null;
+  related_ids: string[];
+  provenance_ids: string[];
+}
+
+export interface JourneyExecutionProvenance {
+  id: string;
+  source_type: string;
+  source_id: string;
+  target_id: string;
+  detail: string;
+  recorded_at: string | null;
+}
+
+export interface JourneyExecutionUncertainty {
+  id: string;
+  category: string;
+  description: string;
+  source_ids: string[];
+  related_id: string | null;
+}
+
+export type JourneyReadinessDimensionName =
+  | 'facts'
+  | 'evidence'
+  | 'jurisdiction'
+  | 'legal_grounding'
+  | 'documents'
+  | 'procedure'
+  | 'safety';
+
+export interface JourneyReadinessBlocker {
+  id: string;
+  code: string;
+  dimension: JourneyReadinessDimensionName;
+  message: string;
+  severity: string;
+  related_ids: string[];
+  source_ids: string[];
+  provenance_ids: string[];
+}
+
+export interface JourneyReadinessDimension {
+  name: JourneyReadinessDimensionName;
+  score: number;
+  level: 'ready' | 'partial' | 'blocked' | 'unknown';
+  explanation: string;
+  blocker_ids: string[];
+  source_ids: string[];
+}
+
+export interface JourneyCaseReadiness {
+  score: number;
+  explanation: string;
+  dimensions: JourneyReadinessDimension[];
+  blockers: JourneyReadinessBlocker[];
+}
+
+export interface JourneyExecutionActionHistoryEntry {
+  id: string;
+  sequence: number;
+  event_type: string;
+  summary: string;
+  actor: string;
+  occurred_at: string | null;
+  related_ids: string[];
+  provenance_ids: string[];
+}
+
+export interface JourneyExecutionNextAction {
+  id: string;
+  action: string;
+  reason: string;
+  status: 'BLOCKED' | 'AVAILABLE' | 'IN_PROGRESS' | 'WAITING' | 'COMPLETED';
+  dimension: JourneyReadinessDimensionName;
+  stage: JourneyExecutionStageName;
+  priority: number;
+  source_type: string;
+  source_ids: string[];
+  dependencies: string[];
+  blocker_ids: string[];
+  provenance_ids: string[];
+  history: JourneyExecutionActionHistoryEntry[];
+}
+
+export interface JourneyExecutionResponseData {
+  id: string;
+  case_id: string;
+  current_stage: JourneyExecutionStageName;
+  jurisdiction: Record<string, unknown>;
+  jurisdiction_status: string;
+  stage_progress: JourneyExecutionStageProgress[];
+  missing_information: JourneyExecutionMissingInformation[];
+  evidence_requests: JourneyExecutionEvidenceRequest[];
+  document_requests: JourneyExecutionDocumentRequest[];
+  user_actions: JourneyExecutionUserAction[];
+  procedural_next_steps: JourneyExecutionProceduralNextStep[];
+  timeline_events: JourneyExecutionTimelineEvent[];
+  provenance: JourneyExecutionProvenance[];
+  uncertainties: JourneyExecutionUncertainty[];
+  completed_stages: JourneyExecutionStageName[];
+  blocked_stages: JourneyExecutionStageName[];
+  blockers: JourneyExecutionBlocker[];
+  recorded_fact_count: number;
+  conflicts: string[];
+  assumptions: string[];
+  pending_evidence_reviews: Array<{
+    document_id: string;
+    evidence_id: string | null;
+    filename: string;
+    source_ids: string[];
+    provenance_ids: string[];
+  }>;
+  safety_context: string;
+  safety_urgency: string;
+  safety_source_ids: string[];
+  legal_records_available: boolean;
+  case_readiness: JourneyCaseReadiness | null;
+  action_plan: JourneyExecutionNextAction[];
+  next_best_action: JourneyExecutionNextAction | null;
+}
+
+export interface JourneyExecutionResponse {
+  caseId: string;
+  status: 'available';
+  legalKnowledgeStatus: 'available' | 'unavailable';
+  execution: JourneyExecutionResponseData;
+}
+
 export interface DecisionPathStepSummary {
   id: string;
   action: string;
@@ -865,6 +1091,30 @@ export async function getCase(id: string, signal?: AbortSignal): Promise<CaseSta
   }
 
   return res.json();
+}
+
+export async function getJourneyExecution(
+  caseId: string,
+  signal?: AbortSignal,
+): Promise<JourneyExecutionResponse> {
+  const response = await fetch(
+    `${BASE_URL}/cases/${encodeURIComponent(caseId)}/journey/execution`,
+    {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+      cache: 'no-store',
+      signal,
+    },
+  );
+  const body = await response.json().catch(() => null);
+  if (!response.ok) {
+    const detail = typeof body?.detail === 'string' ? body.detail : response.statusText;
+    throw new Error(`Failed to retrieve journey execution: ${detail}`);
+  }
+  if (body?.caseId !== caseId || body?.status !== 'available' || !body?.execution) {
+    throw new Error('The journey execution response did not match this case.');
+  }
+  return body as JourneyExecutionResponse;
 }
 
 export async function getClarificationQuestions(
