@@ -1,4 +1,5 @@
 import type { WomenSafetyContextSummary } from '@/lib/api';
+import type { RequestedOfficialResourceCategory } from '@/lib/officialResources';
 
 export type ImmediateDangerAnswer = 'yes' | 'no' | 'not_sure';
 export type SafetyLanguage = 'en' | 'hi' | 'hinglish';
@@ -8,12 +9,22 @@ export interface SafetySupportResource {
   resource_id?: string | null;
   name?: string | null;
   category?: string | null;
+  categories?: string[];
   jurisdiction?: string | null;
+  jurisdiction_scope?: string | null;
+  applicable_states?: string[];
+  excluded_states?: string[];
   official?: boolean;
   verification_status?: string | null;
   url?: string | null;
   phone?: string | null;
+  alternate_phone?: string | null;
   description?: string | null;
+  availability_note?: string | null;
+  phone_purpose?: string | null;
+  accessibility_options?: string | null;
+  source_url?: string | null;
+  verified_on?: string | null;
   provenance?: Array<{
     source_id?: string | null;
     source_url?: string | null;
@@ -26,6 +37,18 @@ export interface SafetyResourceAvailability {
   status: string;
   jurisdiction: string | null;
   state: string | null;
+}
+
+export interface SafetyResourceEligibility {
+  resource_id: string;
+  name: string;
+  category: string;
+  status: string;
+  jurisdiction: string;
+  state?: string | null;
+  source_url?: string | null;
+  verified_on?: string | null;
+  availability_note?: string | null;
 }
 
 export interface SafetySupportAssessment {
@@ -48,6 +71,7 @@ export interface SafetySupportAssessment {
   resource_categories: string[];
   resources: SafetySupportResource[];
   resource_availability?: SafetyResourceAvailability[];
+  resource_eligibility?: SafetyResourceEligibility[];
   safe_next_step_sequence: string[];
   language: SafetyLanguage;
   workflow_disposition: string;
@@ -67,4 +91,5 @@ export interface SafetySupportResponse {
 export interface SafetySupportRequest {
   immediate_danger?: ImmediateDangerAnswer;
   language?: SafetyLanguage;
+  requested_resource_categories?: RequestedOfficialResourceCategory[];
 }

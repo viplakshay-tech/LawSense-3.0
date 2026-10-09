@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, ChevronDown, LoaderCircle, Shield, Sparkles } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useCaseState } from '@/app/case/[id]/CaseStateProvider';
@@ -12,6 +12,7 @@ import { NextSafeAction } from './NextSafeAction';
 import { SafetyContextSummary } from './SafetyContextSummary';
 import { SafetyPathway } from './SafetyPathway';
 import { VerifiedResourceCategories } from './VerifiedResourceCategories';
+import { selectRequestedOfficialResourceCategories } from '@/lib/officialResources';
 import type {
   ImmediateDangerAnswer,
   SafetyLanguage,
@@ -55,6 +56,10 @@ export function SafetyExperience({ caseId }: { caseId: string }) {
   const [evidenceExpanded, setEvidenceExpanded] = useState(false);
   const [paused, setPaused] = useState(false);
   const [selectedTopics, setSelectedTopics] = useState<WomenSafetyDomain[]>([]);
+  const requestedCategories = useMemo(
+    () => selectRequestedOfficialResourceCategories(caseData),
+    [caseData],
+  );
 
   const refreshSupport = useCallback(async (
     immediateDanger: ImmediateDangerAnswer | null,
@@ -67,6 +72,7 @@ export function SafetyExperience({ caseId }: { caseId: string }) {
       const response = await getSafetySupport(caseId, {
         ...(immediateDanger ? { immediate_danger: immediateDanger } : {}),
         ...(safetyRequestLanguage(language) ? { language: safetyRequestLanguage(language) } : {}),
+        requested_resource_categories: requestedCategories,
       });
       if (version === requestVersion.current) setAssessmentResponse(response);
     } catch {
@@ -77,7 +83,7 @@ export function SafetyExperience({ caseId }: { caseId: string }) {
     } finally {
       if (version === requestVersion.current) setAssessmentLoading(false);
     }
-  }, [caseId]);
+  }, [caseId, requestedCategories]);
 
   useEffect(() => {
     if (!caseData) return;

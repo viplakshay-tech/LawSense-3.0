@@ -1,10 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowUpRight,
-  BadgeCheck,
   CircleHelp,
   FileCheck2,
   LoaderCircle,
@@ -14,145 +13,69 @@ import {
   TriangleAlert,
 } from 'lucide-react';
 import { useCaseState } from '@/app/case/[id]/CaseStateProvider';
-import type { CaseState } from '@/lib/api';
-
-type OfficialResource = {
-  id: string;
-  name: string;
-  phone: string;
-  url: string;
-  description: string;
-  phoneNote?: string;
-};
-
-const WOMEN_DOMAINS = new Set([
-  'domestic_abuse',
-  'sexual_violence',
-  'workplace_sexual_harassment',
-  'stalking',
-  'threats_coercion',
-  'cyber_harassment',
-  'intimate_image_abuse',
-  'dowry_related_abuse',
-  'financial_control_abuse',
-  'trafficking_exploitation',
-]);
+import { getSafetySupport } from '@/components/safety/api';
+import { OfficialResourceList } from '@/components/safety/OfficialResourceList';
+import type { SafetySupportResponse } from '@/components/safety/types';
+import { selectRequestedOfficialResourceCategories } from '@/lib/officialResources';
 
 function unique(values: string[]): string[] {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
-}
-
-function caseContextText(caseState: CaseState): string {
-  return [
-    caseState.title,
-    caseState.initialStatement,
-    ...caseState.legalIssues.flatMap((issue) => [issue.category, issue.subcategory]),
-    ...caseState.facts.map((fact) => `${fact.key} ${typeof fact.value === 'string' ? fact.value : ''}`),
-  ].filter((value): value is string => Boolean(value)).join(' ').toLocaleLowerCase();
-}
-
-function getResources(caseState: CaseState): OfficialResource[] {
-  const safety = caseState.analysis?.safetyContext;
-  const womenDomains = safety?.womenSafetyContext?.domains ?? [];
-  const context = caseContextText(caseState);
-  const womenRelated = womenDomains.some((domain) => WOMEN_DOMAINS.has(domain))
-    || /workplace harassment|domestic abuse|stalk|threat|coerc|sexual violence|dowry|traffick|exploitation|intimate image/i.test(context);
-  const cyberRelated = womenDomains.some((domain) => domain === 'cyber_harassment' || domain === 'intimate_image_abuse')
-    || /cyber|online abuse|online fraud|financial cyber fraud|phishing|hacked|intimate image|non-consensual image/i.test(context);
-  const consumerRelated = /consumer|purchase|refund|warranty|defective|seller|e-commerce|billing grievance|product complaint/i.test(context);
-  const dangerRecorded = safety?.context === 'urgent_safety_context'
-    || safety?.urgency === 'urgent'
-    || safety?.womenSafetyContext?.urgency === 'IMMEDIATE_DANGER'
-    || safety?.womenSafetyContext?.immediateDangerAnswer === 'yes';
-  const resources: OfficialResource[] = [];
-
-  if (dangerRecorded) {
-    resources.push({
-      id: 'emergency-112',
-      name: 'Emergency Response Support System',
-      phone: '112',
-      url: 'https://112.gov.in/',
-      description: 'If you are in immediate danger, you can choose to contact India’s emergency response service. LawSense will not place a call or send an alert.',
-    });
-  }
-
-  if (womenRelated) {
-    resources.push({
-      id: 'women-181',
-      name: 'Women Helpline',
-      phone: '181',
-      url: 'https://wcd.gov.in/women/help',
-      description: 'For women seeking support or information about violence and distress. The Ministry page lists state coverage; check availability for your location.',
-    });
-  }
-
-  if (cyberRelated) {
-    resources.push({
-      id: 'cybercrime',
-      name: 'National Cyber Crime Reporting Portal',
-      phone: '1930',
-      url: 'https://cybercrime.gov.in/',
-      description: 'Use the official portal to review reporting options. The 1930 helpline is for online financial cyber fraud; other cybercrime options are on the portal.',
-      phoneNote: 'Call 1930 for online financial cyber fraud. LawSense does not submit a complaint.',
-    });
-  }
-
-  if (caseState.legalIssues.length > 0 || caseState.unknowns.length > 0 || caseState.jurisdiction.basis === 'unknown') {
-    resources.push({
-      id: 'legal-aid',
-      name: 'National Legal Services Authority',
-      phone: '15100',
-      url: 'https://nalsa.gov.in/',
-      description: 'Check official information about legal aid and how to find the appropriate legal services authority. Eligibility and availability are determined by those services.',
-    });
-  }
-
-  if (consumerRelated) {
-    resources.push({
-      id: 'consumer-helpline',
-      name: 'National Consumer Helpline',
-      phone: '1915',
-      url: 'https://consumerhelpline.gov.in/public/',
-      description: 'Official consumer grievance information and support. The helpline page lists service hours and available contact options.',
-    });
-  }
-
-  return resources;
 }
 
 function statusLabel(status: string): string {
   return status.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toLocaleUpperCase());
 }
 
-function OfficialResourceCard({ resource }: { resource: OfficialResource }) {
-  return (
-    <li className="rounded-2xl border border-white/[0.09] bg-[#121821] p-4 sm:p-5">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h3 className="text-sm font-semibold text-slate-100">{resource.name}</h3>
-          <p className="mt-1 text-2xl font-semibold tracking-tight text-[#f1d0a8]">{resource.phone}</p>
-        </div>
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200/15 bg-emerald-100/[0.04] px-2 py-1 text-[9px] font-semibold uppercase tracking-wide text-emerald-100/75">
-          <BadgeCheck aria-hidden="true" className="h-3 w-3" /> Official
-        </span>
-      </div>
-      <p className="mt-3 text-xs leading-5 text-slate-400">{resource.description}</p>
-      <div className="mt-4 flex flex-wrap gap-2">
-        <a href={resource.url} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/[0.12] bg-white/[0.04] px-3 text-xs font-semibold text-slate-100 hover:bg-white/[0.08] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c987]">
-          Open official resource <ArrowUpRight aria-hidden="true" className="h-3.5 w-3.5" />
-        </a>
-        <a href={`tel:${resource.phone}`} className="inline-flex min-h-10 items-center rounded-lg border border-white/[0.08] px-3 text-xs font-medium text-slate-300 hover:bg-white/[0.05] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c987]">
-          Call {resource.phone}
-        </a>
-      </div>
-      {resource.phoneNote && <p className="mt-3 text-[10px] leading-4 text-slate-500">{resource.phoneNote}</p>}
-    </li>
-  );
-}
-
 export function CaseActionExperience({ caseId }: { caseId: string }) {
   const { caseState, loading, error, refreshCaseState } = useCaseState();
-  const resources = useMemo(() => caseState ? getResources(caseState) : [], [caseState]);
+  const requestedCategories = useMemo(
+    () => selectRequestedOfficialResourceCategories(caseState),
+    [caseState],
+  );
+  const [resourceRetry, setResourceRetry] = useState(0);
+  const resourceKey = JSON.stringify([
+    caseId,
+    caseState?.metadata.updatedAt,
+    caseState?.title,
+    caseState?.initialStatement,
+    caseState?.jurisdiction,
+    caseState?.legalIssues,
+    caseState?.facts.map((fact) => [fact.key, fact.value]),
+    caseState?.claims.map((claim) => claim.text),
+    caseState?.analysis?.safetyContext?.indicators,
+    caseState?.analysis?.safetyContext?.womenSafetyContext?.domains,
+    requestedCategories,
+    resourceRetry,
+  ]);
+  const [resourceRequest, setResourceRequest] = useState<{
+    key: string;
+    status: 'ready' | 'error';
+    response: SafetySupportResponse | null;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!caseState) return;
+    let current = true;
+    void getSafetySupport(caseId, { requested_resource_categories: requestedCategories })
+      .then((response) => {
+        if (current) setResourceRequest({ key: resourceKey, status: 'ready', response });
+      })
+      .catch(() => {
+        if (current) setResourceRequest({ key: resourceKey, status: 'error', response: null });
+      });
+    return () => {
+      current = false;
+    };
+  }, [caseId, caseState, requestedCategories, resourceKey]);
+
+  const currentResourceRequest = resourceRequest?.key === resourceKey ? resourceRequest : null;
+  const resourceSupport = currentResourceRequest?.response ?? null;
+  const resourceLoading = Boolean(caseState) && currentResourceRequest === null;
+  const resourceError = currentResourceRequest?.status === 'error';
+
+  const hasResourceContext = requestedCategories.length > 0 || Boolean(
+    caseState?.analysis?.safetyContext && caseState.analysis.safetyContext.context !== 'none',
+  ) || (resourceSupport?.assessment.resource_categories.length ?? 0) > 0;
   const casePath = `/case/${encodeURIComponent(caseId)}`;
 
   if (loading) {
@@ -299,16 +222,27 @@ export function CaseActionExperience({ caseId }: { caseId: string }) {
         </div>
       </section>
 
-      {resources.length > 0 && (
+      {(hasResourceContext || resourceError) && (
         <section aria-labelledby="official-support-heading" className="space-y-4">
           <header>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-100/70">Support resources matched to this record</p>
-            <h2 id="official-support-heading" className="mt-1 text-lg font-semibold">Official support</h2>
-            <p className="mt-2 max-w-3xl text-xs leading-5 text-slate-400">Resources are suggestions based on recorded safety and case categories. You decide whether to open them. LawSense does not contact anyone or submit information, and no helpline can guarantee a resolution.</p>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-100/70">Official support directory</p>
+            <h2 id="official-support-heading" className="mt-1 text-lg font-semibold">Support resources</h2>
+            <p className="mt-2 max-w-3xl text-xs leading-5 text-slate-400">These listings are selected from text and system-inferred categories in the case. The selection can be incomplete or mistaken; it is a suggestion, not a verified finding. Check purpose, location coverage, and current instructions on each official source. LawSense never calls, contacts an organization, or submits a report.</p>
           </header>
-          <ul className="grid gap-3 sm:grid-cols-2">
-            {resources.map((resource) => <OfficialResourceCard key={resource.id} resource={resource} />)}
-          </ul>
+          {resourceLoading ? (
+            <p role="status" className="rounded-xl border border-white/[0.06] bg-[#10161f] px-4 py-3 text-sm text-slate-400"><LoaderCircle aria-hidden="true" className="mr-2 inline h-4 w-4 animate-spin" />Checking the official resource registry…</p>
+          ) : resourceError ? (
+            <div role="alert" className="rounded-xl border border-amber-100/10 bg-[#171713] p-4">
+              <p className="text-sm leading-6 text-slate-300">Official resources could not be checked right now. Confirm contact details through an official government or district source for your location before using a service.</p>
+              <button type="button" onClick={() => setResourceRetry((current) => current + 1)} className="mt-3 inline-flex min-h-10 items-center rounded-lg border border-white/[0.1] px-3 text-xs font-semibold text-slate-200 hover:bg-white/[0.05]">Try again</button>
+            </div>
+          ) : (
+            <OfficialResourceList
+              assessment={resourceSupport?.assessment ?? null}
+              language="en"
+              noResourcesLabel="No verified resource listing is available for the recorded location. Check an official government or district directory for local options, including web or in-person options if calling is not accessible."
+            />
+          )}
         </section>
       )}
 

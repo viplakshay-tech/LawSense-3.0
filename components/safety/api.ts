@@ -107,6 +107,7 @@ function normalizeSafetyResponse(value: unknown): SafetySupportResponse {
       resource_categories: (readField(assessment, 'resource_categories', 'resourceCategories') ?? []) as string[],
       resources: (assessment.resources ?? []) as SafetySupportResponse['assessment']['resources'],
       resource_availability: (readField(assessment, 'resource_availability', 'resourceAvailability') ?? []) as SafetySupportResponse['assessment']['resource_availability'],
+      resource_eligibility: (readField(assessment, 'resource_eligibility', 'resourceEligibility') ?? []) as SafetySupportResponse['assessment']['resource_eligibility'],
       safe_next_step_sequence: (readField(assessment, 'safe_next_step_sequence', 'safeNextStepSequence') ?? []) as string[],
       language: assessment.language as SafetySupportResponse['assessment']['language'],
       workflow_disposition: readField(assessment, 'workflow_disposition', 'workflowDisposition') as string,
