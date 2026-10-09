@@ -1,0 +1,13 @@
+{
+  "name": "lawsense-browser-e2e",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Browser-level release flow checks for LawSense",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.0"
+  }
+}
