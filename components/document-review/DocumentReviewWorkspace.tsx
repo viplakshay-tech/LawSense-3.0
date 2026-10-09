@@ -36,7 +36,7 @@ import type { DocumentReviewApiFinding, DocumentReviewApiResponse, DocumentRevie
 import { useCaseState } from '@/app/case/[id]/CaseStateProvider';
 import type { EvidenceMapFocusRequest } from '@/components/evidence-map/types';
 
-const API_BASE_URL = 'http://127.0.0.1:8000';
+const API_BASE_URL = '/api';
 const MAX_FILE_SIZE = 25 * 1024 * 1024;
 const ACCEPTED_FILE_TYPES = '.pdf,.jpg,.jpeg,.png';
 
