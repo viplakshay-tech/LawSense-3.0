@@ -1,7 +1,7 @@
 import type { SafetySupportRequest, SafetySupportResponse } from './types';
 import type { WomenSafetyContextSummary } from '@/lib/api';
 
-const SAFETY_API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? 'http://127.0.0.1:8000').replace(/\/$/, '');
+const SAFETY_API_BASE = '/api';
 
 type JsonObject = Record<string, unknown>;
 
