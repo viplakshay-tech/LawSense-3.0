@@ -1,0 +1,152 @@
+.ls-guide-avatar__surface {
+  width:100%;
+  height:100%;
+  min-height:inherit;
+  isolation:isolate;
+  place-items:center;
+  display:grid;
+  position:relative
+}
+.ls-guide-avatar__frame {
+  aspect-ratio:.875;
+  filter:drop-shadow(0 1.2rem 1.25rem #0000003d);
+  place-items:center;
+  width:min(100%,14.5rem);
+  transition:filter .45s,transform .65s cubic-bezier(.2,.7,.2,1);
+  display:grid;
+  position:relative
+}
+.ls-guide-avatar__surface[data-size=compact] .ls-guide-avatar__frame {
+  width:min(100%,5rem)
+}
+.ls-guide-avatar__surface[data-size=hero] .ls-guide-avatar__frame {
+  width:min(100%,19rem)
+}
+.ls-guide-avatar__surface[data-size=hero][data-state=IDLE] .ls-guide-avatar__frame {
+  animation:8s ease-in-out infinite guide-idle-breath
+}
+.ls-guide-avatar__portrait {
+  width:100%;
+  height:100%;
+  display:block;
+  overflow:visible
+}
+.ls-guide-avatar__halo {
+  fill:#c87e9126;
+  transition:fill .55s
+}
+.ls-guide-avatar__head {
+  transform-box:view-box;
+  transform-origin:140px 166px;
+  transition:transform .55s cubic-bezier(.2,.7,.2,1)
+}
+.ls-guide-avatar__statusRing {
+  z-index:-1;
+  opacity:0;
+  border:1px solid #e1aab626;
+  border-radius:48% 48% 45% 45%;
+  transition:opacity .45s,transform .65s cubic-bezier(.2,.7,.2,1),border-color .45s;
+  position:absolute;
+  inset:-1.2%;
+  transform:scale(.98)
+}
+.ls-guide-avatar__surface[data-state=LISTENING] .ls-guide-avatar__halo {
+  fill:#c6708738
+}
+.ls-guide-avatar__surface[data-state=THINKING] .ls-guide-avatar__halo {
+  fill:#a1809430
+}
+.ls-guide-avatar__surface[data-state=CLARIFYING] .ls-guide-avatar__halo {
+  fill:#c38ca030
+}
+.ls-guide-avatar__surface[data-state=SPEAKING] .ls-guide-avatar__halo {
+  fill:#cf819636
+}
+.ls-guide-avatar__surface[data-state=UNCERTAIN] .ls-guide-avatar__halo {
+  fill:#e2b5762b
+}
+.ls-guide-avatar__surface[data-state=CONFLICT] .ls-guide-avatar__halo {
+  fill:#e5a0802e
+}
+.ls-guide-avatar__surface[data-state=SAFETY] .ls-guide-avatar__halo {
+  fill:#f0ad7b29
+}
+.ls-guide-avatar__surface[data-state=ACTION_REQUIRED] .ls-guide-avatar__halo {
+  fill:#df898b29
+}
+.ls-guide-avatar__surface[data-state=IMMEDIATE_DANGER] .ls-guide-avatar__halo {
+  fill:#f0ad7b33
+}
+.ls-guide-avatar__surface[data-state=LISTENING] .ls-guide-avatar__statusRing,.ls-guide-avatar__surface[data-state=THINKING] .ls-guide-avatar__statusRing,.ls-guide-avatar__surface[data-speech-state=speaking] .ls-guide-avatar__statusRing {
+  opacity:1;
+  border-color:#bfdee53b;
+  transform:scale(1)
+}
+.ls-guide-avatar__surface[data-state=LISTENING] .ls-guide-avatar__statusRing {
+  border-color:#d990a261;
+  animation:3.2s ease-in-out infinite guide-listening-cue
+}
+.ls-guide-avatar__surface[data-state=THINKING] .ls-guide-avatar__statusRing {
+  border-color:#b9a1af57
+}
+.ls-guide-avatar__surface[data-speech-state=speaking] .ls-guide-avatar__statusRing {
+  border-color:#dda5b361;
+  animation:1.8s ease-in-out infinite guide-speaking-cue
+}
+.ls-guide-avatar__surface[data-gesture=settle] .ls-guide-avatar__frame {
+  transform:translateY(1px)
+}
+.ls-guide-avatar__surface[data-state=SAFETY] .ls-guide-avatar__statusRing,.ls-guide-avatar__surface[data-state=IMMEDIATE_DANGER] .ls-guide-avatar__statusRing,.ls-guide-avatar__surface[data-state=CONFLICT] .ls-guide-avatar__statusRing,.ls-guide-avatar__surface[data-state=ACTION_REQUIRED] .ls-guide-avatar__statusRing {
+  opacity:.42;
+  transform:scale(1)
+}
+.ls-guide-avatar__surface[data-reduced-motion=true] *,.ls-guide-avatar__surface[data-reduced-motion=true] :before,.ls-guide-avatar__surface[data-reduced-motion=true] :after {
+  scroll-behavior:auto!important;
+  transition:none!important;
+  animation:none!important
+}
+@keyframes guide-idle-breath {
+  0%,to {
+  transform:translateY(0)
+}
+50% {
+  transform:translateY(-2px)
+}
+
+}
+@keyframes guide-listening-cue {
+  0%,to {
+  opacity:.86;
+  transform:scale(1)
+}
+50% {
+  opacity:1;
+  transform:scale(1.018)
+}
+
+}
+@keyframes guide-speaking-cue {
+  0%,to {
+  opacity:.9;
+  transform:scale(1)
+}
+50% {
+  opacity:1;
+  transform:scale(1.025)
+}
+
+}
+@media (prefers-reduced-motion:reduce) {
+  .ls-guide-avatar__surface *,.ls-guide-avatar__surface :before,.ls-guide-avatar__surface :after {
+  scroll-behavior:auto!important;
+  transition:none!important;
+  animation:none!important
+}
+
+}
+@media (max-width:25rem) {
+  .ls-guide-avatar__frame {
+  width:min(100%,12rem)
+}
+
+}

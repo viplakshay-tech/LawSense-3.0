@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test:api": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test tests/api/legal-knowledge.test.mjs",
-    "test:resources": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test tests/resources/official-resources.test.mjs"
+    "test:resources": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test tests/resources/official-resources.test.mjs",
+    "test:guide": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test tests/guide/voice-presentation.test.mjs"
   },
   "dependencies": {
     "clsx": "^2.1.1",

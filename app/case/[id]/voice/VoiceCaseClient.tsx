@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import Link from 'next/link';
 import { ArrowLeft, BookOpen, CheckCircle2, Loader2, Mic, PhoneOff, ShieldAlert } from 'lucide-react';
 import { GuidePresence } from '@/components/guide-presence';
+import './VoiceCaseClient.css';
 import { createGuideVoiceRuntimeAdapter } from '@/components/guide-runtime/voice-adapter/runtime';
 import type { GuideVoiceEvent, VoiceInputMethod, VoiceLanguage } from '@/components/guide-runtime/voice-adapter/events';
 import type { GuideVoiceRuntimeAdapter } from '@/components/guide-runtime/voice-adapter/runtime';
@@ -309,51 +310,69 @@ export default function VoiceCaseClient({ id }: { id: string }) {
   }
 
   return (
-    <main className="min-h-[calc(100dvh-4rem)] bg-[#0c1118] px-4 py-5 text-slate-100 sm:px-6 sm:py-7">
-      <div className="mx-auto max-w-5xl">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <Link href={`/case/${encodeURIComponent(id)}`} className="inline-flex min-h-10 items-center gap-2 text-sm font-medium text-slate-400 hover:text-slate-100">
+    <main className={"ls-guide-call__callPage"}>
+      <div className={"ls-guide-call__pageShell"}>
+        <nav aria-label="Guide call navigation" className={"ls-guide-call__callNav"}>
+          <Link href={`/case/${encodeURIComponent(id)}`} className={"ls-guide-call__backLink"}>
             <ArrowLeft className="h-4 w-4" /> Back to case journey
           </Link>
-          <Link href={`/case/${encodeURIComponent(id)}`} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/[0.1] bg-white/[0.03] px-3 text-xs font-semibold text-slate-300 hover:bg-white/[0.07]">
+          <Link href={`/case/${encodeURIComponent(id)}`} className={"ls-guide-call__endCallLink"}>
             <PhoneOff aria-hidden="true" className="h-3.5 w-3.5" /> End call
           </Link>
-        </div>
+        </nav>
 
-        <section className="mt-4 overflow-hidden rounded-3xl border border-rose-100/[0.12] bg-[#12151c] shadow-[0_24px_75px_rgba(0,0,0,0.24)]">
-          <header className="border-b border-white/[0.07] bg-[linear-gradient(120deg,rgba(50,30,39,0.68),rgba(18,21,28,0.98)_68%)] p-5 sm:p-7">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.17em] text-rose-100/70"><Mic aria-hidden="true" className="h-3.5 w-3.5" />Clarify · Guide Call · Case {id}</p>
-                <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">Guide Call</h1>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">A call-style case session. Speak or type in your own words; recognition stays editable, and the case changes only after your review and confirmation.</p>
-              </div>
-              <Link href={`/case/${encodeURIComponent(id)}/guide`} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/[0.11] px-3 text-xs font-semibold text-slate-200 hover:bg-white/[0.05]"><BookOpen aria-hidden="true" className="h-3.5 w-3.5" />Open legal guide</Link>
+        <section className={"ls-guide-call__callExperience"}>
+          <header className={"ls-guide-call__callHeader"}>
+            <div className={"ls-guide-call__callHeading"}>
+              <p className={"ls-guide-call__eyebrow"}><Mic aria-hidden="true" />Clarify · Guide Call · Case {id}</p>
+              <h1>Guide Call</h1>
+              <p className={"ls-guide-call__intro"}>A guided space to tell your story in your own words. You can review every detail before it changes your case.</p>
             </div>
+            <Link href={`/case/${encodeURIComponent(id)}/guide`} className={"ls-guide-call__legalGuideLink"}>
+              <BookOpen aria-hidden="true" />Open private legal room
+            </Link>
           </header>
 
-          <div className="grid gap-5 p-4 sm:p-6 lg:grid-cols-[0.8fr_1.2fr]">
-            <section aria-label="Guide call status" className="rounded-2xl border border-white/[0.08] bg-[#0e1219] p-4 sm:p-5">
-              <div className="flex justify-center rounded-xl border border-rose-100/[0.08] bg-[radial-gradient(circle_at_50%_40%,rgba(154,83,101,0.14),transparent_56%)] py-4">
-                <GuidePresence state={callPresenceState} speechState={guideSnapshot.speechState} detail={callDetail} size="regular" visual={<div className="flex h-24 w-24 items-center justify-center rounded-full border border-rose-100/20 bg-[linear-gradient(145deg,#2d2027,#171923)] shadow-[0_0_40px_rgba(142,80,99,0.16)]"><span className="text-sm font-semibold tracking-[0.18em] text-rose-100/90">GUIDE</span></div>} />
+          <div className={"ls-guide-call__sessionGrid"}>
+            <section
+              aria-label="Guide consultation"
+              className={"ls-guide-call__guideCard"}
+              data-guide-state={callPresenceState}
+              data-speech-state={guideSnapshot.speechState}
+            >
+              <div className={"ls-guide-call__stageHeading"}>
+                <span>YOUR GUIDE</span>
+                <span className={"ls-guide-call__caseReference"}>LAW SENSE · CASE {id}</span>
               </div>
-              <div role="status" aria-live="polite" className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {(['LISTENING', 'THINKING', 'SPEAKING', 'CLARIFYING', 'SAFETY'] as const).map((state) => {
-                  const active = callPresenceState === state || (state === 'SAFETY' && callPresenceState === 'IMMEDIATE_DANGER');
-                  return <span key={state} data-active={active || undefined} className={`rounded-lg border px-2 py-2 text-center text-[9px] font-semibold tracking-[0.1em] ${active ? 'border-rose-100/25 bg-rose-100/[0.07] text-rose-50' : 'border-white/[0.06] bg-white/[0.015] text-slate-600'}`}>{state}</span>;
-                })}
+
+              <div className={"ls-guide-call__guideStage"}>
+                <GuidePresence
+                  state={callPresenceState}
+                  speechState={guideSnapshot.speechState}
+                  detail={callDetail}
+                  size="hero"
+                  className={"ls-guide-call__callPresence"}
+                />
               </div>
-              <p className="mt-3 text-center text-[10px] leading-4 text-slate-500">Your microphone activates only after you press the voice control. End Call exits this screen; cancel or stop to end capture.</p>
-              <p className="mt-3 rounded-lg border border-amber-100/10 bg-amber-100/[0.025] px-3 py-2.5 text-[10px] leading-4 text-amber-50/70">This local synthetic prototype does not promise confidentiality. Check the speech-provider notice before recording; it may use browser speech or a configured service.</p>
+
+              <p className={"ls-guide-call__microphoneNote"}>
+                {callPresenceState === 'LISTENING'
+                  ? 'Your microphone is active. Stop when you are ready.'
+                  : callPresenceState === 'THINKING'
+                    ? 'Preparing your transcript review. Nothing is added until you confirm.'
+                    : 'Your microphone stays off until you choose to start recording.'}
+              </p>
+              <p className={"ls-guide-call__privacyNote"}>This local synthetic prototype does not promise confidentiality. Check the speech-provider notice before recording; it may use browser speech or a configured service.</p>
             </section>
 
-            <section aria-labelledby="transcript-heading" className="min-w-0 rounded-2xl border border-white/[0.08] bg-[#171a21] p-4 sm:p-5">
-              <div className="flex flex-wrap items-end justify-between gap-3">
+            <section aria-labelledby="transcript-heading" className={"ls-guide-call__transcriptCard"}>
+              <div className={"ls-guide-call__transcriptHeading"}>
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">Audio capture → live transcript → your confirmation → case update → Guide response</p>
-                  <h2 id="transcript-heading" className="mt-2 text-lg font-semibold">Transcript &amp; review</h2>
+                  <p className={"ls-guide-call__eyebrow"}>YOUR ACCOUNT · YOUR REVIEW · YOUR DECISION</p>
+                  <h2 id="transcript-heading">Transcript &amp; review</h2>
+                  <p>Speak or type. Your words stay editable until you confirm.</p>
                 </div>
-                <button type="button" onClick={() => document.getElementById('voice-transcript')?.focus()} className="inline-flex min-h-9 items-center rounded-lg border border-white/[0.1] px-3 text-xs font-semibold text-slate-300 hover:bg-white/[0.04]">Type instead</button>
+                <button type="button" onClick={() => document.getElementById('voice-transcript')?.focus()} className={"ls-guide-call__typeInsteadButton"}>Type instead</button>
               </div>
 
           <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">

@@ -1,7 +1,7 @@
 'use client';
 
 import { useReducedMotion } from 'framer-motion';
-import styles from './GuidePresence.module.css';
+import './GuidePresence.css';
 import { AvatarSurface } from './avatar/AvatarSurface';
 import { GUIDE_PRESENCE_LABELS } from './types';
 import type { GuidePresenceProps } from './types';
@@ -29,7 +29,7 @@ export function GuidePresence({
   const canonicalState = canonicalGuidePresenceState(state);
   const presentation = getGuideStatePresentation(canonicalState);
   const isUrgent = canonicalState === 'IMMEDIATE_DANGER';
-  const rootClassName = [styles.presence, className].filter(Boolean).join(' ');
+  const rootClassName = ["ls-guide-presence__presence", className].filter(Boolean).join(' ');
   const rendererIsIllustrated = (avatarAdapter?.kind ?? 'illustrated') === 'illustrated';
 
   return (
@@ -43,7 +43,7 @@ export function GuidePresence({
       aria-atomic="true"
       aria-label={`${label}${detail ? `. ${detail}` : ''}`}
     >
-      <div className={styles.stage} aria-hidden="true">
+      <div className={"ls-guide-presence__stage"} aria-hidden="true">
         {visual ?? (
           <>
             <AvatarSurface
@@ -67,17 +67,17 @@ export function GuidePresence({
               reducedMotion={shouldReduceMotion}
             />
             {rendererIsIllustrated && (
-              <span className={styles.illustrationLabel}>
+              <span className={"ls-guide-presence__illustrationLabel"}>
                 {size === 'compact' ? 'ILLUSTRATED' : 'ILLUSTRATED GUIDE'}
               </span>
             )}
           </>
         )}
       </div>
-      <div className={styles.caption}>
-        <span className={styles.eyebrow}>LAWSENSE · GUIDE</span>
-        <span className={styles.stateLabel}>{label}</span>
-        {detail && <span className={styles.detail}>{detail}</span>}
+      <div className={"ls-guide-presence__caption"}>
+        <span className={"ls-guide-presence__eyebrow"}>LAWSENSE · GUIDE</span>
+        <span className={"ls-guide-presence__stateLabel"}>{label}</span>
+        {detail && <span className={"ls-guide-presence__detail"}>{detail}</span>}
       </div>
     </section>
   );

@@ -1,6 +1,6 @@
 import { useId } from 'react';
 import type { AvatarSurfaceProps, AvatarViseme } from './types';
-import styles from './IllustratedAvatarRenderer.module.css';
+import './IllustratedAvatarRenderer.css';
 
 const GAZE_POSITION = {
   camera: [0, 0],
@@ -106,7 +106,7 @@ export function IllustratedAvatarRenderer(props: AvatarSurfaceProps) {
 
   return (
     <div
-      className={styles.surface}
+      className={"ls-guide-avatar__surface"}
       data-state={props.visualState}
       data-size={props.size ?? 'regular'}
       data-speech-state={props.speechState}
@@ -115,8 +115,8 @@ export function IllustratedAvatarRenderer(props: AvatarSurfaceProps) {
       data-gesture={props.gestureHint}
       data-reduced-motion={props.reducedMotion ? 'true' : undefined}
     >
-      <div className={styles.frame}>
-        <svg className={styles.portrait} viewBox="0 0 280 320" role="presentation" focusable="false">
+      <div className={"ls-guide-avatar__frame"}>
+        <svg className={"ls-guide-avatar__portrait"} viewBox="0 0 280 320" role="presentation" focusable="false">
           <defs>
             <linearGradient id={backdropId} x1="0" y1="0" x2="1" y2="1">
               <stop offset="0" stopColor="#334353" />
@@ -130,7 +130,7 @@ export function IllustratedAvatarRenderer(props: AvatarSurfaceProps) {
 
           <rect x="5" y="5" width="270" height="310" rx="126" fill={`url(#${backdropId})`} />
           <g clipPath={`url(#${portraitClipId})`}>
-            <ellipse className={styles.halo} cx="140" cy="153" rx="112" ry="119" />
+            <ellipse className={"ls-guide-avatar__halo"} cx="140" cy="153" rx="112" ry="119" />
             <circle cx="140" cy="147" r="92" fill="#fff0d6" opacity="0.035" />
             <path d="M44 310c5-60 37-88 96-88s91 28 96 88H44Z" fill="#262d40" />
             <path d="M63 310c6-48 30-71 77-71s71 23 77 71H63Z" fill="#31435b" />
@@ -145,7 +145,7 @@ export function IllustratedAvatarRenderer(props: AvatarSurfaceProps) {
             <path d="M91 115c-12 24-12 73-5 101-15-11-24-33-23-61 1-32 13-56 34-70-3 10-5 20-6 30Z" fill="#332637" />
             <path d="M90 177c-8-2-11 5-8 14 3 9 9 13 16 11M190 177c8-2 11 5 8 14-3 9-9 13-16 11" fill="#d49a83" />
 
-            <g className={styles.head} data-head-state={props.visualState} style={{ transform: `rotate(${headTilt(props.visualState, props.gestureHint, props.reducedMotion)}deg)` }}>
+            <g className={"ls-guide-avatar__head"} data-head-state={props.visualState} style={{ transform: `rotate(${headTilt(props.visualState, props.gestureHint, props.reducedMotion)}deg)` }}>
               <path d={BROW_PATHS[props.expression][0]} fill="none" stroke="#65464a" strokeWidth="3.3" strokeLinecap="round" />
               <path d={BROW_PATHS[props.expression][1]} fill="none" stroke="#65464a" strokeWidth="3.3" strokeLinecap="round" />
               <path d="M91 145 Q105 137 119 145 Q106 157 91 145Z" fill="#fbf2e9" />
@@ -173,7 +173,7 @@ export function IllustratedAvatarRenderer(props: AvatarSurfaceProps) {
           <path d="M46 57c24-26 55-40 94-40" fill="none" stroke="#fff0d6" strokeOpacity="0.22" strokeWidth="1.3" strokeLinecap="round" />
           <circle cx="224" cy="77" r="2.2" fill="#f0cf98" fillOpacity="0.8" />
         </svg>
-        <span className={styles.statusRing} aria-hidden="true" />
+        <span className={"ls-guide-avatar__statusRing"} aria-hidden="true" />
       </div>
     </div>
   );

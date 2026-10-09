@@ -1,0 +1,336 @@
+.ls-guide-call__callPage {
+  color:#f5f1ef;
+  background:radial-gradient(at 12% 10%,#6f304333,#0000 34rem),radial-gradient(at 92% 38%,#3b485b33,#0000 42rem),#0b1017;
+  min-height:calc(100dvh - 4rem);
+  padding:clamp(1.1rem,3vw,2.6rem) clamp(1rem,4vw,3.5rem);
+  position:relative;
+  overflow:hidden
+}
+.ls-guide-call__pageShell {
+  width:min(100%,84rem);
+  margin-inline:auto;
+  position:relative
+}
+.ls-guide-call__callNav {
+  justify-content:space-between;
+  align-items:center;
+  gap:1rem;
+  min-height:2.75rem;
+  display:flex
+}
+.ls-guide-call__backLink,.ls-guide-call__endCallLink,.ls-guide-call__legalGuideLink {
+  justify-content:center;
+  align-items:center;
+  gap:.55rem;
+  min-height:2.75rem;
+  text-decoration:none;
+  transition:color .18s,border-color .18s,background-color .18s;
+  display:inline-flex
+}
+.ls-guide-call__backLink {
+  color:#b1adb1;
+  font-size:.84rem;
+  font-weight:560
+}
+.ls-guide-call__backLink:hover {
+  color:#fff7f5
+}
+.ls-guide-call__endCallLink {
+  color:#d8c8ca;
+  background:#ffffff06;
+  border:1px solid #e6ced31f;
+  border-radius:999px;
+  padding:.45rem .8rem;
+  font-size:.72rem;
+  font-weight:620
+}
+.ls-guide-call__endCallLink:hover {
+  background:#e6a6b711;
+  border-color:#e6a6b747
+}
+.ls-guide-call__callExperience {
+  background:linear-gradient(145deg,#171b23fa,#0e1219fc 66%);
+  border:1px solid #e2c9d01f;
+  border-radius:1.65rem;
+  margin-top:1.2rem;
+  overflow:hidden;
+  box-shadow:0 2rem 6rem #01040973,inset 0 1px #ffffff09
+}
+.ls-guide-call__callHeader {
+  background:radial-gradient(at 0 0,#833b4f26,#0000 34rem),linear-gradient(120deg,#241d25ad,#10141c40 72%);
+  border-bottom:1px solid #fff1;
+  justify-content:space-between;
+  align-items:flex-end;
+  gap:1.5rem;
+  padding:clamp(1.35rem,3.2vw,2.7rem);
+  display:flex
+}
+.ls-guide-call__callHeading {
+  min-width:0
+}
+.ls-guide-call__eyebrow {
+  color:#d6aab5;
+  letter-spacing:.17em;
+  text-transform:uppercase;
+  align-items:center;
+  gap:.5rem;
+  margin:0;
+  font-size:.65rem;
+  font-weight:700;
+  line-height:1.5;
+  display:inline-flex
+}
+.ls-guide-call__eyebrow svg {
+  width:.85rem;
+  height:.85rem
+}
+.ls-guide-call__callHeading h1,.ls-guide-call__transcriptHeading h2 {
+  color:#faf6f4;
+  letter-spacing:-.045em;
+  margin:0;
+  font-family:Georgia,Times New Roman,serif;
+  font-weight:400
+}
+.ls-guide-call__callHeading h1 {
+  margin-top:.7rem;
+  font-size:clamp(2.25rem,4.2vw,3.5rem);
+  line-height:1.04
+}
+.ls-guide-call__intro {
+  color:#b9b7bc;
+  max-width:42rem;
+  margin:.85rem 0 0;
+  font-size:clamp(.88rem,1.35vw,1rem);
+  line-height:1.65
+}
+.ls-guide-call__legalGuideLink {
+  color:#eee3e3;
+  background:#ffffff09;
+  border:1px solid #e5d1d624;
+  border-radius:.8rem;
+  flex:none;
+  padding:.55rem .85rem;
+  font-size:.75rem;
+  font-weight:650
+}
+.ls-guide-call__legalGuideLink svg {
+  color:#d5a4b0;
+  width:.9rem;
+  height:.9rem
+}
+.ls-guide-call__legalGuideLink:hover {
+  background:#e5a6b70f;
+  border-color:#e5a6b74d
+}
+.ls-guide-call__sessionGrid {
+  gap:clamp(1rem,2vw,1.5rem);
+  padding:clamp(.85rem,2.5vw,1.65rem);
+  display:grid
+}
+.ls-guide-call__guideCard,.ls-guide-call__transcriptCard {
+  background:linear-gradient(158deg,#12161ef0,#0c1017fa);
+  border:1px solid #ddcdd118;
+  border-radius:1.3rem;
+  min-width:0;
+  box-shadow:inset 0 1px #ffffff06
+}
+.ls-guide-call__guideCard {
+  padding:clamp(.95rem,2vw,1.35rem);
+  transition:border-color .3s,box-shadow .3s
+}
+.ls-guide-call__stageHeading {
+  color:#e4d8d9;
+  letter-spacing:.16em;
+  justify-content:space-between;
+  align-items:center;
+  gap:.75rem;
+  font-size:.62rem;
+  font-weight:700;
+  display:flex
+}
+.ls-guide-call__caseReference {
+  color:#77757d;
+  letter-spacing:.11em;
+  text-align:right;
+  font-size:.55rem;
+  font-weight:620
+}
+.ls-guide-call__guideStage {
+  isolation:isolate;
+  background:radial-gradient(at 50% 40%,#76384b42,#0000 57%),radial-gradient(at 50% 100%,#3f2f3c42,#0000 54%),linear-gradient(150deg,#151923,#10141c 76%);
+  border:1px solid #dfabb721;
+  border-radius:1.05rem;
+  place-items:center;
+  min-height:25.5rem;
+  margin-block:.75rem .9rem;
+  transition:border-color .3s,background-color .3s;
+  display:grid;
+  position:relative;
+  overflow:hidden
+}
+.ls-guide-call__guideStage:before {
+  z-index:-1;
+  aspect-ratio:1;
+  content:"";
+  background:radial-gradient(circle,#c5798d13,#0000 68%);
+  border:1px solid #deaeb813;
+  border-radius:50%;
+  width:min(74%,21rem);
+  transition:opacity .3s,transform .5s;
+  position:absolute
+}
+.ls-guide-call__guideStage:after {
+  content:"";
+  background:linear-gradient(90deg,#0000,#d9b8c01a,#0000);
+  height:1px;
+  position:absolute;
+  bottom:1rem;
+  left:1rem;
+  right:1rem
+}
+.ls-guide-call__callPresence {
+  width:100%;
+  max-width:100%;
+  box-shadow:none;
+  background:0 0;
+  border:0;
+  border-radius:0;
+  padding:0
+}
+.ls-guide-call__guideCard[data-guide-state=LISTENING] .ls-guide-call__guideStage {
+  background:radial-gradient(at 50% 40%,#88394f4d,#0000 57%),radial-gradient(at 50% 100%,#3f2f3c42,#0000 54%),linear-gradient(150deg,#151923,#10141c 76%);
+  border-color:#df99ab4d
+}
+.ls-guide-call__guideCard[data-guide-state=THINKING] .ls-guide-call__guideStage:before {
+  opacity:.58;
+  transform:scale(.97)
+}
+.ls-guide-call__guideCard[data-guide-state=SPEAKING][data-speech-state=speaking] .ls-guide-call__guideStage:before {
+  opacity:1;
+  transform:scale(1.025)
+}
+.ls-guide-call__guideCard[data-guide-state=SAFETY] .ls-guide-call__guideStage,.ls-guide-call__guideCard[data-guide-state=IMMEDIATE_DANGER] .ls-guide-call__guideStage {
+  border-color:#e4b37d40
+}
+.ls-guide-call__microphoneNote {
+  color:#c8c0c3;
+  text-align:center;
+  text-wrap:pretty;
+  margin:0;
+  font-size:.75rem;
+  line-height:1.55
+}
+.ls-guide-call__privacyNote {
+  color:#a89b83;
+  background:#c39d6209;
+  border:1px solid #e1c4911c;
+  border-radius:.75rem;
+  margin:.85rem 0 0;
+  padding:.7rem .8rem;
+  font-size:.64rem;
+  line-height:1.55
+}
+.ls-guide-call__transcriptCard {
+  padding:clamp(1rem,2.2vw,1.5rem)
+}
+.ls-guide-call__transcriptHeading {
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:1rem;
+  display:flex
+}
+.ls-guide-call__transcriptHeading h2 {
+  margin-top:.45rem;
+  font-size:clamp(1.65rem,2.4vw,2.05rem);
+  line-height:1.15
+}
+.ls-guide-call__transcriptHeading>div>p:last-child {
+  color:#a9a7ad;
+  margin:.5rem 0 0;
+  font-size:.78rem;
+  line-height:1.55
+}
+.ls-guide-call__typeInsteadButton {
+  color:#e9dfe1;
+  min-height:2.55rem;
+  font:inherit;
+  cursor:pointer;
+  background:#ffffff09;
+  border:1px solid #e6ced321;
+  border-radius:.7rem;
+  flex:none;
+  padding:.45rem .75rem;
+  font-size:.7rem;
+  font-weight:650
+}
+.ls-guide-call__typeInsteadButton:hover {
+  background:#ffffff13
+}
+.ls-guide-call__backLink:focus-visible,.ls-guide-call__endCallLink:focus-visible,.ls-guide-call__legalGuideLink:focus-visible,.ls-guide-call__typeInsteadButton:focus-visible {
+  outline-offset:3px;
+  outline:2px solid #dda5b3
+}
+@media (min-width:70rem) {
+  .ls-guide-call__sessionGrid {
+  grid-template-columns:minmax(25rem,.93fr) minmax(31rem,1.07fr);
+  align-items:start
+}
+
+}
+@media (max-width:54rem) {
+  .ls-guide-call__callHeader {
+  flex-direction:column;
+  align-items:flex-start
+}
+.ls-guide-call__guideStage {
+  min-height:23rem
+}
+
+}
+@media (max-width:35rem) {
+  .ls-guide-call__callPage {
+  padding-inline:.75rem
+}
+.ls-guide-call__callNav {
+  min-height:2.5rem
+}
+.ls-guide-call__backLink {
+  font-size:.75rem
+}
+.ls-guide-call__endCallLink {
+  min-height:2.5rem;
+  padding-inline:.65rem;
+  font-size:.68rem
+}
+.ls-guide-call__callExperience {
+  border-radius:1.15rem;
+  margin-top:.8rem
+}
+.ls-guide-call__callHeader {
+  gap:1rem
+}
+.ls-guide-call__legalGuideLink {
+  min-height:2.5rem
+}
+.ls-guide-call__sessionGrid {
+  padding:.65rem
+}
+.ls-guide-call__guideCard,.ls-guide-call__transcriptCard {
+  border-radius:.95rem
+}
+.ls-guide-call__guideStage {
+  min-height:20rem
+}
+.ls-guide-call__transcriptHeading {
+  flex-wrap:wrap
+}
+
+}
+@media (prefers-reduced-motion:reduce) {
+  .ls-guide-call__backLink,.ls-guide-call__endCallLink,.ls-guide-call__legalGuideLink,.ls-guide-call__guideCard,.ls-guide-call__guideStage,.ls-guide-call__guideStage:before {
+  scroll-behavior:auto;
+  transition:none;
+  animation:none
+}
+
+}

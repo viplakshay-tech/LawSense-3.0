@@ -1,0 +1,1011 @@
+.ls-guide-room__room {
+  --room-ink:#edf3f7;
+  --room-muted:#9baab7;
+  --room-dim:#718092;
+  --room-border:#c4d6e51a;
+  --room-panel:#0f1721e0;
+  min-height:100%;
+  color:var(--room-ink);
+  background:radial-gradient(at 47% 4%,#4e7d9b21,#0000 42rem),linear-gradient(145deg,#0d141d 0%,#090f17 57%,#0b121a 100%);
+  padding:clamp(1rem,2.8vw,2.25rem)
+}
+.ls-guide-room__roomShell {
+  width:min(100%,96rem);
+  margin-inline:auto
+}
+.ls-guide-room__header {
+  border-bottom:1px solid var(--room-border);
+  justify-content:space-between;
+  align-items:center;
+  gap:1.25rem;
+  padding:.1rem 0 1.15rem;
+  display:flex
+}
+.ls-guide-room__brand,.ls-guide-room__roomIndicators,.ls-guide-room__brandMark,.ls-guide-room__cameraOff,.ls-guide-room__privateLabel {
+  align-items:center;
+  display:flex
+}
+.ls-guide-room__brand {
+  gap:.9rem;
+  min-width:0
+}
+.ls-guide-room__brandMark {
+  color:#e7c99c;
+  background:#e7c99c12;
+  border:1px solid #e7c99c33;
+  border-radius:.95rem;
+  flex:none;
+  justify-content:center;
+  width:2.8rem;
+  height:2.8rem
+}
+.ls-guide-room__brandMark svg {
+  width:1.25rem;
+  height:1.25rem
+}
+.ls-guide-room__brandCopy {
+  min-width:0
+}
+.ls-guide-room__eyebrow,.ls-guide-room__cardEyebrow {
+  color:var(--room-dim);
+  letter-spacing:.16em;
+  text-transform:uppercase;
+  margin:0;
+  font-size:.62rem;
+  font-weight:700;
+  line-height:1.4
+}
+.ls-guide-room__title {
+  color:#f5f7f8;
+  letter-spacing:-.035em;
+  margin:.14rem 0 0;
+  font-size:clamp(1.08rem,2vw,1.45rem);
+  font-weight:610;
+  line-height:1.25
+}
+.ls-guide-room__caseTitle {
+  color:#9daab6;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  margin:.25rem 0 0;
+  font-size:.78rem;
+  overflow:hidden
+}
+.ls-guide-room__roomIndicators {
+  flex:none;
+  gap:.65rem
+}
+.ls-guide-room__cameraOff,.ls-guide-room__privateLabel {
+  color:#d7e1e8;
+  white-space:nowrap;
+  background:#ffffff09;
+  border:1px solid #c9d9e61c;
+  border-radius:999px;
+  justify-content:center;
+  gap:.45rem;
+  min-height:2.35rem;
+  padding:.45rem .75rem;
+  font-size:.69rem;
+  font-weight:620
+}
+.ls-guide-room__cameraOff svg {
+  color:#d8b883;
+  width:.95rem;
+  height:.95rem
+}
+.ls-guide-room__privateLabel {
+  color:#adbdc8
+}
+.ls-guide-room__workspaceNav {
+  grid-template-columns:repeat(6,minmax(0,1fr));
+  gap:.5rem;
+  margin:1rem 0;
+  display:grid
+}
+.ls-guide-room__workspaceLink {
+  color:#c1ccd5;
+  border:1px solid var(--room-border);
+  background:#ffffff06;
+  border-radius:.8rem;
+  align-items:center;
+  gap:.55rem;
+  min-width:0;
+  min-height:2.8rem;
+  padding:.55rem .7rem;
+  font-size:.72rem;
+  font-weight:580;
+  text-decoration:none;
+  transition:background-color .15s,border-color .15s,color .15s;
+  display:flex
+}
+.ls-guide-room__workspaceLink:hover {
+  color:#fff;
+  background:#e7c99c0e;
+  border-color:#e7c99c40
+}
+.ls-guide-room__workspaceLink>svg:first-child {
+  color:#d4b985;
+  flex:none;
+  width:1rem;
+  height:1rem
+}
+.ls-guide-room__workspaceLink span {
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  overflow:hidden
+}
+.ls-guide-room__workspaceArrow {
+  color:#69788a;
+  flex:none;
+  width:.8rem;
+  height:.8rem;
+  margin-left:auto
+}
+.ls-guide-room__caseStrip {
+  border:1px solid var(--room-border);
+  background:#0f1822d1;
+  border-radius:1rem;
+  align-items:center;
+  gap:clamp(1rem,3vw,2.5rem);
+  min-width:0;
+  padding:.85rem 1rem;
+  display:flex
+}
+.ls-guide-room__caseStripHeading {
+  color:#dae2e8;
+  flex:none;
+  align-items:center;
+  gap:.5rem;
+  font-size:.69rem;
+  font-weight:650;
+  display:flex
+}
+.ls-guide-room__caseStripHeading h2 {
+  font-size:inherit;
+  font-weight:inherit;
+  white-space:nowrap;
+  margin:0
+}
+.ls-guide-room__liveDot,.ls-guide-room__stateDot {
+  background:#73c8a6;
+  border-radius:50%;
+  flex:none;
+  width:.46rem;
+  height:.46rem;
+  box-shadow:0 0 .8rem #73c8a666
+}
+.ls-guide-room__caseStats {
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:.5rem;
+  width:100%;
+  margin:0;
+  display:grid
+}
+.ls-guide-room__caseStat {
+  border-left:1px solid #c4d6e517;
+  min-width:0;
+  padding-left:.7rem
+}
+.ls-guide-room__caseStat dt {
+  color:var(--room-dim);
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:.59rem;
+  overflow:hidden
+}
+.ls-guide-room__caseStat dd {
+  color:#edf3f7;
+  font-variant-numeric:tabular-nums;
+  margin:.2rem 0 0;
+  font-size:.83rem;
+  font-weight:650
+}
+.ls-guide-room__roomColumns {
+  grid-template-columns:minmax(0,1.65fr) minmax(17rem,.86fr);
+  align-items:start;
+  gap:1rem;
+  margin-top:1rem;
+  display:grid
+}
+.ls-guide-room__consultation,.ls-guide-room__caseAside {
+  gap:.8rem;
+  min-width:0;
+  display:grid
+}
+.ls-guide-room__stageCard,.ls-guide-room__activityCard,.ls-guide-room__caseIntro,.ls-guide-room__detailCard,.ls-guide-room__actionCard {
+  border:1px solid var(--room-border);
+  background:var(--room-panel);
+  border-radius:1.15rem;
+  min-width:0;
+  box-shadow:0 18px 50px #01070d26
+}
+.ls-guide-room__stageCard {
+  padding:clamp(.8rem,1.8vw,1.35rem);
+  overflow:hidden
+}
+.ls-guide-room__stageHeading,.ls-guide-room__activityHeading,.ls-guide-room__actionHeading,.ls-guide-room__roomFooter {
+  justify-content:space-between;
+  align-items:center;
+  gap:.8rem;
+  display:flex
+}
+.ls-guide-room__stageHeading {
+  min-height:2rem;
+  padding:0 .25rem
+}
+.ls-guide-room__stageSubheading {
+  color:#bcc8d1;
+  margin:.2rem 0 0;
+  font-size:.83rem;
+  line-height:1.45
+}
+.ls-guide-room__statePill {
+  color:#d8e5ec;
+  background:#ffffff09;
+  border:1px solid #c4d6e51f;
+  border-radius:999px;
+  flex:none;
+  align-items:center;
+  gap:.48rem;
+  min-height:2rem;
+  padding:.35rem .72rem;
+  font-size:.65rem;
+  font-weight:650;
+  display:inline-flex
+}
+.ls-guide-room__statePill[data-state=listening] .ls-guide-room__stateDot {
+  background:#78d8c5
+}
+.ls-guide-room__statePill[data-state=processing] .ls-guide-room__stateDot {
+  background:#87b9ed
+}
+.ls-guide-room__statePill[data-state=speaking] .ls-guide-room__stateDot {
+  background:#74c9d9
+}
+.ls-guide-room__statePill[data-state=safety] .ls-guide-room__stateDot,.ls-guide-room__statePill[data-state=conflict] .ls-guide-room__stateDot {
+  background:#e9bd7b
+}
+.ls-guide-room__statePill[data-state=error] .ls-guide-room__stateDot {
+  background:#df898b
+}
+.ls-guide-room__guideStage {
+  isolation:isolate;
+  background:linear-gradient(#0a11194d,#070d14b8),radial-gradient(at 50% 45%,#638da321,#0000 56%),#0b121a;
+  border:1px solid #bdd5e413;
+  border-radius:1rem;
+  place-items:center;
+  min-height:12rem;
+  margin-top:.55rem;
+  display:grid;
+  position:relative;
+  overflow:hidden
+}
+.ls-guide-room__stageGlow {
+  z-index:-1;
+  filter:blur(12px);
+  pointer-events:none;
+  background:radial-gradient(#97b8c81c,#0000 68%);
+  border-radius:50%;
+  position:absolute;
+  inset:13% 13% 9%
+}
+.ls-guide-room__guideStage[data-guide-state=listening] .ls-guide-room__stageGlow {
+  background:radial-gradient(#58c9ae21,#0000 68%)
+}
+.ls-guide-room__guideStage[data-guide-state=processing] .ls-guide-room__stageGlow {
+  background:radial-gradient(#68a3dd24,#0000 68%)
+}
+.ls-guide-room__guideStage[data-guide-state=speaking] .ls-guide-room__stageGlow {
+  background:radial-gradient(#4fb1c526,#0000 68%)
+}
+.ls-guide-room__guideStage[data-guide-state=safety] .ls-guide-room__stageGlow {
+  background:radial-gradient(#d39a671f,#0000 68%)
+}
+.ls-guide-room__cameraIndicator {
+  z-index:4;
+  color:#e1e8ec;
+  -webkit-backdrop-filter:blur(12px);
+  backdrop-filter:blur(12px);
+  background:#0b1118cc;
+  border:1px solid #d5e1ea24;
+  border-radius:999px;
+  align-items:center;
+  gap:.42rem;
+  min-height:2rem;
+  padding:.4rem .65rem;
+  font-size:.64rem;
+  font-weight:620;
+  display:inline-flex;
+  position:absolute;
+  top:.8rem;
+  right:.8rem
+}
+.ls-guide-room__cameraIndicator svg {
+  color:#e6c28b;
+  width:.9rem;
+  height:.9rem
+}
+.ls-guide-room__summaryCard {
+  background:linear-gradient(120deg,#e7c99c11,#ffffff05);
+  border:1px solid #e7c99c21;
+  border-radius:.9rem;
+  align-items:flex-start;
+  gap:.75rem;
+  margin-top:.85rem;
+  padding:.8rem .9rem;
+  display:flex
+}
+.ls-guide-room__summaryIcon,.ls-guide-room__asideIcon {
+  flex:none;
+  place-items:center;
+  display:grid
+}
+.ls-guide-room__summaryIcon {
+  color:#e5c48f;
+  background:#e7c99c14;
+  border-radius:.65rem;
+  width:1.9rem;
+  height:1.9rem
+}
+.ls-guide-room__summaryIcon svg {
+  width:.95rem;
+  height:.95rem
+}
+.ls-guide-room__summaryCopy {
+  min-width:0
+}
+.ls-guide-room__summaryCopy>p:last-child {
+  color:#c3ced5;
+  overflow-wrap:anywhere;
+  margin:.25rem 0 0;
+  font-size:.76rem;
+  line-height:1.55
+}
+.ls-guide-room__controls {
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:.55rem;
+  margin-top:.9rem;
+  display:grid
+}
+.ls-guide-room__controlButton {
+  color:#d6e0e7;
+  min-width:0;
+  min-height:4.45rem;
+  font:inherit;
+  text-align:center;
+  cursor:pointer;
+  background:#ffffff09;
+  border:1px solid #ccdbe61f;
+  border-radius:.9rem;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  gap:.22rem;
+  padding:.55rem .45rem;
+  text-decoration:none;
+  transition:background-color .15s,border-color .15s,transform .15s;
+  display:flex
+}
+.ls-guide-room__controlButton>svg,.ls-guide-room__controlIcon {
+  color:#d9bd8a;
+  width:1.05rem;
+  height:1.05rem;
+  margin-bottom:.08rem
+}
+.ls-guide-room__controlIcon {
+  border:1px solid #d9bd8a61;
+  border-radius:.27rem;
+  place-items:center;
+  font-size:.66rem;
+  font-weight:700;
+  display:grid
+}
+.ls-guide-room__controlButton>span:not(.ls-guide-room__controlIcon) {
+  font-size:.75rem;
+  font-weight:680
+}
+.ls-guide-room__controlButton small {
+  color:#8796a4;
+  font-size:.58rem;
+  line-height:1.3
+}
+.ls-guide-room__controlButton:hover:not(:disabled) {
+  background:#fff1;
+  border-color:#ccdbe63d;
+  transform:translateY(-1px)
+}
+.ls-guide-room__controlButton:disabled {
+  cursor:not-allowed;
+  opacity:.52
+}
+.ls-guide-room__controlPrimary {
+  color:#f7e9d1;
+  background:linear-gradient(135deg,#a0794347,#e7c99c12);
+  border-color:#e7c99c45
+}
+.ls-guide-room__controlPrimary>svg {
+  color:#f2cf98
+}
+.ls-guide-room__controlSecondary {
+  flex-direction:row;
+  grid-column:1/-1;
+  gap:.65rem;
+  min-height:2.65rem
+}
+.ls-guide-room__controlSecondary>svg {
+  margin:0
+}
+.ls-guide-room__controlSecondary small {
+  margin-left:.2rem
+}
+.ls-guide-room__cameraNotice {
+  color:#718092;
+  text-align:center;
+  margin:.6rem 0 0;
+  font-size:.62rem
+}
+.ls-guide-room__activityCard {
+  padding:.85rem 1rem
+}
+.ls-guide-room__activityHeading h2,.ls-guide-room__actionHeading h2 {
+  color:#dfe6eb;
+  margin:0;
+  font-size:.73rem;
+  font-weight:670
+}
+.ls-guide-room__activityHeading span {
+  color:#718092;
+  font-size:.59rem
+}
+.ls-guide-room__activityList {
+  gap:.4rem;
+  margin-top:.65rem;
+  display:grid
+}
+.ls-guide-room__activityList p {
+  color:#97a6b2;
+  border-left:1px solid #e7c99c3d;
+  margin:0;
+  padding-left:.6rem;
+  font-size:.65rem;
+  line-height:1.5
+}
+.ls-guide-room__activityList p[data-kind=action] {
+  color:#b5ddca;
+  border-color:#70c6a266
+}
+.ls-guide-room__activityList p[data-kind=error] {
+  color:#f0b8b9;
+  border-color:#df898b80
+}
+.ls-guide-room__caseAside {
+  align-content:start
+}
+.ls-guide-room__caseIntro,.ls-guide-room__detailCard,.ls-guide-room__actionCard {
+  padding:.95rem
+}
+.ls-guide-room__asideHeading,.ls-guide-room__cardHeadingWithIcon {
+  align-items:center;
+  gap:.65rem;
+  display:flex
+}
+.ls-guide-room__asideIcon {
+  color:#e4c18d;
+  background:#e7c99c12;
+  border:1px solid #e7c99c29;
+  border-radius:.75rem;
+  width:2.25rem;
+  height:2.25rem
+}
+.ls-guide-room__asideIcon svg {
+  width:1rem;
+  height:1rem
+}
+.ls-guide-room__asideHeading h2 {
+  color:#f0f3f5;
+  letter-spacing:-.02em;
+  margin:.18rem 0 0;
+  font-size:.95rem;
+  font-weight:650
+}
+.ls-guide-room__caseStatement {
+  color:#d0d9df;
+  white-space:pre-wrap;
+  border-left:2px solid #e7c99c59;
+  max-height:7.2rem;
+  margin:.85rem 0 0;
+  padding-left:.7rem;
+  font-size:.72rem;
+  line-height:1.6;
+  overflow:auto
+}
+.ls-guide-room__cardTitle {
+  color:#e9edf0;
+  margin:.25rem 0 0;
+  font-size:.75rem;
+  font-weight:640;
+  line-height:1.45
+}
+.ls-guide-room__cardCopy {
+  color:#a4b1bc;
+  margin:.42rem 0 0;
+  font-size:.67rem;
+  line-height:1.55
+}
+.ls-guide-room__cardNote {
+  color:#8594a2;
+  margin:.55rem 0 0;
+  font-size:.63rem;
+  line-height:1.5;
+  display:block
+}
+.ls-guide-room__uncertaintyNote {
+  color:#ebcf9f;
+  background:#e7c99c0b;
+  border:1px solid #e7c99c26;
+  border-radius:.75rem;
+  align-items:flex-start;
+  gap:.55rem;
+  margin-top:.75rem;
+  padding:.65rem;
+  display:flex
+}
+.ls-guide-room__uncertaintyNote>svg {
+  flex:none;
+  width:.9rem;
+  height:.9rem;
+  margin-top:.12rem
+}
+.ls-guide-room__uncertaintyNote p {
+  margin:0;
+  font-size:.66rem;
+  font-weight:650
+}
+.ls-guide-room__uncertaintyNote span {
+  color:#bba982;
+  margin-top:.2rem;
+  font-size:.61rem;
+  line-height:1.45;
+  display:block
+}
+.ls-guide-room__cardHeadingWithIcon {
+  color:#ecc692;
+  align-items:flex-start
+}
+.ls-guide-room__cardHeadingWithIcon>svg {
+  flex:none;
+  width:.95rem;
+  height:.95rem;
+  margin-top:.12rem
+}
+.ls-guide-room__safetyCard {
+  background:linear-gradient(135deg,#5a3c2233,#0f1721e0 66%);
+  border-color:#e7c99c33
+}
+.ls-guide-room__safetyCard .ls-guide-room__cardCopy {
+  color:#d5c2a5
+}
+.ls-guide-room__detailList {
+  color:#c5d0d7;
+  gap:.45rem;
+  margin:.62rem 0 0;
+  padding-left:1rem;
+  font-size:.65rem;
+  line-height:1.5;
+  display:grid
+}
+.ls-guide-room__detailList li::marker {
+  color:#d9bd8a
+}
+.ls-guide-room__cardDivider {
+  border-top:1px solid var(--room-border);
+  margin-top:.7rem;
+  padding-top:.7rem
+}
+.ls-guide-room__actionCard {
+  background:linear-gradient(145deg,#e7c99c0a,#0f1721e0 58%);
+  border-color:#e7c99c26
+}
+.ls-guide-room__actionHeading {
+  margin-bottom:.65rem
+}
+.ls-guide-room__actionHeading>span {
+  color:#e8cc9f;
+  font-variant-numeric:tabular-nums;
+  border:1px solid #e7c99c24;
+  border-radius:999px;
+  place-items:center;
+  min-width:1.5rem;
+  min-height:1.5rem;
+  font-size:.61rem;
+  display:grid
+}
+.ls-guide-room__actionList {
+  gap:.35rem;
+  display:grid
+}
+.ls-guide-room__actionList button {
+  color:#d2dbe1;
+  min-height:2.65rem;
+  font:inherit;
+  text-align:left;
+  cursor:pointer;
+  background:#ffffff06;
+  border:1px solid #c4d6e516;
+  border-radius:.65rem;
+  justify-content:space-between;
+  align-items:center;
+  gap:.7rem;
+  padding:.5rem .62rem;
+  font-size:.65rem;
+  display:flex
+}
+.ls-guide-room__actionList button:hover:not(:disabled) {
+  background:#e7c99c0d;
+  border-color:#e7c99c38
+}
+.ls-guide-room__actionList button:disabled {
+  cursor:wait;
+  opacity:.55
+}
+.ls-guide-room__actionList button svg {
+  color:#d4b985;
+  flex:none;
+  width:.85rem;
+  height:.85rem
+}
+.ls-guide-room__roomFooter {
+  color:#718092;
+  border-top:1px solid var(--room-border);
+  margin:1.1rem 0 0;
+  padding:.8rem .2rem .25rem;
+  font-size:.62rem
+}
+.ls-guide-room__roomFooter a,.ls-guide-room__refreshError button,.ls-guide-room__secondaryButton {
+  color:#e5c48f;
+  align-items:center;
+  gap:.35rem;
+  text-decoration:none;
+  display:inline-flex
+}
+.ls-guide-room__roomFooter a svg {
+  width:.8rem;
+  height:.8rem
+}
+.ls-guide-room__roomFooter a:hover {
+  color:#f5dcad
+}
+.ls-guide-room__refreshError {
+  color:#f2d7aa;
+  background:#e7c99c0b;
+  border:1px solid #e7c99c30;
+  border-radius:.8rem;
+  justify-content:space-between;
+  align-items:center;
+  gap:.75rem;
+  margin:.8rem 0;
+  padding:.7rem .85rem;
+  font-size:.68rem;
+  line-height:1.4;
+  display:flex
+}
+.ls-guide-room__refreshError button {
+  font:inherit;
+  cursor:pointer;
+  background:0 0;
+  border:0;
+  flex:none;
+  padding:.35rem;
+  font-weight:650
+}
+.ls-guide-room__refreshError button:hover {
+  color:#fff0d1
+}
+.ls-guide-room__loadingCard {
+  color:#c0cbd3;
+  border:1px solid var(--room-border);
+  background:var(--room-panel);
+  text-align:center;
+  border-radius:1.1rem;
+  justify-content:center;
+  align-items:center;
+  gap:.75rem;
+  min-height:13rem;
+  margin-top:1rem;
+  padding:1.5rem;
+  font-size:.82rem;
+  display:flex
+}
+.ls-guide-room__loadingCard svg {
+  color:#dfbd84;
+  width:1.1rem;
+  height:1.1rem;
+  animation:1.2s linear infinite room-spin
+}
+.ls-guide-room__errorCard {
+  border-color:#df898b40;
+  align-items:flex-start;
+  gap:.75rem;
+  margin-top:1rem;
+  display:flex
+}
+.ls-guide-room__errorCard>svg {
+  color:#df898b;
+  flex:none;
+  width:1.2rem;
+  height:1.2rem
+}
+.ls-guide-room__inlineError {
+  color:#f0b8b9;
+  background:#df898b0b;
+  border:1px solid #df898b38;
+  border-radius:.7rem;
+  margin:.7rem 0 0;
+  padding:.65rem .75rem;
+  font-size:.68rem
+}
+.ls-guide-room__secondaryButton {
+  min-height:2.5rem;
+  font:inherit;
+  cursor:pointer;
+  background:#ffffff09;
+  border:1px solid #c4d6e524;
+  border-radius:.65rem;
+  margin-top:.75rem;
+  padding:.45rem .75rem;
+  font-size:.68rem;
+  font-weight:650
+}
+.ls-guide-room__secondaryButton:hover {
+  background:#ffffff13
+}
+.ls-guide-room__visuallyHidden {
+  clip:rect(0, 0, 0, 0);
+  white-space:nowrap;
+  clip-path:inset(50%);
+  width:1px;
+  height:1px;
+  position:absolute;
+  overflow:hidden
+}
+.ls-guide-room__workspaceLink:focus-visible,.ls-guide-room__controlButton:focus-visible,.ls-guide-room__actionList button:focus-visible,.ls-guide-room__roomFooter a:focus-visible,.ls-guide-room__refreshError button:focus-visible,.ls-guide-room__secondaryButton:focus-visible {
+  outline-offset:3px;
+  outline:2px solid #e9bd7b
+}
+@keyframes room-spin {
+  to {
+  transform:rotate(360deg)
+}
+
+}
+@media (max-width:76rem) {
+  .ls-guide-room__roomColumns {
+  grid-template-columns:minmax(0,1.35fr) minmax(16rem,.9fr)
+}
+.ls-guide-room__workspaceNav {
+  grid-template-columns:repeat(3,minmax(0,1fr))
+}
+.ls-guide-room__caseStrip {
+  flex-direction:column;
+  align-items:flex-start;
+  gap:.65rem
+}
+.ls-guide-room__caseStats {
+  grid-template-columns:repeat(5,minmax(5rem,1fr));
+  padding-bottom:.15rem;
+  overflow-x:auto
+}
+
+}
+@media (max-width:58rem) {
+  .ls-guide-room__roomColumns {
+  grid-template-columns:minmax(0,1fr)
+}
+.ls-guide-room__caseAside {
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  align-items:start
+}
+.ls-guide-room__caseIntro,.ls-guide-room__actionCard {
+  grid-column:1/-1
+}
+.ls-guide-room__guideStage {
+  min-height:12rem
+}
+
+}
+@media (max-width:38rem) {
+  .ls-guide-room__room {
+  padding:.75rem .7rem 1rem
+}
+.ls-guide-room__header {
+  align-items:flex-start;
+  padding-bottom:.8rem
+}
+.ls-guide-room__brand {
+  gap:.58rem
+}
+.ls-guide-room__brandMark {
+  border-radius:.75rem;
+  width:2.35rem;
+  height:2.35rem
+}
+.ls-guide-room__brandMark svg {
+  width:1.05rem;
+  height:1.05rem
+}
+.ls-guide-room__title {
+  font-size:1.04rem
+}
+.ls-guide-room__caseTitle {
+  max-width:12rem;
+  font-size:.7rem
+}
+.ls-guide-room__roomIndicators {
+  flex-direction:column;
+  align-items:flex-end;
+  gap:.35rem
+}
+.ls-guide-room__cameraOff,.ls-guide-room__privateLabel {
+  min-height:1.85rem;
+  padding:.3rem .55rem;
+  font-size:.58rem
+}
+.ls-guide-room__cameraOff svg {
+  width:.8rem;
+  height:.8rem
+}
+.ls-guide-room__privateLabel {
+  display:none
+}
+.ls-guide-room__workspaceNav {
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:.36rem;
+  margin:.75rem 0
+}
+.ls-guide-room__workspaceLink {
+  justify-content:center;
+  gap:.35rem;
+  min-height:2.5rem;
+  padding:.45rem .25rem;
+  font-size:.65rem
+}
+.ls-guide-room__workspaceLink>svg:first-child {
+  width:.88rem;
+  height:.88rem
+}
+.ls-guide-room__workspaceArrow {
+  display:none
+}
+.ls-guide-room__caseStrip {
+  padding:.7rem
+}
+.ls-guide-room__caseStats {
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  overflow:visible
+}
+.ls-guide-room__caseStat {
+  padding-left:.5rem
+}
+.ls-guide-room__caseStat dt {
+  font-size:.52rem
+}
+.ls-guide-room__caseStat dd {
+  font-size:.75rem
+}
+.ls-guide-room__roomColumns {
+  gap:.7rem;
+  margin-top:.7rem
+}
+.ls-guide-room__stageCard {
+  border-radius:.95rem;
+  padding:.65rem
+}
+.ls-guide-room__stageHeading {
+  align-items:flex-start;
+  padding:0 .1rem
+}
+.ls-guide-room__stageSubheading {
+  max-width:13rem;
+  font-size:.7rem
+}
+.ls-guide-room__statePill {
+  gap:.35rem;
+  min-height:1.8rem;
+  padding:.3rem .5rem;
+  font-size:.57rem
+}
+.ls-guide-room__stateDot {
+  width:.38rem;
+  height:.38rem
+}
+.ls-guide-room__guideStage {
+  border-radius:.8rem;
+  min-height:10rem;
+  margin-top:.45rem
+}
+.ls-guide-room__cameraIndicator {
+  gap:.3rem;
+  min-height:1.8rem;
+  padding:.32rem .5rem;
+  font-size:.56rem;
+  top:.55rem;
+  right:.55rem
+}
+.ls-guide-room__cameraIndicator svg {
+  width:.8rem;
+  height:.8rem
+}
+.ls-guide-room__summaryCard {
+  gap:.55rem;
+  margin-top:.65rem;
+  padding:.65rem
+}
+.ls-guide-room__summaryIcon {
+  width:1.7rem;
+  height:1.7rem
+}
+.ls-guide-room__summaryCopy>p:last-child {
+  font-size:.68rem
+}
+.ls-guide-room__controls {
+  gap:.35rem;
+  margin-top:.7rem
+}
+.ls-guide-room__controlButton {
+  border-radius:.72rem;
+  min-height:4.1rem;
+  padding:.45rem .22rem
+}
+.ls-guide-room__controlButton>span:not(.ls-guide-room__controlIcon) {
+  font-size:.68rem
+}
+.ls-guide-room__controlButton small {
+  max-width:6rem;
+  font-size:.5rem
+}
+.ls-guide-room__controlSecondary {
+  flex-wrap:wrap;
+  gap:.4rem;
+  min-height:2.55rem
+}
+.ls-guide-room__controlSecondary small {
+  display:none
+}
+.ls-guide-room__cameraNotice {
+  font-size:.56rem
+}
+.ls-guide-room__caseAside {
+  grid-template-columns:minmax(0,1fr);
+  gap:.65rem
+}
+.ls-guide-room__caseIntro,.ls-guide-room__actionCard {
+  grid-column:auto
+}
+.ls-guide-room__caseIntro,.ls-guide-room__detailCard,.ls-guide-room__actionCard {
+  border-radius:.9rem;
+  padding:.8rem
+}
+.ls-guide-room__roomFooter {
+  flex-direction:column;
+  align-items:flex-start;
+  gap:.5rem;
+  font-size:.57rem
+}
+.ls-guide-room__refreshError {
+  align-items:flex-start;
+  font-size:.62rem
+}
+
+}
+@media (prefers-reduced-motion:reduce) {
+  .ls-guide-room__workspaceLink,.ls-guide-room__controlButton {
+  transition:none
+}
+.ls-guide-room__controlButton:hover:not(:disabled) {
+  transform:none
+}
+.ls-guide-room__loadingCard svg {
+  animation:none
+}
+
+}

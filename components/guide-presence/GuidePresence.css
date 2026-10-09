@@ -1,0 +1,199 @@
+.ls-guide-presence__presence {
+  --presence-accent:#d8abb6;
+  --presence-accent-rgb:216, 171, 182;
+  --presence-ink:#f5f1ef;
+  --presence-muted:#a99fa3;
+  width:min(100%,29rem);
+  min-width:0;
+  color:var(--presence-ink);
+  background:radial-gradient(ellipse at 50% 36%, rgba(var(--presence-accent-rgb), .13), transparent 58%), linear-gradient(145deg, #1c1b23fa, #0c1017fc 72%);
+  border:1px solid #e2c9d01f;
+  border-radius:1.35rem;
+  grid-template-rows:minmax(0,1fr) auto;
+  gap:.7rem;
+  padding:clamp(.8rem,3vw,1.25rem);
+  transition:border-color .45s,background-color .45s,box-shadow .45s;
+  display:grid;
+  position:relative;
+  overflow:hidden;
+  box-shadow:inset 0 1px #ffffff0d,0 20px 55px #01070c33
+}
+.ls-guide-presence__presence[data-size=compact] {
+  border-radius:1rem;
+  grid-template-rows:1fr;
+  grid-template-columns:minmax(4.8rem,.65fr) minmax(0,1fr);
+  align-items:center;
+  gap:.65rem;
+  width:min(100%,24rem);
+  padding:.72rem .9rem
+}
+.ls-guide-presence__presence[data-size=hero] {
+  border-radius:1.75rem;
+  width:min(100%,40rem);
+  padding:clamp(1rem,4vw,2rem)
+}
+.ls-guide-presence__presence[data-state=UNCERTAIN],.ls-guide-presence__presence[data-state=CONFLICT] {
+  border-color:#e3ac7440
+}
+.ls-guide-presence__presence[data-state=SAFETY] {
+  border-color:#f1a87257;
+  box-shadow:inset 0 1px #ffe2c70f,0 20px 55px #48221129
+}
+.ls-guide-presence__presence[data-state=IMMEDIATE_DANGER] {
+  border-color:#f1a87275;
+  box-shadow:inset 0 1px #ffe2c714,0 20px 55px #48221133
+}
+.ls-guide-presence__presence[data-state=ACTION_REQUIRED] {
+  border-color:#e07d7e52
+}
+.ls-guide-presence__stage {
+  isolation:isolate;
+  place-items:center;
+  min-height:16rem;
+  display:grid;
+  position:relative
+}
+.ls-guide-presence__presence[data-size=compact] .ls-guide-presence__stage {
+  min-height:5.7rem
+}
+.ls-guide-presence__presence[data-size=hero] .ls-guide-presence__stage {
+  min-height:clamp(22rem,50vw,25rem)
+}
+.ls-guide-presence__illustrationLabel {
+  z-index:2;
+  color:#f1dadfc7;
+  letter-spacing:.15em;
+  -webkit-backdrop-filter:blur(8px);
+  backdrop-filter:blur(8px);
+  background:#141118b3;
+  border:1px solid #e5aebc26;
+  border-radius:999px;
+  align-items:center;
+  gap:.38rem;
+  padding:.35rem .5rem;
+  font-size:.49rem;
+  font-weight:650;
+  line-height:1;
+  display:inline-flex;
+  position:absolute;
+  top:.15rem;
+  left:.1rem
+}
+.ls-guide-presence__illustrationLabel:before {
+  content:"";
+  background:#dda5b3;
+  border-radius:50%;
+  width:.3rem;
+  height:.3rem;
+  box-shadow:0 0 .55rem #dda5b33d
+}
+.ls-guide-presence__presence[data-size=compact] .ls-guide-presence__illustrationLabel {
+  letter-spacing:.1em;
+  padding:.25rem .35rem;
+  font-size:.38rem;
+  top:-.15rem;
+  left:-.1rem
+}
+.ls-guide-presence__caption {
+  text-align:center;
+  justify-items:center;
+  gap:.2rem;
+  display:grid
+}
+.ls-guide-presence__presence[data-size=compact] .ls-guide-presence__caption {
+  text-align:left;
+  justify-items:start
+}
+.ls-guide-presence__eyebrow {
+  color:var(--presence-muted);
+  letter-spacing:.19em;
+  font-size:.75rem;
+  font-weight:650;
+  line-height:1.35
+}
+.ls-guide-presence__stateLabel {
+  color:var(--presence-ink);
+  letter-spacing:-.025em;
+  font-size:clamp(.94rem,2.6vw,1.15rem);
+  font-weight:540;
+  line-height:1.3
+}
+.ls-guide-presence__detail {
+  color:#b3c0c8;
+  text-wrap:pretty;
+  max-width:31rem;
+  font-size:.875rem;
+  line-height:1.55
+}
+.ls-guide-presence__presence[data-size=compact] .ls-guide-presence__eyebrow {
+  font-size:.6875rem
+}
+.ls-guide-presence__presence[data-size=compact] .ls-guide-presence__stateLabel {
+  font-size:1rem
+}
+.ls-guide-presence__presence[data-size=compact] .ls-guide-presence__detail {
+  font-size:.8125rem
+}
+.ls-guide-presence__presence[data-state=IDLE] {
+  --presence-accent:#d8abb6;
+  --presence-accent-rgb:216, 171, 182
+}
+.ls-guide-presence__presence[data-state=LISTENING] {
+  --presence-accent:#d990a2;
+  --presence-accent-rgb:217, 144, 162
+}
+.ls-guide-presence__presence[data-state=THINKING] {
+  --presence-accent:#b9a1af;
+  --presence-accent-rgb:185, 161, 175
+}
+.ls-guide-presence__presence[data-state=CLARIFYING] {
+  --presence-accent:#c9a3b4;
+  --presence-accent-rgb:201, 163, 180
+}
+.ls-guide-presence__presence[data-state=UNCERTAIN] {
+  --presence-accent:#e2b576;
+  --presence-accent-rgb:226, 181, 118
+}
+.ls-guide-presence__presence[data-state=CONFLICT] {
+  --presence-accent:#e5a080;
+  --presence-accent-rgb:229, 160, 128
+}
+.ls-guide-presence__presence[data-state=SAFETY] {
+  --presence-accent:#f0ad7b;
+  --presence-accent-rgb:240, 173, 123
+}
+.ls-guide-presence__presence[data-state=SPEAKING] {
+  --presence-accent:#dda5b3;
+  --presence-accent-rgb:221, 165, 179
+}
+.ls-guide-presence__presence[data-state=ACTION_REQUIRED] {
+  --presence-accent:#df898b;
+  --presence-accent-rgb:223, 137, 139
+}
+.ls-guide-presence__presence[data-state=IMMEDIATE_DANGER] {
+  --presence-accent:#f0ad7b;
+  --presence-accent-rgb:240, 173, 123
+}
+.ls-guide-presence__presence[data-reduced-motion=true] *,.ls-guide-presence__presence[data-reduced-motion=true] :before,.ls-guide-presence__presence[data-reduced-motion=true] :after {
+  scroll-behavior:auto!important;
+  transition:none!important;
+  animation:none!important
+}
+@media (prefers-reduced-motion:reduce) {
+  .ls-guide-presence__presence *,.ls-guide-presence__presence :before,.ls-guide-presence__presence :after {
+  scroll-behavior:auto!important;
+  transition:none!important;
+  animation:none!important
+}
+
+}
+@media (max-width:25rem) {
+  .ls-guide-presence__presence:not([data-size=compact]) {
+  border-radius:1.1rem;
+  padding:.8rem
+}
+.ls-guide-presence__stage {
+  min-height:13rem
+}
+
+}

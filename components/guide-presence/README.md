@@ -2,7 +2,7 @@
 
 `GuidePresence` is the visual presentation layer for Guide Runtime state. It owns no runtime transitions, case state, evidence, conversation content, or legal reasoning. In the persistent case control surface, the visual state is mapped directly from the existing Guide Runtime snapshot.
 
-The default `AvatarSurface` is a polished vector illustration, clearly labeled **Illustrated Guide**. It is intentionally not a photograph or synthetic video. It responds to the presentation contract with state-specific expression, gaze, head pose, and mouth shapes when externally supplied viseme timing is available. It does not perform random idle animation.
+The default `AvatarSurface` is a vector illustration, clearly labeled **Illustrated Guide**. It is intentionally not a photograph or synthetic video. It responds to the presentation contract with state-specific expression, gaze, and head pose. The hero surface has a subtle breathing shift only while idle; listening and speaking cues are active only in their matching Runtime states. Mouth shapes change only when externally supplied viseme timing is available.
 
 ## Presentation states
 
