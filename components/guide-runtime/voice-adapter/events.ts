@@ -1,7 +1,7 @@
 import type { CaseState } from '@/lib/api';
 
 export type VoiceInputMethod = 'voice' | 'text';
-export type VoiceRecognitionProvider = 'browser' | 'server' | 'typed';
+export type VoiceRecognitionProvider = 'browser' | 'native' | 'server' | 'typed';
 export type VoiceLanguage = 'english' | 'hindi' | 'hinglish' | null;
 
 /** Explicit user-visible milestones in the Guide voice transaction. */

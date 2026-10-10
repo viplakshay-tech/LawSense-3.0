@@ -281,6 +281,128 @@ export interface LegalKnowledgeRecordSummary {
 export interface LegalKnowledgeSummary {
   status: 'empty' | 'records_found';
   records: LegalKnowledgeRecordSummary[];
+  lawMatches: LegalMatchSummary[];
+  supportResources: LegalSupportResourceSummary[];
+}
+
+export interface LegalMatchSummary {
+  candidateId: string;
+  relatedIssueIds: string[];
+  actTitle: string;
+  actVersion?: string | null;
+  effectiveFrom?: string | null;
+  effectiveTo?: string | null;
+  provisionTitle: string;
+  provisionReference?: string | null;
+  whyItMayApply: string;
+  evidenceAssessment: 'supported' | 'plausible' | 'unclear';
+  assessmentFactors: Record<string, string>;
+  assessmentRationale: string[];
+  supportingFacts: Array<{ text: string; sourceId: string; status: string }>;
+  missingFacts: string[];
+  clarifyingQuestions: string[];
+  conflictingEvidence: string[];
+  jurisdiction: Record<string, unknown>;
+  temporalLimitation: string;
+  limitations: string[];
+  competentAuthority: Record<string, unknown>;
+  procedures: Record<string, unknown>;
+  requiredDocuments: Record<string, unknown>;
+  verifiedDeadlines: Record<string, unknown>;
+  officialFilingLinks: Record<string, unknown>;
+  officialSourceLinks: Array<{ title: string; url: string; kind: string }>;
+  source: Record<string, unknown>;
+  notice: string;
+}
+
+export interface LegalSupportResourceSummary {
+  id: string;
+  title: string;
+  audience: string;
+  url: string;
+  phone?: string | null;
+  purpose: string;
+  verificationStatus: 'official_source_link';
+}
+
+export interface IndiaCodeSourceProvenance {
+  provider: string;
+  providerKind: 'third_party_api';
+  providerEndpoint: string;
+  retrievedAt: string;
+  verificationStatus: 'unverified';
+  verificationNote: string;
+  officialVerificationPortals: string[];
+}
+
+export interface IndiaCodeSearchHit {
+  kind?: string | null;
+  title?: string | null;
+  reference?: string | null;
+  snippet?: string | null;
+  resultUse: 'discovery_only';
+  textStatus: 'snippet_is_not_full_provision_text';
+  providerUrl?: string | null;
+  officialSourceUrl?: string | null;
+  jurisdictionScope: 'central' | 'state_or_ut' | 'unknown';
+  jurisdictionRaw?: string | null;
+  providerRecord: Record<string, unknown>;
+}
+
+export interface IndiaCodeSearchResponse {
+  status: 'available';
+  query: string;
+  total?: number | null;
+  count?: number | null;
+  results: IndiaCodeSearchHit[];
+  source: IndiaCodeSourceProvenance;
+}
+
+export interface IndiaCodeAct {
+  id?: string | null;
+  title?: string | null;
+  shortTitle?: string | null;
+  actNumber?: string | null;
+  actYear?: string | null;
+  ministry?: string | null;
+  jurisdictionScope: 'central' | 'state_or_ut' | 'unknown';
+  jurisdictionRaw?: string | null;
+  unit?: string | null;
+  sectionCount?: number | null;
+  inForce?: boolean | string | null;
+  effectiveOrCommencementDate?: string | null;
+  providerUrl?: string | null;
+  officialSourceUrl?: string | null;
+  verificationStatus: 'unverified';
+  providerRecord: Record<string, unknown>;
+}
+
+export interface IndiaCodeActsResponse {
+  status: 'available';
+  acts: IndiaCodeAct[];
+  returnedCount: number;
+  resultLimit: number;
+  truncated: boolean;
+  source: IndiaCodeSourceProvenance;
+}
+
+export interface IndiaCodeProvisionResponse {
+  status: 'available';
+  actTitle?: string | null;
+  actNumber?: string | null;
+  actYear?: string | null;
+  provisionUnit: 'section' | 'article' | 'rule';
+  provisionNumber?: string | null;
+  provisionHeading?: string | null;
+  provisionText?: string | null;
+  jurisdictionScope: 'central' | 'state_or_ut' | 'unknown';
+  jurisdictionRaw?: string | null;
+  effectiveOrCommencementDate?: string | null;
+  providerUrl?: string | null;
+  officialSourceUrl?: string | null;
+  verificationStatus: 'unverified';
+  providerRecord: Record<string, unknown>;
+  source: IndiaCodeSourceProvenance;
 }
 
 export interface JourneyStepSummary {
@@ -951,6 +1073,48 @@ export async function healthCheck(): Promise<boolean> {
   }
 }
 
+export type GuideChatLanguage = 'english' | 'hindi' | 'hinglish';
+
+export interface GuideChatResponse {
+  reply: string;
+  status: 'ok' | 'unavailable';
+  model: string;
+}
+
+/** Sends a reviewed text turn to the same-origin LawSense backend for local Guide assistance. */
+export async function sendGuideMessage(
+  message: string,
+  language: GuideChatLanguage,
+): Promise<GuideChatResponse> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 52_000);
+  try {
+    const response = await fetch(`${BASE_URL}/guide/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message, language }),
+      signal: controller.signal,
+    });
+    const body = await response.json().catch(() => null);
+    if (!response.ok) {
+      const detail = typeof body?.detail === 'string' ? body.detail : response.statusText;
+      throw new Error(`Guide service unavailable: ${detail}`);
+    }
+    if (
+      !body
+      || typeof body.reply !== 'string'
+      || !body.reply.trim()
+      || !['ok', 'unavailable'].includes(body.status)
+      || typeof body.model !== 'string'
+    ) {
+      throw new Error('Guide service returned an invalid response.');
+    }
+    return body as GuideChatResponse;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export async function createCase(
   data: CreateCaseRequest,
 ): Promise<CaseState> {
@@ -1333,6 +1497,56 @@ async function documentApiRequest<T>(url: string, init: RequestInit, action: str
     throw new Error(`${action}: ${detail}`);
   }
   return body as T;
+}
+
+async function legalSourceApiRequest<T>(url: string, action: string): Promise<T> {
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: { Accept: 'application/json' },
+    cache: 'no-store',
+  });
+  const body = await response.json().catch(() => null);
+  if (!response.ok) {
+    const detail = body?.detail;
+    const message = typeof detail === 'string'
+      ? detail
+      : typeof detail?.message === 'string'
+        ? detail.message
+        : response.statusText;
+    const fallback = typeof detail?.fallback === 'string' ? ` ${detail.fallback}` : '';
+    throw new Error(`${action}: ${message}.${fallback}`);
+  }
+  return body as T;
+}
+
+/** Explicit narrow lookup; never prefilled from or sent with a case narrative. */
+export async function searchIndiaCode(query: string, limit = 20): Promise<IndiaCodeSearchResponse> {
+  const params = new URLSearchParams({ q: query, limit: String(limit) });
+  return legalSourceApiRequest(
+    `${BASE_URL}/legal-sources/indiacode/search?${params.toString()}`,
+    'IndiaCode search failed',
+  );
+}
+
+/** Retrieve a bounded list of text-bearing third-party API act records. */
+export async function getIndiaCodeActs(limit = 100): Promise<IndiaCodeActsResponse> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  return legalSourceApiRequest(
+    `${BASE_URL}/legal-sources/indiacode/acts?${params.toString()}`,
+    'IndiaCode act list failed',
+  );
+}
+
+/** Fetch exact provider-served provision text; provider data remains unverified. */
+export async function getIndiaCodeProvision(
+  actId: string,
+  unit: 'section' | 'article' | 'rule',
+  number: string,
+): Promise<IndiaCodeProvisionResponse> {
+  return legalSourceApiRequest(
+    `${BASE_URL}/legal-sources/indiacode/acts/${encodeURIComponent(actId)}/${unit}/${encodeURIComponent(number)}`,
+    'IndiaCode provision retrieval failed',
+  );
 }
 
 export async function getDocumentPackages(caseId: string): Promise<CompiledDocumentPackage[]> {

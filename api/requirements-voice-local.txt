@@ -1,0 +1,3 @@
+# Optional local speech-to-text runtime. Install this only when enabling a
+# faster-whisper model already present on disk.
+faster-whisper>=1.1,<2

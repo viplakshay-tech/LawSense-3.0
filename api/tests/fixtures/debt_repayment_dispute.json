@@ -1,0 +1,15 @@
+{
+  "scenario_id": "debt_repayment_dispute",
+  "label": "Debt repayment dispute",
+  "source": {
+    "user_statement": "I made a ₹15,000 payment toward my loan, and the creditor says it was not received.",
+    "language": "english"
+  },
+  "expected": {
+    "issue_categories": ["debt"],
+    "parties": [],
+    "event_types": ["payment"],
+    "unknowns": ["dates of the described events"],
+    "safety_state": {"context": "none", "urgency": "none", "indicator_categories": []}
+  }
+}

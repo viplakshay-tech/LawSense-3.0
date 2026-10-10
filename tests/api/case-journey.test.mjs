@@ -95,7 +95,7 @@ function progressFor(execution, stage) {
 test('unmapped stages and missing execution records stay unknown', () => {
   assert.equal(CASE_JOURNEY_STAGES.length, 9);
   assert.deepEqual(CASE_JOURNEY_STAGES.map((stage) => stage.id), [
-    'understand', 'clarify', 'protect', 'evidence', 'law', 'twin', 'prepare', 'act', 'monitor',
+    'understand', 'clarify', 'protect', 'evidence', 'law', 'twin', 'prepare', 'act', 'monitor_update',
   ]);
   assert.equal(getCaseJourneyStageStatus(null, null, 'protect'), 'Unknown');
   assert.equal(getCaseJourneyStageStatus(null, null, 'twin'), 'Unknown');
@@ -111,6 +111,8 @@ test('unmapped stages and missing execution records stay unknown', () => {
   assert.equal(getCaseJourneyStageStatus(caseState, missingProgress, 'evidence'), 'Unknown');
   assert.equal(getCaseJourneyStageStatus(caseState, missingProgress, 'protect'), 'Available');
   assert.equal(getCaseJourneyStageStatus(caseState, missingProgress, 'twin'), 'Available');
+  assert.equal(getCaseJourneyStageStatus(caseState, missingProgress, 'monitor_update'), 'Available');
+  assert.equal(getCaseJourneyStageStatus(null, missingProgress, 'monitor_update'), 'Unknown');
 });
 
 test('incomplete saved cases report current and blocked stages without false completion', () => {
@@ -134,7 +136,7 @@ test('incomplete saved cases report current and blocked stages without false com
   assert.equal(getCaseJourneyStageStatus(caseState, execution, 'understand'), 'In progress');
   assert.equal(getCaseJourneyStageStatus(caseState, execution, 'clarify'), 'Blocked');
   assert.equal(getCaseJourneyStageStatus(caseState, execution, 'evidence'), 'Blocked');
-  assert.equal(getCaseJourneyStageStatus(caseState, execution, 'monitor'), 'Blocked');
+  assert.equal(getCaseJourneyStageStatus(caseState, execution, 'monitor_update'), 'Blocked');
   assert.notEqual(getCaseJourneyStageStatus(caseState, execution, 'prepare'), 'Complete');
   assert.deepEqual(
     getCaseJourneyStageAssessment(caseState, execution, 'clarify').unknowns,

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { type FormEvent, useMemo, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import {
   ArrowDownRight,
@@ -10,13 +10,29 @@ import {
   ChevronDown,
   CircleHelp,
   FileText,
+  ExternalLink,
   Landmark,
+  LoaderCircle,
   MapPin,
   Network,
+  Search,
   ShieldCheck,
   Waypoints,
 } from 'lucide-react';
-import type { CaseFact, CaseState, LegalIssue, LegalKnowledgeRecordSummary } from '@/lib/api';
+import {
+  getIndiaCodeActs,
+  getIndiaCodeProvision,
+  searchIndiaCode,
+  type CaseFact,
+  type CaseState,
+  type IndiaCodeAct,
+  type IndiaCodeProvisionResponse,
+  type IndiaCodeSearchResponse,
+  type LegalIssue,
+  type LegalKnowledgeRecordSummary,
+  type LegalMatchSummary,
+  type LegalSupportResourceSummary,
+} from '@/lib/api';
 import { CaseContextLink } from '@/components/case-shell/CaseContextLink';
 
 type LegalSourceCandidatesProps = {
@@ -169,6 +185,252 @@ function LinkedFact({ fact, caseId, dark }: { fact: CaseFact; caseId: string; da
   );
 }
 
+function objectItems(value: unknown): Array<Record<string, unknown>> {
+  if (!value || typeof value !== 'object' || !Array.isArray((value as Record<string, unknown>).items)) return [];
+  return ((value as Record<string, unknown>).items as unknown[]).filter(
+    (item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object' && !Array.isArray(item),
+  );
+}
+
+function textItems(value: unknown): string[] {
+  if (!value || typeof value !== 'object' || !Array.isArray((value as Record<string, unknown>).items)) return [];
+  return ((value as Record<string, unknown>).items as unknown[]).filter((item): item is string => typeof item === 'string');
+}
+
+function MatchGuidance({ matches, resources, dark }: {
+  matches: LegalMatchSummary[];
+  resources: LegalSupportResourceSummary[];
+  dark: boolean;
+}) {
+  const tone = dark ? 'border-white/10 bg-white/[0.025]' : 'border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900/50';
+  const heading = dark ? 'text-slate-100' : 'text-zinc-900 dark:text-zinc-100';
+  const muted = dark ? 'text-slate-400' : 'text-zinc-600 dark:text-zinc-400';
+  const badge = (assessment: string) => assessment === 'supported'
+    ? 'border-emerald-300/20 bg-emerald-300/[0.07] text-emerald-100'
+    : assessment === 'plausible'
+      ? 'border-sky-300/20 bg-sky-300/[0.07] text-sky-100'
+      : 'border-amber-300/20 bg-amber-300/[0.07] text-amber-100';
+
+  return (
+    <section aria-label="Law guidance from recorded facts and sources" className="space-y-3">
+      <div>
+        <h4 className={`text-sm font-semibold ${heading}`}>Law candidates and next-step sources</h4>
+        <p className={`mt-1 text-[11px] leading-5 ${muted}`}>Candidates are matched to recorded issue categories and facts. They are not findings that a law applies. No numeric score or cutoff is used.</p>
+      </div>
+      {matches.length ? matches.map((match) => {
+        const authorities = objectItems(match.competentAuthority);
+        const procedures = objectItems(match.procedures);
+        const docs = textItems(match.requiredDocuments);
+        const deadlines = objectItems(match.verifiedDeadlines);
+        const filingLinks = objectItems(match.officialFilingLinks);
+        return (
+          <article id={`law-candidate-${match.candidateId}`} key={match.candidateId} className={`rounded-xl border p-3 sm:p-4 ${tone}`}>
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <h5 className={`text-xs font-semibold ${heading}`}>{match.actTitle} · {match.provisionTitle}</h5>
+                <p className={`mt-1 text-[10px] ${muted}`}>{match.provisionReference || 'Provision reference not returned'} · {match.actVersion || 'version not specified'}{match.effectiveFrom ? ` · effective from ${match.effectiveFrom}` : ''}</p>
+              </div>
+              <span className={`rounded-full border px-2 py-1 text-[9px] font-semibold uppercase ${badge(match.evidenceAssessment)}`}>{match.evidenceAssessment}</span>
+            </div>
+            <p className={`mt-2 text-[11px] leading-5 ${heading}`}>{match.whyItMayApply}</p>
+            <ul className={`mt-2 space-y-1 text-[10px] leading-5 ${muted}`}>
+              {match.assessmentRationale.slice(0, 4).map((item, index) => <li key={`${match.candidateId}-reason-${index}`}>· {item}</li>)}
+            </ul>
+            {match.supportingFacts.length > 0 && (
+              <div className="mt-3">
+                <p className={`text-[9px] font-semibold uppercase tracking-wide ${muted}`}>Relevant recorded details</p>
+                <ul className={`mt-1 space-y-1 text-[10px] leading-5 ${heading}`}>
+                  {match.supportingFacts.slice(0, 4).map((fact, index) => <li key={`${fact.sourceId}-${index}`}>· {fact.text} <span className={muted}>({fact.status.replaceAll('_', ' ')})</span></li>)}
+                </ul>
+              </div>
+            )}
+            {match.conflictingEvidence.length > 0 && (
+              <div className="mt-3 rounded-lg border border-amber-300/20 bg-amber-300/[0.05] p-2.5">
+                <p className="text-[10px] font-semibold text-amber-100">Conflicting information to resolve</p>
+                <ul className="mt-1 space-y-1 text-[10px] leading-5 text-amber-50/90">{match.conflictingEvidence.slice(0, 3).map((item, index) => <li key={`${index}-${item}`}>· {item}</li>)}</ul>
+              </div>
+            )}
+            {(match.clarifyingQuestions.length > 0) && (
+              <div className="mt-3">
+                <p className={`text-[9px] font-semibold uppercase tracking-wide ${muted}`}>Material details that could change this guidance</p>
+                <ul className={`mt-1 space-y-1 text-[10px] leading-5 ${heading}`}>{match.clarifyingQuestions.slice(0, 3).map((question) => <li key={question}>· {question}</li>)}</ul>
+              </div>
+            )}
+            <div className="mt-3 grid gap-3 border-t border-current/10 pt-3 sm:grid-cols-2">
+              <div>
+                <p className={`text-[9px] font-semibold uppercase tracking-wide ${muted}`}>Jurisdiction and dates</p>
+                <p className={`mt-1 text-[10px] leading-5 ${heading}`}>{String(match.jurisdiction.label ?? 'Jurisdiction unknown')} · {String(match.jurisdiction.matchStatus ?? 'territorial fit unknown')}</p>
+                <p className={`mt-1 text-[10px] leading-5 ${muted}`}>{match.temporalLimitation}</p>
+              </div>
+              <div>
+                <p className={`text-[9px] font-semibold uppercase tracking-wide ${muted}`}>Authority and process</p>
+                {authorities.length ? authorities.map((authority, index) => <p key={`${match.candidateId}-authority-${index}`} className={`mt-1 text-[10px] leading-5 ${heading}`}>{String(authority.name ?? 'Authority not named')} · {String(authority.verificationStatus ?? 'unverified')}</p>) : <p className={`mt-1 text-[10px] ${muted}`}>Competent authority not found in linked procedure records.</p>}
+                {procedures.length ? procedures.map((procedure, index) => (
+                  <div key={`${match.candidateId}-procedure-${index}`} className={`mt-2 text-[10px] leading-5 ${heading}`}>
+                    <p className="font-semibold">{String(procedure.title ?? 'Procedure record')} · {String(procedure.verificationStatus ?? 'unverified')}</p>
+                    {Array.isArray(procedure.steps) && procedure.steps.map((step, stepIndex) => <p key={stepIndex}>· {typeof step === 'string' ? step : JSON.stringify(step)}</p>)}
+                  </div>
+                )) : <p className={`mt-1 text-[10px] ${muted}`}>Procedure not found in linked records.</p>}
+              </div>
+            </div>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <div>
+                <p className={`text-[9px] font-semibold uppercase tracking-wide ${muted}`}>Documents and verified deadlines</p>
+                {docs.length ? <ul className={`mt-1 text-[10px] leading-5 ${heading}`}>{docs.map((doc) => <li key={doc}>· {doc}</li>)}</ul> : <p className={`mt-1 text-[10px] ${muted}`}>Required documents not recorded in linked procedure records.</p>}
+                {deadlines.length ? deadlines.map((item, index) => <p key={index} className={`mt-1 text-[10px] leading-5 ${heading}`}>Deadline: {String(item.text ?? 'date not returned')} · source-backed</p>) : <p className={`mt-1 text-[10px] ${muted}`}>No verified deadline was found in linked procedure records.</p>}
+              </div>
+              <div>
+                <p className={`text-[9px] font-semibold uppercase tracking-wide ${muted}`}>Verified procedure links</p>
+                {filingLinks.length ? (
+                  <div className="mt-1 flex flex-wrap gap-2">
+                    {filingLinks.map((link, index) => {
+                      const safeUrl = registeredSourceUrl(typeof link.url === 'string' ? link.url : null);
+                      return safeUrl ? <a key={`${match.candidateId}-procedure-link-${index}`} href={safeUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-sky-300/20 px-2 text-[10px] font-semibold text-sky-100 hover:bg-sky-200/[0.07]">{String(link.title ?? 'Open verified procedure source')}<ExternalLink aria-hidden="true" className="h-3 w-3" /></a> : null;
+                    })}
+                  </div>
+                ) : <p className={`mt-1 text-[10px] ${muted}`}>No verified procedure or filing link was found in the linked records.</p>}
+                <p className={`mt-3 text-[9px] font-semibold uppercase tracking-wide ${muted}`}>Official legal publications</p>
+                {match.officialSourceLinks.length ? (
+                  <div className="mt-1 flex flex-wrap gap-2">
+                    {match.officialSourceLinks.map((link, index) => {
+                      const safeUrl = registeredSourceUrl(link.url);
+                      return safeUrl ? <a key={`${match.candidateId}-source-link-${index}`} href={safeUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-emerald-300/20 px-2 text-[10px] font-semibold text-emerald-100 hover:bg-emerald-200/[0.07]">{link.title} · check law text<ExternalLink aria-hidden="true" className="h-3 w-3" /></a> : null;
+                    })}
+                  </div>
+                ) : <p className={`mt-1 text-[10px] ${muted}`}>No verified official legal publication link is recorded.</p>}
+              </div>
+            </div>
+            <p className={`mt-3 text-[9px] leading-4 ${muted}`}>{match.notice}</p>
+          </article>
+        );
+      }) : <p className={`rounded-lg border border-dashed p-3 text-[10px] leading-5 ${muted}`}>No issue-linked provision candidates are recorded yet. An empty local catalog does not mean no law applies.</p>}
+      {resources.length > 0 && (
+        <div className={`rounded-xl border p-3 ${tone}`}>
+          <p className={`text-[10px] font-semibold ${heading}`}>Legal aid and support</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {resources.map((resource) => {
+              const safeUrl = registeredSourceUrl(resource.url);
+              return safeUrl ? <a key={resource.id} href={safeUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-emerald-300/20 px-2.5 text-[10px] font-semibold text-emerald-100 hover:bg-emerald-200/[0.07]">{resource.title}{resource.phone ? ` · ${resource.phone}` : ''}<ExternalLink aria-hidden="true" className="h-3 w-3" /></a> : null;
+            })}
+          </div>
+          {resources.map((resource) => <p key={`${resource.id}-description`} className={`mt-1 text-[9px] leading-4 ${muted}`}>{resource.audience}: {resource.purpose} · {resource.verificationStatus.replaceAll('_', ' ')}</p>)}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function IndiaCodeLookup({ dark }: { dark: boolean }) {
+  const [query, setQuery] = useState('');
+  const [searchResult, setSearchResult] = useState<IndiaCodeSearchResponse | null>(null);
+  const [acts, setActs] = useState<IndiaCodeAct[] | null>(null);
+  const [actId, setActId] = useState('');
+  const [unit, setUnit] = useState<'section' | 'article' | 'rule'>('section');
+  const [number, setNumber] = useState('');
+  const [provision, setProvision] = useState<IndiaCodeProvisionResponse | null>(null);
+  const [searchBusy, setSearchBusy] = useState(false);
+  const [actsBusy, setActsBusy] = useState(false);
+  const [provisionBusy, setProvisionBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const panel = dark ? 'border-white/10 bg-[#0c111a] text-slate-300' : 'border-zinc-200 bg-zinc-50 text-zinc-700 dark:border-zinc-800 dark:bg-zinc-900/70 dark:text-zinc-300';
+  const heading = dark ? 'text-slate-100' : 'text-zinc-900 dark:text-zinc-100';
+  const muted = dark ? 'text-slate-400' : 'text-zinc-600 dark:text-zinc-400';
+  const input = dark ? 'border-white/10 bg-black/20 text-slate-100 placeholder:text-slate-500' : 'border-zinc-300 bg-white text-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100';
+  const button = 'inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-indigo-300/25 bg-indigo-300/[0.08] px-3 text-[10px] font-semibold text-indigo-100 hover:bg-indigo-300/[0.14] disabled:cursor-wait disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-300';
+
+  async function submitSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null); setSearchResult(null); setSearchBusy(true);
+    try { setSearchResult(await searchIndiaCode(query.trim())); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : 'Search could not be completed.'); }
+    finally { setSearchBusy(false); }
+  }
+
+  async function loadActs() {
+    setError(null); setActsBusy(true);
+    try { setActs((await getIndiaCodeActs(100)).acts); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : 'Act list could not be loaded.'); }
+    finally { setActsBusy(false); }
+  }
+
+  async function submitProvision(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null); setProvision(null); setProvisionBusy(true);
+    try { setProvision(await getIndiaCodeProvision(actId.trim(), unit, number.trim())); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : 'Provision text could not be retrieved.'); }
+    finally { setProvisionBusy(false); }
+  }
+
+  return (
+    <section className={`rounded-xl border p-3 sm:p-4 ${panel}`} aria-label="Explicit IndiaCode legal source lookup">
+      <div className="flex items-start gap-2">
+        <Search aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-indigo-200" />
+        <div>
+          <h4 className={`text-xs font-semibold ${heading}`}>Search and inspect a provision</h4>
+          <p className={`mt-1 text-[10px] leading-5 ${muted}`}>This optional lookup sends only the search terms or act/provision identifiers you enter to the third-party IndiaCode/eCourtsIndia API. Case details are never submitted automatically.</p>
+        </div>
+      </div>
+      <form onSubmit={submitSearch} className="mt-3 flex flex-col gap-2 sm:flex-row">
+        <label className="sr-only" htmlFor="indiacode-search-query">Search words</label>
+        <input id="indiacode-search-query" maxLength={200} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Enter a statute title or narrow legal term" className={`min-h-10 min-w-0 flex-1 rounded-lg border px-3 text-xs ${input}`} />
+        <button className={button} type="submit" disabled={!query.trim() || searchBusy}>{searchBusy ? <LoaderCircle aria-hidden="true" className="h-3.5 w-3.5 animate-spin" /> : <Search aria-hidden="true" className="h-3.5 w-3.5" />}{searchBusy ? 'Searching…' : 'Search API'}</button>
+      </form>
+      {searchResult && (
+        <div className="mt-3 space-y-2" aria-live="polite">
+          <p className={`text-[9px] ${muted}`}>{searchResult.source.provider} · retrieved {searchResult.source.retrievedAt} · verification {searchResult.source.verificationStatus}</p>
+          <p className="rounded-lg border border-amber-300/20 bg-amber-200/[0.04] px-2.5 py-2 text-[10px] leading-4 text-amber-100">Search snippets are discovery-only. They are not full statutory text and do not verify authenticity, amendments, commencement, current force, or applicability.</p>
+          {searchResult.results.length ? searchResult.results.map((hit, index) => {
+            const provider = registeredSourceUrl(hit.providerUrl);
+            const official = registeredSourceUrl(hit.officialSourceUrl);
+            return <article key={`${hit.reference ?? hit.title ?? 'hit'}-${index}`} className={`rounded-lg border p-2.5 ${dark ? 'border-white/10 bg-white/[0.02]' : 'border-zinc-200 bg-white dark:border-zinc-800 dark:bg-black/10'}`}>
+              <p className={`text-[11px] font-semibold ${heading}`}>{hit.title || 'Untitled result'}{hit.reference ? ` · ${hit.reference}` : ''}</p>
+              <p className={`mt-1 text-[10px] leading-5 ${muted}`}>{hit.snippet || 'No discovery snippet returned.'}</p>
+              <p className={`mt-1 text-[9px] ${muted}`}>{hit.kind || 'result'} · jurisdiction scope {hit.jurisdictionScope}{hit.jurisdictionRaw ? ` (${hit.jurisdictionRaw})` : ''} · {hit.textStatus.replaceAll('_', ' ')}</p>
+              <div className="mt-2 flex flex-wrap gap-2">{provider && <a href={provider} target="_blank" rel="noreferrer" className="inline-flex min-h-8 items-center gap-1 text-[9px] font-semibold text-sky-200">Third-party result <ExternalLink aria-hidden="true" className="h-3 w-3" /></a>}{official && <a href={official} target="_blank" rel="noreferrer" className="inline-flex min-h-8 items-center gap-1 text-[9px] font-semibold text-emerald-200">Open official record to verify <ExternalLink aria-hidden="true" className="h-3 w-3" /></a>}</div>
+            </article>;
+          }) : <p className={`text-[10px] ${muted}`}>No results returned for this search.</p>}
+          <p className={`text-[9px] leading-4 ${muted}`}>{searchResult.source.verificationNote}</p>
+        </div>
+      )}
+      <div className="mt-4 border-t border-current/10 pt-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className={`text-[10px] font-semibold ${heading}`}>Exact provision text (third-party copy; unverified)</p>
+          <button type="button" className={button} onClick={() => void loadActs()} disabled={actsBusy}>{actsBusy ? <LoaderCircle aria-hidden="true" className="h-3.5 w-3.5 animate-spin" /> : null}{actsBusy ? 'Loading act IDs…' : `Load text-bearing act IDs${acts ? ` · ${acts.length}` : ''}`}</button>
+        </div>
+        <form onSubmit={submitProvision} className="mt-2 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
+          <div className="min-w-0">
+            <label htmlFor="indiacode-act-id" className={`mb-1 block text-[9px] ${muted}`}>Act ID (choose a listed ID or enter one)</label>
+            <input id="indiacode-act-id" list="indiacode-act-list" value={actId} onChange={(event) => setActId(event.target.value)} placeholder="IndiaCode act id" className={`min-h-9 w-full rounded-lg border px-2.5 text-[10px] ${input}`} />
+            <datalist id="indiacode-act-list">{(acts ?? []).flatMap((act) => act.id ? [<option key={act.id} value={act.id}>{act.title || act.shortTitle || act.id}</option>] : [])}</datalist>
+          </div>
+          <div>
+            <label htmlFor="indiacode-provision-unit" className={`mb-1 block text-[9px] ${muted}`}>Unit</label>
+            <select id="indiacode-provision-unit" value={unit} onChange={(event) => setUnit(event.target.value as 'section' | 'article' | 'rule')} className={`min-h-9 rounded-lg border px-2 text-[10px] ${input}`}><option value="section">Section</option><option value="article">Article</option><option value="rule">Rule</option></select>
+          </div>
+          <div>
+            <label htmlFor="indiacode-provision-number" className={`mb-1 block text-[9px] ${muted}`}>Provision number</label>
+            <input id="indiacode-provision-number" maxLength={100} value={number} onChange={(event) => setNumber(event.target.value)} placeholder="e.g. 17(2)" className={`min-h-9 w-28 rounded-lg border px-2 text-[10px] ${input}`} />
+          </div>
+          <div className="flex items-end"><button type="submit" className={button} disabled={!actId.trim() || !number.trim() || provisionBusy}>{provisionBusy ? <LoaderCircle aria-hidden="true" className="h-3.5 w-3.5 animate-spin" /> : null}{provisionBusy ? 'Retrieving…' : 'Fetch text'}</button></div>
+        </form>
+        {acts && <p className={`mt-1 text-[9px] ${muted}`}>The act picker lists text-bearing API records only. Scanned `/listed-acts` entries are excluded.</p>}
+        {provision && (
+          <article className={`mt-3 rounded-lg border p-3 ${dark ? 'border-white/10 bg-white/[0.02]' : 'border-zinc-200 bg-white dark:border-zinc-800 dark:bg-black/10'}`} aria-live="polite">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div><h5 className={`text-[11px] font-semibold ${heading}`}>{provision.actTitle || 'Act title unavailable'} · {provision.provisionUnit} {provision.provisionNumber}</h5><p className={`mt-1 text-[9px] ${muted}`}>{provision.provisionHeading || 'No heading returned'} · {provision.jurisdictionScope}{provision.jurisdictionRaw ? ` (${provision.jurisdictionRaw})` : ''}{provision.effectiveOrCommencementDate ? ` · date listed: ${provision.effectiveOrCommencementDate}` : ''}</p></div>
+              <span className="rounded-full border border-amber-300/20 px-2 py-1 text-[9px] font-semibold text-amber-100">UNVERIFIED PROVIDER COPY</span>
+            </div>
+            {provision.provisionText ? <pre className={`mt-3 max-h-96 overflow-auto whitespace-pre-wrap rounded-lg border border-current/10 p-3 font-sans text-[11px] leading-6 ${heading}`}>{provision.provisionText}</pre> : <p className={`mt-3 text-[10px] ${muted}`}>The provider returned no full provision text.</p>}
+            <p className={`mt-2 text-[9px] leading-4 ${muted}`}>{provision.source.provider} · originally retrieved {provision.source.retrievedAt} · {provision.source.verificationNote}</p>
+            <div className="mt-2 flex flex-wrap gap-3">{registeredSourceUrl(provision.providerUrl) && <a href={registeredSourceUrl(provision.providerUrl)!} target="_blank" rel="noreferrer" className="inline-flex min-h-8 items-center gap-1 text-[9px] font-semibold text-sky-200">Provider record <ExternalLink aria-hidden="true" className="h-3 w-3" /></a>}{registeredSourceUrl(provision.officialSourceUrl) && <a href={registeredSourceUrl(provision.officialSourceUrl)!} target="_blank" rel="noreferrer" className="inline-flex min-h-8 items-center gap-1 text-[9px] font-semibold text-emerald-200">Verify at official source <ExternalLink aria-hidden="true" className="h-3 w-3" /></a>}{provision.source.officialVerificationPortals.map((url) => <a key={url} href={url} target="_blank" rel="noreferrer" className="inline-flex min-h-8 items-center gap-1 text-[9px] font-semibold text-emerald-200">Official verification portal <ExternalLink aria-hidden="true" className="h-3 w-3" /></a>)}</div>
+          </article>
+        )}
+      </div>
+      {error && <p role="alert" className="mt-3 rounded-lg border border-rose-300/20 bg-rose-200/[0.05] p-2 text-[10px] leading-5 text-rose-100">{error}</p>}
+    </section>
+  );
+}
+
 export function LegalSourceCandidates({
   caseData,
   records,
@@ -189,6 +451,8 @@ export function LegalSourceCandidates({
   const resolvedRecordId = records.some((record) => record.id === selectedRecordId) ? selectedRecordId : records[0]?.id ?? null;
   const selectedIssue = issues.find((issue) => issue.id === resolvedIssueId) ?? null;
   const selectedRecord = records.find((record) => record.id === resolvedRecordId) ?? null;
+  const lawMatches = caseData.analysis?.legalKnowledge.lawMatches ?? [];
+  const supportResources = caseData.analysis?.legalKnowledge.supportResources ?? [];
   const issueRationales = selectedIssue?.rationale.filter((rationale) => rationale.trim()) ?? [];
   const journeyPaths = caseData.analysis?.journey?.possiblePaths ?? [];
   const darkCard = 'border-white/[0.08] bg-[#0c111a] text-slate-300';
@@ -241,6 +505,16 @@ export function LegalSourceCandidates({
           {records.length ? `${records.length} relevant candidate${records.length === 1 ? '' : 's'}` : 'No source returned'}
         </span>
       </div>
+
+      <MatchGuidance matches={lawMatches} resources={supportResources} dark={dark} />
+      <details className={`rounded-xl border ${card}`}>
+        <summary className={`cursor-pointer list-none px-3 py-3 text-xs font-semibold ${heading} focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-300`}>
+          Search IndiaCode/eCourtsIndia or fetch exact provision text <span className={`ml-1 text-[9px] font-normal ${muted}`}>(optional third-party lookup)</span>
+        </summary>
+        <div className="border-t border-current/10 p-3 sm:p-4">
+          <IndiaCodeLookup dark={dark} />
+        </div>
+      </details>
 
       <div className={`overflow-hidden rounded-2xl border ${card}`}>
         <div className={`grid grid-cols-2 divide-y divide-x sm:grid-cols-3 sm:divide-y-0 lg:grid-cols-6 ${dark ? 'divide-white/[0.06]' : 'divide-zinc-200 dark:divide-zinc-800'}`}>

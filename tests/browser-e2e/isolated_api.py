@@ -23,25 +23,27 @@ def resolve_api_root() -> Path:
     if not (api_root / "app" / "main.py").is_file():
         raise RuntimeError(f"LAWSENSE_API_ROOT does not contain the LawSense API: {api_root}")
 
-    revision = subprocess.run(
-        ["git", "-C", str(api_root), "rev-parse", "HEAD"],
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout.strip()
-    if revision != EXPECTED_API_REVISION:
-        raise RuntimeError(
-            f"Expected API revision {EXPECTED_API_REVISION}, found {revision} at {api_root}."
-        )
+    allow_local_api = os.environ.get("LAWSENSE_E2E_ALLOW_LOCAL_API") == "1"
+    if not allow_local_api:
+        revision = subprocess.run(
+            ["git", "-C", str(api_root), "rev-parse", "HEAD"],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        if revision != EXPECTED_API_REVISION:
+            raise RuntimeError(
+                f"Expected API revision {EXPECTED_API_REVISION}, found {revision} at {api_root}."
+            )
 
-    dirty = subprocess.run(
-        ["git", "-C", str(api_root), "status", "--porcelain"],
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout.strip()
-    if dirty:
-        raise RuntimeError(f"Pinned API checkout has uncommitted changes: {api_root}")
+        dirty = subprocess.run(
+            ["git", "-C", str(api_root), "status", "--porcelain"],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        if dirty:
+            raise RuntimeError(f"Pinned API checkout has uncommitted changes: {api_root}")
 
     return api_root
 

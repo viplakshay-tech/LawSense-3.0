@@ -266,7 +266,302 @@
 .ls-guide-call__typeInsteadButton:hover {
   background:#ffffff13
 }
-.ls-guide-call__backLink:focus-visible,.ls-guide-call__endCallLink:focus-visible,.ls-guide-call__legalGuideLink:focus-visible,.ls-guide-call__typeInsteadButton:focus-visible {
+.ls-guide-call__conversationCard {
+  background:linear-gradient(150deg,#1a1b23,#11151d 78%);
+  border:1px solid #dda5b328;
+  border-radius:1rem;
+  margin-top:1rem;
+  padding:clamp(.8rem,1.8vw,1.1rem)
+}
+.ls-guide-call__conversationHeading {
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:.8rem;
+  display:flex
+}
+.ls-guide-call__conversationHeading h2 {
+  color:#f5ecee;
+  letter-spacing:-.025em;
+  margin:.28rem 0 0;
+  font-family:Georgia,Times New Roman,serif;
+  font-size:1.35rem;
+  font-weight:400
+}
+.ls-guide-call__conversationHeading>div>p:last-child {
+  color:#a9a7ad;
+  margin:.35rem 0 0;
+  font-size:.7rem;
+  line-height:1.5
+}
+.ls-guide-call__conversationState {
+  color:#d4c4c9;
+  background:#ffffff09;
+  border:1px solid #dfcbd51c;
+  border-radius:999px;
+  align-items:center;
+  gap:.4rem;
+  min-height:1.9rem;
+  padding:.3rem .58rem;
+  font-size:.61rem;
+  font-weight:650;
+  white-space:nowrap;
+  display:inline-flex
+}
+.ls-guide-call__conversationState>span {
+  background:#95898c;
+  border-radius:50%;
+  flex:none;
+  width:.42rem;
+  height:.42rem
+}
+.ls-guide-call__conversationCard[data-conversation-state=listening] .ls-guide-call__conversationState>span {
+  background:#72c7a6;
+  box-shadow:0 0 .7rem #72c7a666
+}
+.ls-guide-call__conversationCard[data-conversation-state=processing] .ls-guide-call__conversationState>span {
+  background:#8eb8e5
+}
+.ls-guide-call__conversationCard[data-conversation-state=speaking] .ls-guide-call__conversationState>span {
+  background:#78c3d2;
+  box-shadow:0 0 .7rem #78c3d266
+}
+.ls-guide-call__conversationCard[data-conversation-state=permission_denied] .ls-guide-call__conversationState>span,.ls-guide-call__conversationCard[data-conversation-state=error] .ls-guide-call__conversationState>span,.ls-guide-call__conversationCard[data-conversation-state=unsupported] .ls-guide-call__conversationState>span {
+  background:#e2999b
+}
+.ls-guide-call__conversationDetail {
+  color:#c5bbc0;
+  margin:.65rem 0;
+  font-size:.69rem;
+  line-height:1.5
+}
+.ls-guide-call__conversationLog {
+  background:#0a0e14a6;
+  border:1px solid #d8c6d414;
+  border-radius:.8rem;
+  max-height:19rem;
+  min-height:5rem;
+  padding:.6rem;
+  display:grid;
+  align-content:start;
+  gap:.5rem;
+  overflow:auto
+}
+.ls-guide-call__conversationEmpty {
+  color:#8f929a;
+  align-self:center;
+  margin:0;
+  padding:.35rem;
+  font-size:.68rem;
+  line-height:1.5
+}
+.ls-guide-call__conversationTurn {
+  background:#ffffff07;
+  border:1px solid #ffffff0b;
+  border-radius:.7rem;
+  min-width:0;
+  padding:.55rem .65rem
+}
+.ls-guide-call__conversationTurn[data-speaker=you] {
+  background:#e7c99c0c;
+  border-color:#e7c99c1a
+}
+.ls-guide-call__turnSpeaker {
+  color:#d8aeb8;
+  margin:0;
+  font-size:.58rem;
+  font-weight:700;
+  letter-spacing:.05em;
+  text-transform:uppercase
+}
+.ls-guide-call__conversationTurn[data-speaker=you] .ls-guide-call__turnSpeaker {
+  color:#dfc38e
+}
+.ls-guide-call__turnText {
+  color:#e5e0e1;
+  white-space:pre-wrap;
+  overflow-wrap:anywhere;
+  margin:.28rem 0 0;
+  font-size:.68rem;
+  line-height:1.55
+}
+.ls-guide-call__turnAudio {
+  color:#88939d;
+  margin:.28rem 0 0;
+  font-size:.56rem
+}
+.ls-guide-call__interimTranscript {
+  color:#d8ece2;
+  background:#72c7a60a;
+  border:1px solid #72c7a61c;
+  border-radius:.6rem;
+  margin:0;
+  padding:.5rem .6rem;
+  font-size:.65rem;
+  line-height:1.5
+}
+.ls-guide-call__transcriptReview {
+  display:grid;
+  gap:.4rem;
+  margin-top:.65rem;
+  padding:.7rem;
+  border:1px solid #d8aeb84a;
+  border-radius:.8rem;
+  background:#b85d760c
+}
+.ls-guide-call__transcriptReview label {
+  color:#f0d5dc;
+  font-size:.65rem;
+  font-weight:700
+}
+.ls-guide-call__transcriptReview textarea {
+  width:100%;
+  min-width:0;
+  resize:vertical;
+  color:#f3eff0;
+  background:#0b1017;
+  border:1px solid #d8c6d44a;
+  border-radius:.65rem;
+  padding:.6rem .7rem;
+  font:inherit;
+  font-size:.7rem;
+  line-height:1.5
+}
+.ls-guide-call__transcriptReview p {
+  color:#bfaeb4;
+  margin:0;
+  font-size:.59rem;
+  line-height:1.45
+}
+.ls-guide-call__confirmTranscriptButton {
+  justify-self:start;
+  min-height:2.5rem;
+  padding:.45rem .75rem;
+  border:1px solid #e4b3c055;
+  border-radius:.65rem;
+  color:#fff4f5;
+  background:linear-gradient(135deg,#9b5064,#77384d);
+  font:inherit;
+  font-size:.63rem;
+  font-weight:700;
+  cursor:pointer
+}
+.ls-guide-call__confirmTranscriptButton:disabled { opacity:.5; cursor:not-allowed }
+.ls-guide-call__nativeVoice { color:#c4b593; margin:.45rem 0 0; font-size:.58rem }
+.ls-guide-call__conversationForm {
+  margin-top:.7rem
+}
+.ls-guide-call__conversationForm>label {
+  color:#d3c9cc;
+  margin-bottom:.35rem;
+  font-size:.63rem;
+  font-weight:650;
+  display:block
+}
+.ls-guide-call__messageRow {
+  gap:.4rem;
+  display:flex
+}
+.ls-guide-call__messageRow input {
+  color:#f3eff0;
+  background:#0b1017;
+  border:1px solid #d8c6d426;
+  border-radius:.65rem;
+  outline:none;
+  width:100%;
+  min-width:0;
+  min-height:2.55rem;
+  padding:.5rem .7rem;
+  font:inherit;
+  font-size:.68rem
+}
+.ls-guide-call__messageRow input::placeholder {
+  color:#727984
+}
+.ls-guide-call__messageRow input:focus {
+  border-color:#dca2b1a6
+}
+.ls-guide-call__messageRow input:disabled {
+  opacity:.62
+}
+.ls-guide-call__messageRow button,.ls-guide-call__startCallButton,.ls-guide-call__callControlButton,.ls-guide-call__endCallButton {
+  color:#e8dce0;
+  border:1px solid #d8c6d42b;
+  border-radius:.65rem;
+  justify-content:center;
+  align-items:center;
+  gap:.4rem;
+  min-height:2.55rem;
+  padding:.45rem .65rem;
+  font:inherit;
+  font-size:.64rem;
+  font-weight:670;
+  white-space:nowrap;
+  cursor:pointer;
+  display:inline-flex
+}
+.ls-guide-call__messageRow button {
+  color:#f5e7d0;
+  background:#916e4447;
+  border-color:#e7c99c39
+}
+.ls-guide-call__startCallButton {
+  color:#fff4f5;
+  background:linear-gradient(135deg,#9b5064,#77384d);
+  border-color:#e4b3c044;
+  min-height:2.7rem;
+  padding-inline:.95rem
+}
+.ls-guide-call__callControlButton {
+  background:#ffffff0a
+}
+.ls-guide-call__endCallButton {
+  color:#f3c9ca;
+  background:#7e363813;
+  border-color:#d7858540
+}
+.ls-guide-call__messageRow button svg,.ls-guide-call__startCallButton svg,.ls-guide-call__callControlButton svg,.ls-guide-call__endCallButton svg {
+  width:.85rem;
+  height:.85rem
+}
+.ls-guide-call__conversationControls {
+  flex-wrap:wrap;
+  gap:.4rem;
+  margin-top:.65rem;
+  display:flex
+}
+.ls-guide-call__messageRow button:hover:not(:disabled),.ls-guide-call__startCallButton:hover:not(:disabled),.ls-guide-call__callControlButton:hover:not(:disabled),.ls-guide-call__endCallButton:hover:not(:disabled) {
+  filter:brightness(1.13)
+}
+.ls-guide-call__messageRow button:disabled,.ls-guide-call__startCallButton:disabled,.ls-guide-call__callControlButton:disabled,.ls-guide-call__endCallButton:disabled {
+  cursor:not-allowed;
+  opacity:.5
+}
+.ls-guide-call__conversationError,.ls-guide-call__speechFallback {
+  border-radius:.55rem;
+  margin:.55rem 0 0;
+  padding:.55rem .65rem;
+  font-size:.62rem;
+  line-height:1.5
+}
+.ls-guide-call__conversationError {
+  color:#f2c2c4;
+  background:#8f363610;
+  border:1px solid #d785852d
+}
+.ls-guide-call__speechFallback {
+  color:#c4b593;
+  background:#c39d6209;
+  border:1px solid #e1c4911c
+}
+.ls-guide-call__conversationPrivacy {
+  color:#a89b83;
+  border-top:1px solid #e1c4911a;
+  margin:.7rem 0 0;
+  padding-top:.6rem;
+  font-size:.57rem;
+  line-height:1.5
+}
+.ls-guide-call__backLink:focus-visible,.ls-guide-call__endCallLink:focus-visible,.ls-guide-call__legalGuideLink:focus-visible,.ls-guide-call__typeInsteadButton:focus-visible,.ls-guide-call__messageRow input:focus-visible,.ls-guide-call__messageRow button:focus-visible,.ls-guide-call__startCallButton:focus-visible,.ls-guide-call__callControlButton:focus-visible,.ls-guide-call__endCallButton:focus-visible,.ls-guide-call__transcriptReview textarea:focus-visible,.ls-guide-call__confirmTranscriptButton:focus-visible {
   outline-offset:3px;
   outline:2px solid #dda5b3
 }
@@ -324,10 +619,22 @@
 .ls-guide-call__transcriptHeading {
   flex-wrap:wrap
 }
+.ls-guide-call__conversationHeading {
+  flex-direction:column
+}
+.ls-guide-call__conversationState {
+  white-space:normal
+}
+.ls-guide-call__messageRow {
+  flex-direction:column
+}
+.ls-guide-call__messageRow button {
+  align-self:flex-start
+}
 
 }
 @media (prefers-reduced-motion:reduce) {
-  .ls-guide-call__backLink,.ls-guide-call__endCallLink,.ls-guide-call__legalGuideLink,.ls-guide-call__guideCard,.ls-guide-call__guideStage,.ls-guide-call__guideStage:before {
+  .ls-guide-call__backLink,.ls-guide-call__endCallLink,.ls-guide-call__legalGuideLink,.ls-guide-call__guideCard,.ls-guide-call__guideStage,.ls-guide-call__guideStage:before,.ls-guide-call__startCallButton,.ls-guide-call__callControlButton,.ls-guide-call__endCallButton {
   scroll-behavior:auto;
   transition:none;
   animation:none

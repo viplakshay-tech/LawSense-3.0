@@ -5,10 +5,9 @@ import Link from 'next/link';
 import { ArrowRight, Clock3, FileText, Loader2, RotateCw, Trash2 } from 'lucide-react';
 import { getCase, type CaseState } from '@/lib/api';
 import { clearSessionCases, getSessionCaseIds } from '@/lib/case-continuity';
+import { restoreSessionCases, type RestoredSessionCase } from '@/lib/session-case-restoration';
 
-type SessionCase =
-  | { id: string; state: 'ready'; data: CaseState }
-  | { id: string; state: 'unavailable' };
+type SessionCase = RestoredSessionCase;
 
 function formatUpdatedAt(value: string | undefined): string {
   if (!value) return 'Update time not supplied';
@@ -33,21 +32,20 @@ export function SessionCaseChooser({
     let active = true;
     const ids = getSessionCaseIds();
 
-    void Promise.all(ids.map(async (id): Promise<SessionCase> => {
-      if (id === activeCaseData?.id) return { id, state: 'ready', data: activeCaseData };
-      try {
-        const data = await getCase(id);
-        return { id, state: 'ready', data };
-      } catch {
-        return { id, state: 'unavailable' };
-      }
-    })).then((results) => {
-      if (active) {
+    void restoreSessionCases(ids, activeCaseData, getCase)
+      .then((results) => {
+        if (!active) return;
         setCases(results);
         setLoadedForActiveCaseId(activeCaseId);
-        setIsLoading(false);
-      }
-    });
+      })
+      .catch(() => {
+        if (!active) return;
+        setCases(ids.map((id) => ({ id, state: 'unavailable' })));
+        setLoadedForActiveCaseId(activeCaseId);
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
 
     return () => { active = false; };
   }, [activeCaseData, activeCaseId, refreshKey]);

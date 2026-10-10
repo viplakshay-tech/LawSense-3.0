@@ -1,0 +1,15 @@
+{
+  "scenario_id": "damaged_product_refund",
+  "label": "Damaged product / refund",
+  "source": {
+    "user_statement": "I bought a phone from a seller. It arrived damaged, and the seller refused my refund.",
+    "language": "english"
+  },
+  "expected": {
+    "issue_categories": ["consumer"],
+    "parties": [{"role": "seller", "name": null}],
+    "event_types": ["payment", "purchase"],
+    "unknowns": ["location relevant", "dates of the described events"],
+    "safety_state": {"context": "none", "urgency": "none", "indicator_categories": []}
+  }
+}

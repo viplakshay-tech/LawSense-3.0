@@ -15,6 +15,19 @@ type CaseStateContextValue = {
 
 const CaseStateContext = createContext<CaseStateContextValue | null>(null);
 
+function getCaseResponseError(value: unknown, caseId: string): string | null {
+  if (
+    typeof value !== 'object' ||
+    value === null ||
+    !('id' in value) ||
+    typeof value.id !== 'string'
+  ) {
+    return 'The case service returned an invalid case.';
+  }
+  if (value.id !== caseId) return 'The case service returned a different case.';
+  return null;
+}
+
 function isOlderState(next: CaseState, current: CaseState): boolean {
   const nextTime = Date.parse(next.metadata.updatedAt);
   const currentTime = Date.parse(current.metadata.updatedAt);
@@ -77,6 +90,8 @@ export function CaseStateProvider({
     requestControllerRef.current = controller;
     try {
       const nextCase = await getCase(caseId, controller.signal);
+      const responseError = getCaseResponseError(nextCase, caseId);
+      if (responseError) throw new Error(responseError);
       if (
         sequence !== requestSequenceRef.current ||
         mutationSequence !== mutationSequenceRef.current ||
@@ -113,6 +128,8 @@ export function CaseStateProvider({
           mutationSequence !== mutationSequenceRef.current ||
           controller.signal.aborted
         ) return;
+        const responseError = getCaseResponseError(nextCase, caseId);
+        if (responseError) throw new Error(responseError);
         acceptCaseState(nextCase);
       })
       .catch((cause: unknown) => {

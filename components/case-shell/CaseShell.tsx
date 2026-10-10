@@ -10,10 +10,11 @@ import {
   ClipboardList,
   FilePenLine,
   FileStack,
+  HeartHandshake,
   LockKeyhole,
   MapPin,
   Network,
-  Route,
+  RefreshCw,
   Scale,
   ShieldAlert,
   Sparkles,
@@ -49,25 +50,28 @@ type CaseSection = {
 const LEGACY_NAV_LABELS: Record<CaseJourneyStageId, string> = {
   understand: 'Understand',
   clarify: 'Clarify',
-  protect: 'Safety',
+  protect: 'Protect',
   evidence: 'Evidence',
-  law: 'Legal Grounding',
-  twin: 'Living Case Twin',
-  prepare: 'Document Drafting',
+  law: 'Law',
+  twin: 'Legal Twin',
+  prepare: 'Prepare',
   act: 'Act',
-  monitor: 'Journey',
+  monitor_update: 'Monitor & Update',
 };
 
 function getActiveSection(pathname: string, hash: string, basePath: string): CaseSectionId | null {
   if (pathname.startsWith(`${basePath}/privacy`)) return null;
-  if (pathname.startsWith(`${basePath}/action`)) return hash.startsWith('#monitor') ? 'monitor' : 'act';
+  if (pathname.startsWith(`${basePath}/action`)) {
+    if (hash.startsWith('#update') || hash.startsWith('#monitor')) return 'monitor_update';
+    return 'act';
+  }
   if (pathname.startsWith(`${basePath}/documents`)) return 'evidence';
   if (pathname.startsWith(`${basePath}/voice`)) return 'clarify';
   if (pathname.startsWith(`${basePath}/guide`)) return 'law';
   if (pathname.startsWith(`${basePath}/twin`)) return 'twin';
   if (pathname.startsWith(`${basePath}/draft`)) return 'prepare';
   if (pathname.startsWith(`${basePath}/safety`)) return 'protect';
-  if (pathname === basePath && hash.startsWith('#journey')) return 'monitor';
+  if (pathname === basePath && hash.startsWith('#journey')) return null;
   if (pathname === basePath && hash.startsWith('#clarification')) return 'clarify';
   if (pathname === basePath || pathname === `${basePath}/`) return 'understand';
   return null;
@@ -77,7 +81,8 @@ function getDestinationForStage(stage: JourneyStageName | undefined, basePath: s
   if (stage === 'UNDERSTAND') return basePath;
   if (stage === 'FACTS' || stage === 'EVIDENCE') return `${basePath}/documents`;
   if (stage === 'LAW') return `${basePath}/guide`;
-  return `${basePath}#journey`;
+  if (stage === 'OPTIONS') return `${basePath}/draft`;
+  return `${basePath}/action`;
 }
 
 function getDestinationForExecutionStage(stage: JourneyExecutionStageName, basePath: string): string {
@@ -115,6 +120,7 @@ function CaseNavigation({
   hash,
   safetyTone,
   statuses,
+  onSectionNavigate,
   mobile = false,
 }: {
   sections: CaseSection[];
@@ -122,6 +128,7 @@ function CaseNavigation({
   hash: string;
   safetyTone: 'urgent' | 'caution' | 'clear';
   statuses: Record<CaseJourneyStageId, string>;
+  onSectionNavigate: (hash: string) => void;
   mobile?: boolean;
 }) {
   const shouldReduceMotion = useReducedMotion();
@@ -160,6 +167,11 @@ function CaseNavigation({
           <div key={section.id} className={`${isSafety && !mobile ? 'mt-2 border-t border-white/[0.08] pt-2' : ''} ${mobile ? 'ls-case-mobile-item min-w-0' : ''}`}>
             <Link
               href={section.href}
+              onClick={(event) => {
+                if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+                const destination = new URL(section.href, window.location.href);
+                if (destination.pathname === window.location.pathname) onSectionNavigate(destination.hash);
+              }}
               aria-label={mobile && section.id === 'twin' ? section.mobileLabel : LEGACY_NAV_LABELS[section.id]}
               aria-description={`${section.name} stage · ${status}`}
               title={`${section.name} · ${status}`}
@@ -210,7 +222,7 @@ function CaseNavigation({
                   aria-current={pathname.startsWith(`${basePath}/voice`) ? 'page' : undefined}
                   className={`block rounded-md px-2 py-1.5 text-xs transition hover:text-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e9bd7b] ${pathname.startsWith(`${basePath}/voice`) ? 'font-medium text-[#f2c98f]' : 'text-slate-500'}`}
                 >
-                  Guide Call
+                  Guide conversation
                 </Link>
               </div>
             )}
@@ -228,6 +240,7 @@ export function CaseShell({ caseId, children }: { caseId: string; children: Reac
   const [hash, setHash] = useState('');
   const [journeyExecution, setJourneyExecution] = useState<JourneyExecutionResponse | null>(null);
   const basePath = `/case/${encodeURIComponent(caseId)}`;
+  const updateSectionHash = (nextHash: string) => setHash(nextHash);
 
   useEffect(() => {
     const syncHash = () => setHash(window.location.hash);
@@ -263,10 +276,10 @@ export function CaseShell({ caseId, children }: { caseId: string; children: Reac
     { id: 'protect', name: 'PROTECT', label: 'Protect', mobileLabel: 'Protect', href: `${basePath}/safety`, icon: ShieldAlert },
     { id: 'evidence', name: 'EVIDENCE', label: 'Evidence', mobileLabel: 'Evidence', href: `${basePath}/documents`, icon: FileStack },
     { id: 'law', name: 'LAW', label: 'Law', mobileLabel: 'Law', href: `${basePath}/guide`, icon: Scale },
-    { id: 'twin', name: 'LIVING CASE TWIN', label: 'Living Case Twin', mobileLabel: 'Living Twin', href: `${basePath}/twin`, icon: Network },
+    { id: 'twin', name: 'LEGAL TWIN', label: 'Legal Twin', mobileLabel: 'Legal Twin', href: `${basePath}/twin`, icon: Network },
     { id: 'prepare', name: 'PREPARE', label: 'Prepare', mobileLabel: 'Prepare', href: `${basePath}/draft`, icon: FilePenLine },
     { id: 'act', name: 'ACT', label: 'Act', mobileLabel: 'Act', href: `${basePath}/action`, icon: ArrowUpRight },
-    { id: 'monitor', name: 'MONITOR', label: 'Monitor', mobileLabel: 'Monitor', href: `${basePath}/action#monitor`, icon: Route },
+    { id: 'monitor_update', name: 'MONITOR & UPDATE', label: 'Monitor & Update', mobileLabel: 'Monitor & Update', href: `${basePath}/action#update`, icon: RefreshCw },
   ];
 
   const journey = caseState?.analysis?.journey;
@@ -282,12 +295,17 @@ export function CaseShell({ caseId, children }: { caseId: string; children: Reac
     ? getCaseJourneyStageAssessment(caseState, currentJourneyExecution, activeSection)
     : null;
   const safetyOverride = activeSafetyTone !== 'clear';
+  const journeyOverview = pathname === basePath && hash.startsWith('#journey');
   const stageTitle = safetyOverride
     ? activeSafetyTone === 'urgent' ? 'Review urgent safety support' : 'Review sensitive safety support'
-    : currentStage?.name ?? (loading ? 'Loading case details' : 'Case details unavailable');
+    : journeyOverview
+      ? 'Your case journey'
+      : currentStage?.name ?? (loading ? 'Loading case details' : 'Case details unavailable');
   const progressLabel = safetyOverride
     ? activeSafetyTone === 'urgent' ? 'Safety first' : 'Sensitive support'
-    : activeSection ? 'Current stage' : pathname.startsWith(`${basePath}/privacy`) ? 'Privacy & Control' : 'Case workspace';
+    : journeyOverview
+      ? 'Journey overview'
+      : activeSection ? 'Current stage' : pathname.startsWith(`${basePath}/privacy`) ? 'Privacy & Control' : 'Case workspace';
   const openQuestions = [...new Set([
     ...(journey?.unknowns ?? []).map((item) => item.question.trim()),
     ...(caseState?.unknowns ?? []).map((item) => item.trim()),
@@ -338,12 +356,14 @@ export function CaseShell({ caseId, children }: { caseId: string; children: Reac
   const caseTitle = caseState?.title?.trim() || 'Active case';
   const jurisdictionLabel = caseState ? getJurisdictionLabel(caseState) : 'Case workspace';
   const caseShortId = caseId.length > 13 ? `${caseId.slice(0, 8)}…${caseId.slice(-3)}` : caseId;
-  const currentArea = currentStage?.label ?? (pathname.startsWith(`${basePath}/privacy`) ? 'Privacy & Control' : 'Case workspace');
+  const currentArea = journeyOverview
+    ? 'Case journey'
+    : currentStage?.label ?? (pathname.startsWith(`${basePath}/privacy`) ? 'Privacy & Control' : 'Case workspace');
   const progressTone: StatusTone = safetyOverride
     ? activeSafetyTone === 'urgent' ? 'danger' : 'caution'
     : activeSection ? 'info' : 'neutral';
-  const contextualHref = safetyMode ? `${basePath}#journey` : recommendedHref;
-  const contextualAction = safetyMode ? 'Return to case journey' : 'Continue to next step';
+  const contextualHref = safetyMode || activeSection === 'monitor_update' ? `${basePath}#journey` : recommendedHref;
+  const contextualAction = safetyMode || activeSection === 'monitor_update' ? 'Return to case journey' : 'Continue to next step';
 
   return (
     <div className="ls-case-shell min-h-screen bg-[#090d13] text-slate-100 selection:bg-[#e7c99c]/40">
@@ -388,9 +408,9 @@ export function CaseShell({ caseId, children }: { caseId: string; children: Reac
 
           <div className="ls-case-nav-heading mb-2 mt-4 flex items-center justify-between px-2">
             <span className="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-600">Case journey</span>
-            <span className="text-[9px] text-slate-600">{completedStageCount}/9 complete</span>
+            <span className="text-[9px] text-slate-600">{completedStageCount}/{CASE_JOURNEY_STAGES.length} complete</span>
           </div>
-          <CaseNavigation sections={sections} pathname={pathname} hash={hash} safetyTone={activeSafetyTone} statuses={stageStatuses} />
+          <CaseNavigation sections={sections} pathname={pathname} hash={hash} safetyTone={activeSafetyTone} statuses={stageStatuses} onSectionNavigate={updateSectionHash} />
 
           <section aria-label="Suggested next step" className={`ls-case-next mt-auto rounded-2xl border p-3.5 ${safetyOverride ? activeSafetyTone === 'urgent' ? 'border-rose-300/30 bg-gradient-to-br from-rose-300/[0.12] to-transparent' : 'border-amber-200/25 bg-gradient-to-br from-amber-200/[0.09] to-transparent' : 'border-[#e9bd7b]/15 bg-gradient-to-br from-[#e9bd7b]/[0.09] to-transparent'}`}>
             <div className={`flex items-center gap-2 ${safetyOverride ? activeSafetyTone === 'urgent' ? 'text-rose-200' : 'text-amber-100' : 'text-[#e8c891]'}`}>
@@ -454,6 +474,14 @@ export function CaseShell({ caseId, children }: { caseId: string; children: Reac
               <span className="max-w-[28rem] truncate normal-case tracking-normal text-slate-200">{caseTitle}</span>
             </div>
             <div className="ml-auto flex shrink-0 items-center gap-2">
+              <Link href="/women-safety" aria-label="Women & Safety" className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-rose-300/20 bg-rose-300/[0.07] px-2.5 text-[11px] font-medium text-rose-100/90 transition hover:border-rose-300/35 hover:bg-rose-300/[0.12] focus-visible:outline focus-visible:outline-2 focus-visible:outline-rose-200 motion-reduce:transition-none">
+                <ShieldAlert className="h-3.5 w-3.5" aria-hidden="true" />
+                <span className="hidden sm:inline">Women &amp; Safety</span>
+              </Link>
+              <Link href="/women-laws" aria-label="Women & Laws" className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-rose-300/15 bg-rose-300/[0.05] px-2.5 text-[11px] font-medium text-rose-100/80 transition hover:border-rose-300/30 hover:bg-rose-300/[0.1] hover:text-rose-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-rose-200 motion-reduce:transition-none">
+                <HeartHandshake className="h-3.5 w-3.5" aria-hidden="true" />
+                <span className="hidden sm:inline">Women &amp; Laws</span>
+              </Link>
               <Link href={`${basePath}/privacy`} aria-label="Privacy & Control" className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-white/[0.09] bg-white/[0.025] px-2.5 text-[11px] font-medium text-slate-400 transition hover:text-slate-100">
                 <LockKeyhole className="h-3.5 w-3.5" aria-hidden="true" />
                 <span className="hidden sm:inline">Privacy</span>
@@ -476,7 +504,7 @@ export function CaseShell({ caseId, children }: { caseId: string; children: Reac
               <p className="ls-case-context-stage">{stageTitle}</p>
               <div className="ls-case-context-meta">
                 <StatusPill tone={progressTone}>{progressLabel}</StatusPill>
-                <span>{completedStageCount} of 9 stages complete · stage status {activeStageAssessment?.status ?? 'Unknown'}</span>
+                <span>{completedStageCount} of {CASE_JOURNEY_STAGES.length} stages complete · stage status {activeStageAssessment?.status ?? (journeyOverview ? 'Overview' : 'Unknown')}</span>
               </div>
             </div>
             <Link href={contextualHref} className="ls-case-context-action">
@@ -498,7 +526,7 @@ export function CaseShell({ caseId, children }: { caseId: string; children: Reac
       </div>
 
       <div className="ls-case-mobile-dock fixed inset-x-0 bottom-0 z-[70] border-t border-white/[0.09] bg-[#0c121a]/[0.97] px-1 pb-[env(safe-area-inset-bottom)] pt-0.5 shadow-[0_-10px_35px_rgba(10,16,26,0.18)] backdrop-blur-xl lg:hidden">
-        <CaseNavigation sections={sections} pathname={pathname} hash={hash} safetyTone={activeSafetyTone} statuses={stageStatuses} mobile />
+        <CaseNavigation sections={sections} pathname={pathname} hash={hash} safetyTone={activeSafetyTone} statuses={stageStatuses} onSectionNavigate={updateSectionHash} mobile />
       </div>
 
       {caseState?.analysis?.legalKnowledge.status === 'empty' && (

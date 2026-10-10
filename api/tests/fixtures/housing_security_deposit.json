@@ -1,0 +1,22 @@
+{
+  "scenario_id": "housing_security_deposit",
+  "label": "Housing / security deposit",
+  "source": {
+    "user_statement": "My landlord withheld my ₹30,000 security deposit.",
+    "language": "english"
+  },
+  "expected": {
+    "issue_categories": ["housing"],
+    "parties": [{"role": "landlord", "name": null}],
+    "event_types": ["payment"],
+    "unknowns": [
+      "location of the property",
+      "date of the deposit",
+      "rental agreement",
+      "reason given",
+      "proof of the deposit",
+      "landlord's name"
+    ],
+    "safety_state": {"context": "none", "urgency": "none", "indicator_categories": []}
+  }
+}

@@ -50,7 +50,7 @@ export function SafetyContextSummary({
                 {copy.possibleTopics}
               </p>
               <ul className="flex flex-wrap gap-2">
-                {topics.map((topic) => (
+                {[...new Set(topics)].map((topic) => (
                   <li
                     key={topic}
                     className="rounded-full border border-white/[0.09] bg-white/[0.035] px-3 py-1.5 text-xs text-zinc-300"

@@ -20,7 +20,9 @@ import {
   LoaderCircle,
   Mic2,
   Paperclip,
+  Scale,
   ShieldCheck,
+  ShieldAlert,
   Sparkles,
   X,
 } from 'lucide-react';
@@ -43,24 +45,44 @@ const pathway = [
     detail: 'Start with the events as you remember them. Everyday language is enough.',
   },
   {
+    name: 'Clarify',
+    short: 'Open questions',
+    detail: 'Answer what you can, and keep unknown details visible until you are ready to revisit them.',
+  },
+  {
+    name: 'Protect',
+    short: 'Safety options',
+    detail: 'Review safety support when it is relevant. Immediate safety help is also available without a case.',
+  },
+  {
     name: 'Evidence',
     short: 'What supports it',
-    detail: 'Keep documents and other supporting material alongside the facts they relate to.',
+    detail: 'Add and review documents, record where they came from, and connect them to the facts they relate to.',
   },
   {
     name: 'Law',
     short: 'Relevant context',
-    detail: 'See legal context and available source links, with gaps and uncertainty made visible.',
+    detail: 'Review potentially relevant law and official sources, with jurisdiction, dates and uncertainty in view.',
   },
   {
-    name: 'Options',
-    short: 'Possible paths',
-    detail: 'Review practical routes to consider, including what may need more checking.',
+    name: 'Legal Twin',
+    short: 'Connected case',
+    detail: 'See how reported facts, evidence, legal issues, conflicts and open questions relate to one another.',
   },
   {
-    name: 'Next step',
-    short: 'A place to begin',
-    detail: 'Leave with a clearer action to explore at your own pace.',
+    name: 'Prepare',
+    short: 'Documents',
+    detail: 'Prepare a draft from details you have reviewed, and choose what to include before using it.',
+  },
+  {
+    name: 'Act',
+    short: 'Your chosen route',
+    detail: 'Review available official routes and decide yourself whether to open or use one.',
+  },
+  {
+    name: 'Monitor & Update',
+    short: 'Revisit changes',
+    detail: 'Add new events when you choose, then review how the case record and source status have changed.',
   },
 ] as const;
 
@@ -92,11 +114,15 @@ const entryModes: Array<{ id: EntryMode; title: string; description: string }> =
 ];
 
 const stageDetails = [
-  { x: 56, y: 198, label: '01', node: 'Understand' },
-  { x: 164, y: 112, label: '02', node: 'Evidence' },
-  { x: 282, y: 207, label: '03', node: 'Law' },
-  { x: 402, y: 116, label: '04', node: 'Options' },
-  { x: 497, y: 202, label: '05', node: 'Next step' },
+  { x: 38, y: 192, label: '01', node: 'Understand' },
+  { x: 101, y: 120, label: '02', node: 'Clarify' },
+  { x: 163, y: 205, label: '03', node: 'Protect' },
+  { x: 226, y: 111, label: '04', node: 'Evidence' },
+  { x: 289, y: 192, label: '05', node: 'Law' },
+  { x: 352, y: 111, label: '06', node: 'Legal Twin' },
+  { x: 414, y: 205, label: '07', node: 'Prepare' },
+  { x: 477, y: 120, label: '08', node: 'Act' },
+  { x: 526, y: 192, label: '09', node: 'Monitor & Update' },
 ] as const;
 
 function BrandMark() {
@@ -133,8 +159,8 @@ function NetworkArtwork() {
         <circle cx="280" cy="165" r="123" fill="url(#networkCore)" />
         <circle cx="280" cy="165" r="90" className={'orbit'} />
         <circle cx="280" cy="165" r="121" className={'orbitSecondary'} />
-        <path d="M56 198 164 112 282 207 402 116 497 202" fill="none" stroke="url(#networkLine)" strokeWidth="1.35" />
-        <path d="M56 198 164 112 282 207M164 112 282 207 402 116M282 207 402 116 497 202" fill="none" stroke="url(#networkLine)" strokeWidth=".8" strokeDasharray="2 7" opacity=".7" />
+        <path d="M38 192 101 120 163 205 226 111 289 192 352 111 414 205 477 120 526 192" fill="none" stroke="url(#networkLine)" strokeWidth="1.35" />
+        <path d="M38 192 101 120 163 205 226 111M163 205 226 111 289 192 352 111M289 192 352 111 414 205 477 120 526 192" fill="none" stroke="url(#networkLine)" strokeWidth=".8" strokeDasharray="2 7" opacity=".7" />
         <path d="M89 270 196 241 282 207 369 244 471 265" fill="none" stroke="#bdc8c0" strokeOpacity=".12" strokeWidth="1" />
         <path d="M113 74 164 112M402 116l43-48M282 207v76" fill="none" stroke="#d9bd8c" strokeOpacity=".16" strokeWidth=".8" strokeDasharray="3 8" />
         <circle cx="280" cy="165" r="46" fill="url(#networkCore)" />
@@ -142,9 +168,9 @@ function NetworkArtwork() {
         <circle cx="280" cy="165" r="22" fill="#e3c89a" fillOpacity=".045" />
         <path d="M270 168.5 280 154l10 14.5M273.8 163.5h12.4M276.2 169h7.6" fill="none" stroke="#e1c58f" strokeWidth="1.1" strokeLinecap="round" />
         {stageDetails.map((stage, index) => (
-          <g key={stage.label} filter={index === 2 ? 'url(#softGlow)' : undefined}>
-            <circle cx={stage.x} cy={stage.y} r={index === 2 ? 7 : 5} fill={index === 2 ? '#e2c48c' : '#a9bdb4'} fillOpacity={index === 2 ? '.95' : '.65'} />
-            <circle cx={stage.x} cy={stage.y} r={index === 2 ? 14 : 10} fill="none" stroke="#dbc18f" strokeOpacity={index === 2 ? '.28' : '.15'} />
+          <g key={stage.label} filter={index === 4 ? 'url(#softGlow)' : undefined}>
+            <circle cx={stage.x} cy={stage.y} r={index === 4 ? 7 : 5} fill={index === 4 ? '#e2c48c' : '#a9bdb4'} fillOpacity={index === 4 ? '.95' : '.65'} />
+            <circle cx={stage.x} cy={stage.y} r={index === 4 ? 14 : 10} fill="none" stroke="#dbc18f" strokeOpacity={index === 4 ? '.28' : '.15'} />
           </g>
         ))}
         <circle cx="89" cy="270" r="2" fill="#d5c6a3" fillOpacity=".7" />
@@ -397,7 +423,6 @@ export default function HomeExperience() {
         <nav className={'headerNav'} aria-label="Main navigation">
           <a href="#pathway">How it works</a>
           <a href="#examples">Examples</a>
-          <a className={'headerCta'} href="#your-story">Begin your story <ArrowUpRight aria-hidden="true" size={14} /></a>
         </nav>
       </header>
 
@@ -413,8 +438,27 @@ export default function HomeExperience() {
               Bring the facts as you know them; we will help put the pieces in order.
             </p>
             <div className={`${'heroActions'} ${'revealFour'}`}>
-              <a className={'primaryLink'} href="#your-story">Start with your story <ArrowDownRight aria-hidden="true" size={16} /></a>
-              <span className={'actionNote'}>No legal terms required</span>
+              <a className={'primaryLink'} href="#your-story">Start / Continue My Case <ArrowDownRight aria-hidden="true" size={16} /></a>
+              <span className={'actionNote'}>Choose a saved case or begin a new one.</span>
+            </div>
+            <div className={'heroResourceGateways revealFour'} aria-label="Other ways to start">
+              <a className={'safetyGateway'} href="/women-safety" aria-label="Women & Safety. Immediate safety guidance and official support. No case needed.">
+                <span className={'safetyGatewayIcon'}><ShieldAlert aria-hidden="true" size={18} /></span>
+                <span className={'safetyGatewayCopy'}>
+                  <strong>Women &amp; Safety</strong>
+                  <small>Immediate safety guidance and official support · no case needed</small>
+                  <small className={'safetyGatewayAssurance'}>LawSense will not contact anyone for you.</small>
+                </span>
+                <ArrowUpRight aria-hidden="true" size={16} />
+              </a>
+              <a className={`${'safetyGateway'} ${'lawsGateway'}`} href="/women-laws" aria-label="Women & Laws. Official legal information and sources.">
+                <span className={'safetyGatewayIcon'}><Scale aria-hidden="true" size={18} /></span>
+                <span className={'safetyGatewayCopy'}>
+                  <strong>Women &amp; Laws</strong>
+                  <small>Legal information, official sources and open questions</small>
+                </span>
+                <ArrowUpRight aria-hidden="true" size={16} />
+              </a>
             </div>
             <div className={`${'heroAssurances'} ${'revealFour'}`} aria-label="How LawSense helps">
               <span><ShieldCheck aria-hidden="true" size={15} /> Facts first</span>
@@ -425,7 +469,6 @@ export default function HomeExperience() {
           <div className={`${'heroVisual'} ${'revealThree'}`}>
             <NetworkArtwork />
           </div>
-          <a className={'scrollCue'} href="#your-story"><span /> SCROLL TO BEGIN</a>
         </section>
 
         <section className={'workspaceSection'} id="your-story" aria-labelledby={intakeReview ? 'intake-review-heading' : 'story-heading'}>
@@ -717,21 +760,23 @@ export default function HomeExperience() {
             <div className={'pathPanel'} role="tabpanel" id="pathway-panel" aria-labelledby={`pathway-tab-${activeStage}`}>
               <span className={'panelIndex'}>0{activeStage + 1}</span>
               <div><strong>{pathway[activeStage].name}</strong><p>{pathway[activeStage].detail}</p></div>
-              <span className={'panelProgress'}>{String(activeStage + 1).padStart(2, '0')} <i /> 05</span>
+              <span className={'panelProgress'}>{String(activeStage + 1).padStart(2, '0')} <i /> {String(pathway.length).padStart(2, '0')}</span>
             </div>
           </div>
-          <p className={'pathwayFootnote'}>This is a guide to the experience ahead. The information shown for your case depends on what you share and the sources available.</p>
+          <p className={'pathwayFootnote'}>This is one connected case journey. Stage status depends on saved case information and confirmed actions; opening a page does not complete a stage.</p>
         </section>
 
         <section className={'examplesSection'} id="examples" aria-labelledby="examples-title">
           <div className={'sectionHeading'}>
             <div>
               <p className={'sectionEyebrow'}>03 / A PLACE TO START</p>
-              <h2 id="examples-title">A few familiar beginnings.</h2>
+              <h2 id="examples-title">Examples, if you are not sure what to write.</h2>
             </div>
-            <p className={'sectionNote'}>These examples are fictional. Choose one to edit it into your own words.</p>
+            <p className={'sectionNote'}>The examples are fictional and stay tucked away until you choose to use one.</p>
           </div>
-          <div className={'exampleGrid'}>
+          <details className={'examplesDisclosure'}>
+            <summary>View fictional example statements</summary>
+            <div className={'exampleGrid'}>
             {examples.map((example) => (
               <article className={'exampleCard'} key={example.title}>
                 <div className={'exampleTop'}><span>{example.category}</span><span className={'exampleIndex'}>{example.icon}</span></div>
@@ -742,7 +787,8 @@ export default function HomeExperience() {
                 </button>
               </article>
             ))}
-          </div>
+            </div>
+          </details>
         </section>
 
         <section className={'trustSection'} aria-labelledby="trust-title">
@@ -757,7 +803,6 @@ export default function HomeExperience() {
       <footer className={'footer'}>
         <a className={'footerBrand'} href="#top"><BrandMark /> LawSense</a>
         <span>Thoughtful first steps. Clearer context.</span>
-        <a href="#your-story">Begin again <ArrowRight aria-hidden="true" size={13} /></a>
       </footer>
     </div>
   );

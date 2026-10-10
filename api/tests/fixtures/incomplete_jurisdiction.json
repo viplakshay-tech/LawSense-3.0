@@ -1,0 +1,15 @@
+{
+  "scenario_id": "incomplete_jurisdiction",
+  "label": "Housing dispute with incomplete jurisdiction",
+  "source": {
+    "user_statement": "My landlord kept my deposit after I moved out.",
+    "language": "english"
+  },
+  "expected": {
+    "issue_categories": ["housing"],
+    "parties": [{"role": "landlord", "name": null}],
+    "event_types": [],
+    "unknowns": ["location of the property", "rental agreement", "reason given"],
+    "safety_state": {"context": "none", "urgency": "none", "indicator_categories": []}
+  }
+}

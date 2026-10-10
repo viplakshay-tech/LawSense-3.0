@@ -48,8 +48,8 @@ export const CASE_JOURNEY_STAGES = [
   },
   {
     id: 'twin',
-    name: 'LIVING CASE TWIN',
-    label: 'Living Case Twin',
+    name: 'LEGAL TWIN',
+    label: 'Legal Twin',
     journeyStages: [],
     executionStages: [],
     readinessDimensions: [],
@@ -71,9 +71,9 @@ export const CASE_JOURNEY_STAGES = [
     readinessDimensions: ['procedure'],
   },
   {
-    id: 'monitor',
-    name: 'MONITOR',
-    label: 'Monitor',
+    id: 'monitor_update',
+    name: 'MONITOR & UPDATE',
+    label: 'Monitor & Update',
     journeyStages: [],
     executionStages: ['Follow-up'],
     readinessDimensions: ['procedure'],
@@ -223,7 +223,7 @@ function getExplicitExecutionStatus(
   if (stage.executionStages.includes(state.current_stage)) return 'In progress';
   if (progress.some((item) => item.inputs.length > 0)) return 'In progress';
 
-  if (stage.id === 'act' || stage.id === 'monitor') {
+  if (stage.id === 'act' || stage.id === 'monitor_update') {
     const actions = state.action_plan.filter((item) => stage.executionStages.includes(item.stage));
     if (actions.some((item) => item.status === 'IN_PROGRESS' || item.status === 'WAITING')) {
       return 'In progress';
@@ -303,6 +303,16 @@ export function getCaseJourneyStageAssessment(
   }
   if (stage.id === 'twin') {
     return { status: getTwinStatus(caseState), blockers, unknowns };
+  }
+  // Monitoring and adding updates remain available for every saved case. The
+  // stage is complete only when the case service records its follow-up action.
+  if (stage.id === 'monitor_update') {
+    const executionStatus = getExplicitExecutionStatus(stage, execution);
+    return {
+      status: executionStatus ?? (caseState ? 'Available' : 'Unknown'),
+      blockers,
+      unknowns,
+    };
   }
 
   const executionStatus = getExplicitExecutionStatus(stage, execution);

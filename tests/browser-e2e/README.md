@@ -45,6 +45,10 @@ The test runner uses port 3012 for Next.js and port 8001 for the isolated API.
 Set `LAWSENSE_E2E_WEB_PORT` to use another available web port. Browser requests
 to the app's same-origin `/api/*` contract are forwarded to that isolated API
 without modifying the live API server or its data.
+By default the runner requires the pinned, clean API revision above. Set
+`LAWSENSE_E2E_ALLOW_LOCAL_API=1` to exercise the current API working tree,
+including uncommitted changes; the disposable database and document directory
+are still used.
 The harness keeps its production build in `.next-e2e-production` and the
 home-regression development build in `.next-e2e-home`; this lets either config
 run alongside a regular Next.js development server.

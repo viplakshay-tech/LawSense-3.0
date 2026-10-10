@@ -1,0 +1,19 @@
+{
+  "scenario_id": "threatening_messages",
+  "label": "Threatening messages",
+  "source": {
+    "user_statement": "They sent me a message on March 2, 2025. It contained a threat.",
+    "language": "english"
+  },
+  "expected": {
+    "issue_categories": ["criminal"],
+    "parties": [],
+    "event_types": ["communication", "threat"],
+    "unknowns": ["other party's name and role"],
+    "safety_state": {
+      "context": "potentially_unsafe",
+      "urgency": "elevated",
+      "indicator_categories": ["threat"]
+    }
+  }
+}

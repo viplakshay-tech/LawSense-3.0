@@ -1,0 +1,15 @@
+{
+  "scenario_id": "unpaid_salary",
+  "label": "Unpaid salary",
+  "source": {
+    "user_statement": "My employer withheld my salary for two months.",
+    "language": "english"
+  },
+  "expected": {
+    "issue_categories": ["employment"],
+    "parties": [{"role": "employer", "name": null}],
+    "event_types": ["payment"],
+    "unknowns": ["location relevant", "dates of the described events"],
+    "safety_state": {"context": "none", "urgency": "none", "indicator_categories": []}
+  }
+}

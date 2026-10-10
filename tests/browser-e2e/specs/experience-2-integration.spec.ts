@@ -20,9 +20,9 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-async function enterCase(page: Page): Promise<string> {
+async function enterCase(page: Page, statement = initialStatement): Promise<string> {
   await page.goto('/');
-  await page.locator('textarea').fill(initialStatement);
+  await page.locator('textarea').fill(statement);
   await page.getByRole('button', { name: 'Continue with this statement' }).click();
   await expect(page.getByRole('heading', { name: 'Here’s what I understood.' })).toBeVisible();
   await page.getByRole('button', { name: 'Continue to guided questions' }).click();
@@ -30,11 +30,29 @@ async function enterCase(page: Page): Promise<string> {
   return new URL(page.url()).pathname.split('/').at(-1)!;
 }
 
+test('case and Legal Twin show source-linked law candidates without a score cutoff or invented filing route', async ({ page }) => {
+  const caseId = await enterCase(page, 'I bought a defective phone, asked the seller for a refund, and the seller refused.');
+  const lawPanel = page.getByRole('region', { name: 'Law guidance from recorded facts and sources' });
+
+  await expect(lawPanel).toContainText('Consumer Protection Act, 2019');
+  await expect(lawPanel).toContainText('Section 2(10)');
+  await expect(lawPanel).toContainText('No numeric score or cutoff is used.');
+  await expect(lawPanel).toContainText('user reported');
+  await expect(lawPanel).toContainText('No verified deadline was found in linked procedure records.');
+  await expect(lawPanel).toContainText('No verified procedure or filing link was found in the linked records.');
+  await expect(lawPanel).toContainText('Official legal publications');
+
+  await page.goto(`/case/${caseId}/twin`);
+  const twinLawPanel = page.getByRole('region', { name: 'Legal grounding' });
+  await expect(twinLawPanel).toContainText('Consumer Protection Act, 2019');
+  await expect(twinLawPanel).toContainText('Section 2(10)');
+});
+
 test('Guide actions follow the shared runtime and intake provenance stays explicit in the Evidence Map', async ({ page }) => {
   const caseId = await enterCase(page);
   const navigation = page.getByRole('navigation', { name: 'Case workspace' });
 
-  await navigation.getByRole('link', { name: 'Legal Grounding', exact: true }).click();
+  await navigation.getByRole('link', { name: 'Law', exact: true }).click();
   await expect(page).toHaveURL(`/case/${caseId}/guide`);
   const clarificationAction = page.getByRole('button', { name: 'Answer an open case question' });
   await expect(clarificationAction).toBeVisible();
@@ -50,6 +68,62 @@ test('Guide actions follow the shared runtime and intake provenance stays explic
   await expect(page.getByText('Source record', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Evidence-supported', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Conflicting', exact: true })).toBeVisible();
+});
+
+test('the case journey keeps Monitor & Update together and leaves the journey overview unselected', async ({ page }) => {
+  const caseId = await enterCase(page);
+  const navigation = page.getByRole('navigation', { name: 'Case workspace' });
+
+  const updateStage = navigation.getByRole('link', { name: 'Monitor & Update', exact: true });
+  await expect(updateStage).toHaveAttribute('href', `/case/${caseId}/action#update`);
+  await expect(updateStage).toContainText('Available');
+  await updateStage.click();
+
+  await expect(page).toHaveURL(`/case/${caseId}/action#update`);
+  await expect(page.getByRole('heading', { name: 'Add information when something changes' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Add a new statement' })).toHaveAttribute('href', `/case/${caseId}/voice`);
+  await expect(navigation.getByRole('link', { name: 'Monitor & Update', exact: true })).toHaveAttribute('aria-current', 'page');
+
+  await page.getByRole('link', { name: 'Return to case journey', exact: true }).click();
+  await expect(page).toHaveURL(`/case/${caseId}#journey`);
+  await expect(page.getByText('Your case journey', { exact: true })).toBeVisible();
+  await expect(navigation.getByRole('link', { name: 'Monitor & Update', exact: true })).not.toHaveAttribute('aria-current', 'page');
+});
+
+test('a synthetic workplace-harassment case can revisit every stage without page visits completing work', async ({ page }) => {
+  const scenario = 'SYNTHETIC TEST ONLY: At a fictional workplace in Pune, a coworker sent repeated unwanted sexual messages after I asked them to stop on 8 October 2026. I saved screenshots and asked the workplace contact for help. I want to understand safety options and what information is still unknown.';
+  const caseId = await enterCase(page, scenario);
+  const navigation = page.getByRole('navigation', { name: 'Case workspace' }).first();
+  const stageLinks = navigation.locator('a[data-stage-status]');
+  await expect(stageLinks).toHaveCount(9);
+  await expect(page.locator('#overview').getByText(scenario, { exact: true })).toBeVisible();
+  await expect(navigation.getByRole('link', { name: 'Understand', exact: true })).toHaveAttribute('aria-current', 'page');
+  const statusesBefore = await stageLinks.evaluateAll((links) => links.map((link) => link.getAttribute('data-stage-status')));
+
+  const stages = [
+    { name: 'Clarify', href: `/case/${caseId}#clarification` },
+    { name: 'Protect', href: `/case/${caseId}/safety` },
+    { name: 'Evidence', href: `/case/${caseId}/documents` },
+    { name: 'Law', href: `/case/${caseId}/guide` },
+    { name: 'Legal Twin', href: `/case/${caseId}/twin` },
+    { name: 'Prepare', href: `/case/${caseId}/draft` },
+    { name: 'Act', href: `/case/${caseId}/action` },
+    { name: 'Monitor & Update', href: `/case/${caseId}/action#update` },
+  ];
+
+  for (const stage of stages) {
+    const link = navigation.getByRole('link', { name: stage.name, exact: true });
+    await link.click();
+    await expect(page).toHaveURL(stage.href);
+    await expect(link).toHaveAttribute('aria-current', 'page');
+  }
+
+  await navigation.getByRole('link', { name: 'Understand', exact: true }).click();
+  await expect(page).toHaveURL(`/case/${caseId}`);
+  await expect(page.locator('#overview').getByText(scenario, { exact: true })).toBeVisible();
+  const statusesAfter = await stageLinks.evaluateAll((links) => links.map((link) => link.getAttribute('data-stage-status')));
+  expect(statusesAfter).toEqual(statusesBefore);
+  await expect(page.locator('.ls-case-context-meta')).toContainText('of 9 stages complete');
 });
 
 test('user confirmation of a document reading stays separate from Evidence-supported status', async ({ page }) => {
@@ -154,12 +228,12 @@ test('the Guide restores keyboard focus and the real Twin graph remains usable a
   await expect(expandGuide).toBeFocused();
 
   await expandGuide.click();
-  await mobileNavigation.getByRole('link', { name: 'Legal Grounding', exact: true }).click();
+  await mobileNavigation.getByRole('link', { name: 'Law', exact: true }).click();
   await expect(page).toHaveURL(`/case/${caseId}/guide`);
   await expect(expandGuide).toHaveAttribute('aria-expanded', 'false');
   await expect(expandGuide).toBeFocused();
 
-  await mobileNavigation.getByRole('link', { name: 'Living Twin' }).click();
+  await mobileNavigation.getByRole('link', { name: 'Legal Twin' }).click();
   await expect(page).toHaveURL(`/case/${caseId}/twin`);
   const graph = page.getByRole('region', { name: 'Living Legal Twin CaseState projection' });
   await expect(graph).toBeVisible();

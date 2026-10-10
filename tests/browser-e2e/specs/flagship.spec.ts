@@ -227,7 +227,7 @@ test('real landlord-deposit flow refreshes CaseState and the Living Twin timelin
   await expect(page.getByText('Evidence Supported').first()).toBeVisible();
   await expect(page.getByText(agreementName).first()).toBeVisible();
 
-  await page.getByRole('navigation', { name: 'Case workspace' }).getByRole('link', { name: 'Living Case Twin', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Case workspace' }).getByRole('link', { name: 'Legal Twin', exact: true }).click();
   await expect(page).toHaveURL(`/case/${caseId}/twin`);
   await expect(page.getByText('Living Legal Twin')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Move through the case timeline' })).toBeVisible();
@@ -289,6 +289,59 @@ test('an unavailable case shows useful recovery actions', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Try again' })).toBeVisible();
   await page.getByRole('button', { name: 'Cases this session' }).click();
   await expect(page).toHaveURL('/');
+});
+
+test('a 200 response for another case exits loading with a retryable error', async ({ page }) => {
+  let responseCount = 0;
+  await page.route('**/api/cases/reopen-mismatched-case', async (route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    responseCount += 1;
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ id: 'a-different-case' }),
+    });
+  });
+
+  const responsePromise = page.waitForResponse((response) => {
+    const requestUrl = new URL(response.url());
+    return response.request().method() === 'GET'
+      && requestUrl.pathname === '/api/cases/reopen-mismatched-case';
+  });
+  await page.goto('/case/reopen-mismatched-case');
+  const response = await responsePromise;
+  expect(response.status()).toBe(200);
+  await expect(page.getByRole('heading', { name: 'This case could not be reopened' })).toBeVisible();
+  await expect(page.getByText('The case service returned a different case.')).toBeVisible();
+  await expect(page.getByText('Retrieving your case...')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Try again' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Try again' }).click();
+  await expect.poll(() => responseCount).toBe(2);
+  await expect(page.getByRole('heading', { name: 'This case could not be reopened' })).toBeVisible();
+});
+
+test('a malformed 200 case response exits loading into recovery actions', async ({ page }) => {
+  await page.route('**/api/cases/reopen-malformed-case', async (route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: '{"id":',
+    });
+  });
+
+  const responsePromise = page.waitForResponse((response) => {
+    const requestUrl = new URL(response.url());
+    return response.request().method() === 'GET'
+      && requestUrl.pathname === '/api/cases/reopen-malformed-case';
+  });
+  await page.goto('/case/reopen-malformed-case');
+  const response = await responsePromise;
+  expect(response.status()).toBe(200);
+  await expect(page.getByRole('heading', { name: 'This case could not be reopened' })).toBeVisible();
+  await expect(page.getByText('Retrieving your case...')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Try again' })).toBeVisible();
 });
 
 test('a failed case API request is visible and retry recovers from the real API', async ({ page }) => {

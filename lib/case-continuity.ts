@@ -1,5 +1,10 @@
 const SESSION_CASES_KEY = 'lawsense:case-continuity:v1';
 const MAX_SESSION_CASES = 8;
+const CASE_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function isValidSessionCaseId(caseId: unknown): caseId is string {
+  return typeof caseId === 'string' && CASE_ID_PATTERN.test(caseId);
+}
 
 function readStoredCaseIds(): string[] {
   if (typeof window === 'undefined') return [];
@@ -8,9 +13,15 @@ function readStoredCaseIds(): string[] {
     const value: unknown = JSON.parse(window.sessionStorage.getItem(SESSION_CASES_KEY) ?? '[]');
     if (!Array.isArray(value)) return [];
 
-    return value.filter((item): item is string =>
-      typeof item === 'string' && item.trim().length > 0 && item.length <= 200,
-    ).slice(0, MAX_SESSION_CASES);
+    const caseIds = value.filter(isValidSessionCaseId).slice(0, MAX_SESSION_CASES);
+    if (caseIds.length !== value.length) {
+      try {
+        window.sessionStorage.setItem(SESSION_CASES_KEY, JSON.stringify(caseIds));
+      } catch {
+        // Keep the sanitized in-memory list when browser storage cannot be updated.
+      }
+    }
+    return caseIds;
   } catch {
     return [];
   }
@@ -18,7 +29,7 @@ function readStoredCaseIds(): string[] {
 
 /** Remembers only case identifiers for this browser session; case content stays on the case API. */
 export function rememberSessionCase(caseId: string): void {
-  if (typeof window === 'undefined' || !caseId.trim() || caseId.length > 200) return;
+  if (typeof window === 'undefined' || !isValidSessionCaseId(caseId)) return;
 
   const caseIds = [caseId, ...readStoredCaseIds().filter((id) => id !== caseId)].slice(0, MAX_SESSION_CASES);
   try {

@@ -234,10 +234,10 @@ export function SafetyExperience({ caseId }: { caseId: string }) {
               );
             })}
           </ul>
-          <p className="mt-4 border-t border-white/[0.07] pt-3 text-xs leading-5 text-zinc-400">Use a device and location that feel safe to you. No intimate images are needed or requested. You decide whether to open the case Guide or start a Guide Call; this prototype does not promise confidentiality.</p>
+          <p className="mt-4 border-t border-white/[0.07] pt-3 text-xs leading-5 text-zinc-400">Use a device and location that feel safe to you. No intimate images are needed or requested. You decide whether to open the case Guide or use its turn-based voice and text conversation; this prototype does not promise confidentiality.</p>
           <div className="mt-3 flex flex-wrap gap-2">
             <button type="button" onClick={() => router.push(`/case/${encodeURIComponent(caseId)}/guide`)} className="inline-flex min-h-10 items-center rounded-lg border border-white/[0.12] px-3 text-xs font-semibold text-zinc-200 hover:bg-white/[0.05]">Open the case Guide</button>
-            <button type="button" onClick={() => router.push(`/case/${encodeURIComponent(caseId)}/voice`)} className="inline-flex min-h-10 items-center rounded-lg bg-rose-200 px-3 text-xs font-semibold text-[#25161b] hover:bg-rose-100">Start a Guide Call</button>
+            <button type="button" onClick={() => router.push(`/case/${encodeURIComponent(caseId)}/voice`)} className="inline-flex min-h-10 items-center rounded-lg bg-rose-200 px-3 text-xs font-semibold text-[#25161b] hover:bg-rose-100">Talk with the Guide</button>
           </div>
         </section>
 

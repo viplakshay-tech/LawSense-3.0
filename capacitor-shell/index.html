@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#11131a" />
+    <title>LawSense · Local connection</title>
+    <style>
+      :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #11131a; color: #e8e9ee; }
+      * { box-sizing: border-box; }
+      body { margin: 0; min-height: 100dvh; }
+      main { width: min(680px, 100%); margin: 0 auto; padding: max(28px, env(safe-area-inset-top)) 20px 32px; }
+      h1 { margin: 0; font-size: 1.5rem; letter-spacing: -.025em; }
+      p { color: #b8bdc9; line-height: 1.55; }
+      .eyebrow { color: #b7c5e9; font-size: .75rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+      .card { margin-top: 20px; padding: 20px; border: 1px solid #ffffff1a; border-radius: 18px; background: #191d27; }
+      label { display: block; margin: 20px 0 8px; font-size: .9rem; font-weight: 650; }
+      input { width: 100%; min-height: 48px; padding: 10px 12px; border: 1px solid #454b59; border-radius: 10px; background: #11131a; color: #fff; font: inherit; }
+      button { min-height: 44px; padding: 9px 14px; border: 1px solid #7790cc88; border-radius: 10px; background: #34436a; color: #fff; font: inherit; font-weight: 650; }
+      button:focus-visible, input:focus-visible { outline: 3px solid #afc2ff; outline-offset: 2px; }
+      button:disabled { opacity: .55; }
+      .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+      #status { display: block; min-height: 1.5em; margin-top: 12px; color: #b8bdc9; }
+      #status[data-kind="ok"] { color: #a5e2bd; }
+      #status[data-kind="error"] { color: #ffb5ad; }
+      .fine-print { font-size: .82rem; }
+      #app-frame { display: block; width: 100%; height: 100dvh; border: 0; background: #11131a; }
+      .frame-page { max-width: none; width: 100%; height: 100dvh; padding: 0; }
+      .frame-tools { position: fixed; z-index: 10; right: 10px; top: max(10px, env(safe-area-inset-top)); }
+      .frame-tools button { min-height: 36px; padding: 6px 10px; font-size: .78rem; opacity: .92; }
+    </style>
+  </head>
+  <body>
+    <main id="connection-screen">
+      <p class="eyebrow">Private local connection</p>
+      <h1>Connect LawSense</h1>
+      <p>Enter the HTTPS address of the LawSense web app running on your own computer. Keep your phone and computer on the same trusted Wi-Fi network.</p>
+      <section class="card" aria-labelledby="connection-heading">
+        <h2 id="connection-heading">Connect to your local server</h2>
+        <p class="fine-print">The app checks <code>/api/health</code> through the web server. Its API upstream is configured on that computer with <code>NEXT_PUBLIC_API_URL</code>; the phone does not use localhost for the backend.</p>
+        <form id="connection-form">
+          <label for="server-url">LawSense web address</label>
+          <input id="server-url" type="url" inputmode="url" autocomplete="url" placeholder="https://192.168.1.25:3000" required />
+          <div class="actions"><button id="connect-button" type="submit">Check connection</button></div>
+        </form>
+        <output id="status" role="status" aria-live="polite">No server has been checked yet.</output>
+        <p class="fine-print">Use an HTTPS address with a certificate trusted by this phone. HTTP is not accepted. This APK contains only this connection screen; case data and the LawSense app require the local server. No offline or standalone mode is provided.</p>
+      </section>
+    </main>
+    <main id="app-screen" class="frame-page" hidden>
+      <div class="frame-tools"><button id="change-server" type="button">Change server</button></div>
+      <iframe id="app-frame" title="LawSense local web app" allow="microphone"></iframe>
+    </main>
+    <script>
+      const form = document.getElementById('connection-form');
+      const input = document.getElementById('server-url');
+      const button = document.getElementById('connect-button');
+      const status = document.getElementById('status');
+      const connectionScreen = document.getElementById('connection-screen');
+      const appScreen = document.getElementById('app-screen');
+      const frame = document.getElementById('app-frame');
+
+      function setStatus(message, kind = '') {
+        status.value = message;
+        status.dataset.kind = kind;
+      }
+
+      function normalizeLocalHttpsAddress(value) {
+        const address = new URL(value.trim());
+        if (address.protocol !== 'https:' || address.username || address.password || address.pathname !== '/' || address.search || address.hash) {
+          throw new Error('Enter the HTTPS origin only, for example https://192.168.1.25:3000.');
+        }
+        const host = address.hostname.toLowerCase();
+        if (host === 'localhost' || host === '127.0.0.1' || host === '::1' || host.endsWith('.localhost')) {
+          throw new Error('Use the computer’s private network address. A phone’s localhost points back to the phone.');
+        }
+        return address.origin;
+      }
+
+      async function checkAndOpen(address) {
+        button.disabled = true;
+        setStatus('Checking the web server and its API connection…');
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 7000);
+        try {
+          const response = await fetch(`${address}/api/health`, {
+            method: 'GET',
+            headers: { Accept: 'application/json' },
+            cache: 'no-store',
+            credentials: 'omit',
+            signal: controller.signal,
+          });
+          const body = await response.json();
+          if (!response.ok || body?.status !== 'ok' || body?.service !== 'lawsense-api') {
+            throw new Error('The server responded, but LawSense API health was not confirmed.');
+          }
+          localStorage.setItem('lawsense-local-web-origin', address);
+          frame.src = address;
+          connectionScreen.hidden = true;
+          appScreen.hidden = false;
+        } catch (error) {
+          const detail = error?.name === 'AbortError'
+            ? 'The health check timed out. Check the server address and that both devices share the same network.'
+            : error instanceof TypeError
+              ? 'Could not reach the server. Check its HTTPS certificate, address, Wi-Fi, firewall, and API proxy settings.'
+              : error instanceof Error ? error.message : 'The local server check failed.';
+          setStatus(detail, 'error');
+        } finally {
+          clearTimeout(timeout);
+          button.disabled = false;
+        }
+      }
+
+      form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        try { void checkAndOpen(normalizeLocalHttpsAddress(input.value)); }
+        catch (error) { setStatus(error instanceof Error ? error.message : 'Enter a valid HTTPS address.', 'error'); }
+      });
+
+      document.getElementById('change-server').addEventListener('click', () => {
+        frame.src = 'about:blank';
+        appScreen.hidden = true;
+        connectionScreen.hidden = false;
+        setStatus('Server address saved. Check a new address or reconnect.');
+        input.focus();
+      });
+
+      const saved = localStorage.getItem('lawsense-local-web-origin');
+      if (saved) input.value = saved;
+    </script>
+    <script>
+      const guideAudioChannel = 'lawsense-native-guide-audio-v1';
+      const guideAudioEvents = ['recognitionStarted', 'partialTranscript', 'transcript', 'recognitionError', 'recognitionStopped', 'speechStarted', 'speechFinished', 'speechStopped', 'speechError'];
+      let guideAudioEventsRegistered = false;
+
+      function guideAudioTarget() {
+        const frame = document.getElementById('app-frame');
+        const savedOrigin = localStorage.getItem('lawsense-local-web-origin');
+        if (!frame?.contentWindow || !savedOrigin) return null;
+        try { return { frame, origin: new URL(savedOrigin).origin }; }
+        catch { return null; }
+      }
+
+      function registerGuideAudioEvents() {
+        if (guideAudioEventsRegistered) return;
+        const plugin = window.Capacitor?.Plugins?.NativeGuideAudio;
+        if (!plugin) {
+          window.setTimeout(registerGuideAudioEvents, 100);
+          return;
+        }
+        guideAudioEventsRegistered = true;
+        for (const eventName of guideAudioEvents) plugin.addListener(eventName, (payload) => {
+          const target = guideAudioTarget();
+          if (target) target.frame.contentWindow.postMessage({ channel: guideAudioChannel, type: 'event', eventName, payload }, target.origin);
+        });
+      }
+      registerGuideAudioEvents();
+
+      window.addEventListener('message', async (event) => {
+        const target = guideAudioTarget();
+        const request = event.data;
+        if (!target || event.source !== target.frame.contentWindow || event.origin !== target.origin || request?.channel !== guideAudioChannel || request?.type !== 'request' || typeof request.requestId !== 'string') return;
+        const allowedMethods = new Set(['getCapabilities', 'startListening', 'stopListening', 'speak', 'stopSpeaking']);
+        const reply = (payload, error) => target.frame.contentWindow.postMessage({ channel: guideAudioChannel, type: 'response', requestId: request.requestId, payload, error }, target.origin);
+        const plugin = window.Capacitor?.Plugins?.NativeGuideAudio;
+        if (!allowedMethods.has(request.method) || typeof plugin?.[request.method] !== 'function') {
+          reply(undefined, 'The Android Guide audio bridge is unavailable.');
+          return;
+        }
+        try {
+          const result = await plugin[request.method](request.args && typeof request.args === 'object' ? request.args : {});
+          reply(result);
+        } catch (error) {
+          reply(undefined, error instanceof Error ? error.message : String(error));
+        }
+      });
+    </script>
+  </body>
+</html>

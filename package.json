@@ -9,9 +9,12 @@
     "lint": "eslint",
     "test:api": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test tests/api/legal-knowledge.test.mjs",
     "test:resources": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test tests/resources/official-resources.test.mjs",
-    "test:guide": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test tests/guide/voice-presentation.test.mjs"
+    "test:guide": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test tests/guide/voice-presentation.test.mjs",
+    "test:session-restoration": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test tests/session-case-restoration.test.mjs"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/core": "^8.5.3",
     "clsx": "^2.1.1",
     "framer-motion": "^14.0.0",
     "lucide-react": "^1.52.0",
@@ -21,6 +24,7 @@
     "tailwind-merge": "^3.7.0"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.3",
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

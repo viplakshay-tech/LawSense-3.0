@@ -8,7 +8,7 @@ const dataItems = [
   ['Confirmed facts', 'Details you review and explicitly confirm into the case record.'],
   ['Uploaded evidence', 'Files and extracted details you choose to add.'],
   ['Generated documents', 'Drafts created from the current case record for your review.'],
-  ['Optional voice / transcript data', 'Only when you choose the Guide Call. The screen reports whether the configured speech path is local or sends audio to LawSense.'],
+  ['Optional voice / transcript data', 'Only when you choose to use Guide voice input. The screen reports whether recognition is on-device or provided by the browser.'],
 ];
 
 const provenance = [
@@ -54,7 +54,7 @@ export default async function PrivacyControlPage({
           <ul className="mt-4 grid gap-2 text-sm text-slate-300">
             {['Case organization', 'Evidence organization', 'Legal grounding from returned sources', 'Document preparation', 'Next-step guidance'].map((reason) => <li key={reason} className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2.5">{reason}</li>)}
           </ul>
-          <p className="mt-4 text-xs leading-5 text-slate-500">Optional voice processing depends on the available browser or configured speech provider. Check the Guide Call status before recording.</p>
+          <p className="mt-4 text-xs leading-5 text-slate-500">Voice recognition and spoken replies depend on the browser or on-device Android services available on this device. Check the Guide voice status before recording; typed messages remain available.</p>
         </article>
       </section>
 

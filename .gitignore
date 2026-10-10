@@ -44,3 +44,36 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# LawSense unified-repository local/private/generated files
+.env
+.env.*
+!.env.example
+!.env.*.example
+node_modules/
+.next/
+out/
+dist/
+coverage/
+test-results/
+playwright-report/
+.pytest_cache/
+__pycache__/
+.venv/
+venv/
+.mypy_cache/
+.ruff_cache/
+.gradle/
+android/**/build/
+android/local.properties
+*.py[cod]
+*.sqlite
+*.sqlite3
+*.sqlite-*
+*.db
+*.db-*
+*.log
+*.key
+credentials.json
+service-account*.json
+Thumbs.db

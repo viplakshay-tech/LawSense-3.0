@@ -287,7 +287,7 @@ export default function CaseClient({ id }: { id: string }) {
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-200/20 bg-rose-100/[0.035] px-4 py-3 dark:border-rose-200/10">
             <p className="text-xs text-zinc-600 dark:text-zinc-300">Prefer to talk through an answer?</p>
             <Link href={`/case/${encodeURIComponent(caseData.id)}/voice`} className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-rose-200/25 px-3 text-xs font-semibold text-rose-800 transition hover:bg-rose-50 dark:text-rose-100 dark:hover:bg-rose-100/[0.06]">
-              Start a Guide Call
+              Talk with the Guide
             </Link>
           </div>
           <ClarificationPanel

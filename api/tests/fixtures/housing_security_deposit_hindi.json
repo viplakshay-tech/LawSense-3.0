@@ -1,0 +1,15 @@
+{
+  "scenario_id": "housing_security_deposit_hindi",
+  "label": "Hindi housing / security deposit",
+  "source": {
+    "user_statement": "मेरे मकान मालिक ने तीस हजार रुपये की सुरक्षा जमा वापस नहीं की।",
+    "language": "hindi"
+  },
+  "expected": {
+    "issue_categories": ["housing"],
+    "parties": [{"role": "landlord", "name": null}],
+    "event_types": ["payment"],
+    "unknowns": ["location of the property", "date of the deposit", "rental agreement", "reason given", "proof of the deposit"],
+    "safety_state": {"context": "none", "urgency": "none", "indicator_categories": []}
+  }
+}

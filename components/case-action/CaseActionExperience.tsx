@@ -97,6 +97,8 @@ export function CaseActionExperience({ caseId }: { caseId: string }) {
   const analysis = caseState.analysis;
   const safety = analysis?.safetyContext;
   const legalKnowledge = analysis?.legalKnowledge;
+  const lawMatches = legalKnowledge?.lawMatches ?? [];
+  const legalAidResources = legalKnowledge?.supportResources ?? [];
   const factsSupported = caseState.facts.filter((fact) => fact.status === 'evidence_supported').length;
   const reportedFacts = caseState.facts.filter((fact) => fact.status === 'user_reported').length;
   const unresolved = unique([
@@ -182,6 +184,31 @@ export function CaseActionExperience({ caseId }: { caseId: string }) {
         ) : (
           <p className="mt-3 text-sm leading-6 text-slate-400">No legal source records were returned for this case.</p>
         )}
+        {lawMatches.length > 0 && (
+          <div className="mt-4 border-t border-white/[0.07] pt-4">
+            <h3 className="text-xs font-semibold text-slate-200">Guidance from recorded facts</h3>
+            <p className="mt-1 text-[10px] leading-4 text-slate-500">Qualitative candidate assessment only. Source, geographic scope, incident dates, missing details, and conflicts remain separate checks.</p>
+            <ul className="mt-3 space-y-2">
+              {lawMatches.slice(0, 3).map((match) => (
+                <li key={match.candidateId} className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <p className="text-xs font-medium text-slate-100">{match.actTitle} · {match.provisionReference || match.provisionTitle}</p>
+                    <span className="rounded-full border border-sky-200/15 px-2 py-1 text-[9px] uppercase text-sky-100">{match.evidenceAssessment}</span>
+                  </div>
+                  <p className="mt-1 text-[10px] leading-5 text-slate-400">{match.whyItMayApply}</p>
+                  <p className="mt-1 text-[10px] leading-5 text-slate-500">{match.temporalLimitation}</p>
+                  <Link href={`${casePath}/guide#law-candidate-${encodeURIComponent(match.candidateId)}`} className="mt-2 inline-flex min-h-8 items-center gap-1 text-[10px] font-semibold text-sky-200 underline underline-offset-4">Review sources, questions, authority and procedure <ArrowUpRight aria-hidden="true" className="h-3 w-3" /></Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {legalAidResources.length > 0 && (
+          <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-white/[0.07] pt-4">
+            <span className="text-[10px] text-slate-400">Official legal-aid support:</span>
+            {legalAidResources.map((resource) => <a key={resource.id} href={resource.url} target="_blank" rel="noreferrer" className="inline-flex min-h-8 items-center gap-1 text-[10px] font-semibold text-emerald-200 underline underline-offset-4">{resource.title}{resource.phone ? ` · ${resource.phone}` : ''}<ArrowUpRight aria-hidden="true" className="h-3 w-3" /></a>)}
+          </div>
+        )}
         <p className="mt-4 text-xs leading-5 text-slate-500">Check jurisdiction, commencement, source version and applicability in each source. LawSense does not invent legal provisions or treat a candidate source as a conclusion.</p>
       </section>
 
@@ -218,8 +245,29 @@ export function CaseActionExperience({ caseId }: { caseId: string }) {
           <Link href={`${casePath}/documents`} className="rounded-lg border border-white/[0.1] px-3 py-2 text-xs text-slate-300 hover:bg-white/[0.05]">Evidence</Link>
           <Link href={`${casePath}/guide`} className="rounded-lg border border-white/[0.1] px-3 py-2 text-xs text-slate-300 hover:bg-white/[0.05]">Law</Link>
           <Link href={`${casePath}/draft`} className="rounded-lg border border-white/[0.1] px-3 py-2 text-xs text-slate-300 hover:bg-white/[0.05]">Prepare</Link>
-          <Link href={`${casePath}/voice`} className="rounded-lg border border-white/[0.1] px-3 py-2 text-xs text-slate-300 hover:bg-white/[0.05]">Guide Call</Link>
+          <Link href={`${casePath}/voice`} className="rounded-lg border border-white/[0.1] px-3 py-2 text-xs text-slate-300 hover:bg-white/[0.05]">Guide conversation</Link>
         </div>
+      </section>
+
+      <section id="update" aria-labelledby="update-heading" className="scroll-mt-8 rounded-2xl border border-white/[0.08] bg-[#10161f] p-5 sm:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="max-w-2xl">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">Update · case record</p>
+            <h2 id="update-heading" className="mt-1 text-lg font-semibold">Add information when something changes</h2>
+            <p className="mt-2 text-xs leading-5 text-slate-400">Add a new statement through the Guide, or answer open questions and attach evidence in their existing case areas. Changes enter the record only after you confirm them.</p>
+          </div>
+          <Link href={`${casePath}/voice`} className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl bg-[#e9bd7b] px-4 text-sm font-semibold text-[#20170d] transition hover:bg-[#f3d3a1]">
+            Add a new statement<ArrowUpRight aria-hidden="true" className="h-4 w-4" />
+          </Link>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2 border-t border-white/[0.07] pt-4">
+          {unresolved.length > 0 && <Link href={`${casePath}#clarification`} className="inline-flex min-h-9 items-center rounded-lg border border-white/[0.1] px-3 text-xs text-slate-300 hover:bg-white/[0.05]">Review {unresolved.length} open question{unresolved.length === 1 ? '' : 's'}</Link>}
+          {(caseState.evidence.length > 0 || caseState.documents.length > 0) && <Link href={`${casePath}/documents`} className="inline-flex min-h-9 items-center rounded-lg border border-white/[0.1] px-3 text-xs text-slate-300 hover:bg-white/[0.05]">Review saved evidence</Link>}
+          <button type="button" onClick={() => void refreshCaseState().catch(() => undefined)} className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-white/[0.1] px-3 text-xs text-slate-300 hover:bg-white/[0.05]">
+            <RefreshCw aria-hidden="true" className="h-3.5 w-3.5" />Refresh latest record
+          </button>
+        </div>
+        <p className="mt-3 text-[10px] leading-4 text-slate-500">Refreshing reloads saved information; it does not create or edit a record.</p>
       </section>
 
       {(hasResourceContext || resourceError) && (

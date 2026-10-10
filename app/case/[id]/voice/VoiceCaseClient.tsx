@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, BookOpen, CheckCircle2, Loader2, Mic, PhoneOff, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, BookOpen, CheckCircle2, Loader2, Mic, ShieldAlert } from 'lucide-react';
 import { GuidePresence } from '@/components/guide-presence';
 import './VoiceCaseClient.css';
 import { createGuideVoiceRuntimeAdapter } from '@/components/guide-runtime/voice-adapter/runtime';
@@ -10,6 +10,8 @@ import type { GuideVoiceEvent, VoiceInputMethod, VoiceLanguage } from '@/compone
 import type { GuideVoiceRuntimeAdapter } from '@/components/guide-runtime/voice-adapter/runtime';
 import VoiceCapture, { type RecognitionLanguage, type VoiceCaptureEvent } from '@/components/voice/VoiceCapture';
 import VoiceOutput from '@/components/voice/VoiceOutput';
+import GuideConversation from '@/components/voice/GuideConversation';
+import type { GuideConversationPresentation } from '@/components/voice/conversation';
 import {
   addVoiceStatement,
   previewVoiceTranscript,
@@ -58,6 +60,10 @@ export default function VoiceCaseClient({ id }: { id: string }) {
   const [confirmationOpen, setConfirmationOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingCommit, setPendingCommit] = useState<PendingCommit | null>(null);
+  const [conversationPresentation, setConversationPresentation] = useState<GuideConversationPresentation | null>(null);
+  const [voiceCallActive, setVoiceCallActive] = useState(false);
+  const transcriptRef = useRef('');
+  const transcriptIncludesVoiceRef = useRef(false);
   const activeCapture = useRef<{ captureId: string; provider: 'browser' | 'server'; language: VoiceLanguage } | null>(null);
   const handledCommitDraft = useRef<string | null>(null);
   const [adapter] = useState<GuideVoiceRuntimeAdapter>(() => createGuideVoiceRuntimeAdapter(dispatchCaseGuideEvent));
@@ -82,27 +88,44 @@ export default function VoiceCaseClient({ id }: { id: string }) {
     ? 'IMMEDIATE_DANGER'
     : safetyContext && safetyContext.context !== 'none'
       ? 'SAFETY'
-      : captureStatus === 'listening'
+      : conversationPresentation?.visualState ?? (captureStatus === 'listening'
         ? 'LISTENING'
         : captureStatus === 'processing' || requestWorking
           ? 'THINKING'
           : confirmationOpen
             ? 'CLARIFYING'
-            : guideSnapshot.visualState;
+            : guideSnapshot.visualState);
+  const callSpeechState = conversationPresentation?.speechState ?? guideSnapshot.speechState;
   const callDetail = callPresenceState === 'IMMEDIATE_DANGER' || callPresenceState === 'SAFETY'
     ? 'Safety context is present. You choose whether to continue.'
-    : callPresenceState === 'LISTENING'
+    : conversationPresentation?.detail ?? (callPresenceState === 'LISTENING'
       ? 'Microphone is active. Stop when you are ready.'
       : callPresenceState === 'THINKING'
         ? 'Review is running. Nothing is added until you confirm.'
         : callPresenceState === 'CLARIFYING'
           ? 'Review the transcript and extracted details.'
-          : guideSnapshot.detail;
+          : guideSnapshot.detail);
+  const callBusy = voiceCallActive || conversationPresentation?.status === 'requesting_permission';
   const visibleError = error;
 
   const emitVoiceEvent = useCallback((event: GuideVoiceEvent) => {
     return adapter.emit(event);
   }, [adapter]);
+
+  const receiveConversationTurn = useCallback((spoken: string, method: 'voice' | 'text') => {
+    if (!spoken.trim()) return;
+    const nextTranscript = [transcriptRef.current.trim(), spoken.trim()].filter(Boolean).join('\n');
+    transcriptRef.current = nextTranscript;
+    setTranscript(nextTranscript);
+    if (method === 'voice') transcriptIncludesVoiceRef.current = true;
+    setInputMethod(transcriptIncludesVoiceRef.current ? 'voice' : 'text');
+    setPreview(null);
+    setConfirmationOpen(false);
+    setError(null);
+    if (method === 'text') {
+      emitVoiceEvent({ type: 'transcript_edited', draftId, transcript: nextTranscript, inputMethod: method });
+    }
+  }, [draftId, emitVoiceEvent]);
 
   const previewIsCurrent = preview?.transcript === transcript;
   const extractedFacts = useMemo(
@@ -128,6 +151,8 @@ export default function VoiceCaseClient({ id }: { id: string }) {
 
   const updateTranscript = (value: string) => {
     if (value === transcript) return;
+    transcriptRef.current = value;
+    transcriptIncludesVoiceRef.current = false;
     setTranscript(value);
     setInputMethod('text');
     setPreview(null);
@@ -167,6 +192,8 @@ export default function VoiceCaseClient({ id }: { id: string }) {
     const capture = activeCapture.current;
     if (!capture || !spoken.trim()) return;
     const nextTranscript = [transcript.trim(), spoken.trim()].filter(Boolean).join(' ');
+    transcriptRef.current = nextTranscript;
+    transcriptIncludesVoiceRef.current = true;
     setTranscript(nextTranscript);
     setInputMethod('voice');
     setPreview(null);
@@ -271,6 +298,8 @@ export default function VoiceCaseClient({ id }: { id: string }) {
 
   const startAnotherStatement = () => {
     setDraftId(createId('draft'));
+    transcriptRef.current = '';
+    transcriptIncludesVoiceRef.current = false;
     setTranscript('');
     setInputMethod('text');
     setPreview(null);
@@ -312,20 +341,17 @@ export default function VoiceCaseClient({ id }: { id: string }) {
   return (
     <main className={"ls-guide-call__callPage"}>
       <div className={"ls-guide-call__pageShell"}>
-        <nav aria-label="Guide call navigation" className={"ls-guide-call__callNav"}>
+        <nav aria-label="Guide navigation" className={"ls-guide-call__callNav"}>
           <Link href={`/case/${encodeURIComponent(id)}`} className={"ls-guide-call__backLink"}>
             <ArrowLeft className="h-4 w-4" /> Back to case journey
-          </Link>
-          <Link href={`/case/${encodeURIComponent(id)}`} className={"ls-guide-call__endCallLink"}>
-            <PhoneOff aria-hidden="true" className="h-3.5 w-3.5" /> End call
           </Link>
         </nav>
 
         <section className={"ls-guide-call__callExperience"}>
           <header className={"ls-guide-call__callHeader"}>
             <div className={"ls-guide-call__callHeading"}>
-              <p className={"ls-guide-call__eyebrow"}><Mic aria-hidden="true" />Clarify · Guide Call · Case {id}</p>
-              <h1>Guide Call</h1>
+              <p className={"ls-guide-call__eyebrow"}><Mic aria-hidden="true" />Clarify · Guide conversation · Case {id}</p>
+              <h1>Speak with your Guide</h1>
               <p className={"ls-guide-call__intro"}>A guided space to tell your story in your own words. You can review every detail before it changes your case.</p>
             </div>
             <Link href={`/case/${encodeURIComponent(id)}/guide`} className={"ls-guide-call__legalGuideLink"}>
@@ -335,10 +361,10 @@ export default function VoiceCaseClient({ id }: { id: string }) {
 
           <div className={"ls-guide-call__sessionGrid"}>
             <section
-              aria-label="Guide consultation"
+              aria-label="Guide voice and text"
               className={"ls-guide-call__guideCard"}
               data-guide-state={callPresenceState}
-              data-speech-state={guideSnapshot.speechState}
+              data-speech-state={callSpeechState}
             >
               <div className={"ls-guide-call__stageHeading"}>
                 <span>YOUR GUIDE</span>
@@ -348,21 +374,36 @@ export default function VoiceCaseClient({ id }: { id: string }) {
               <div className={"ls-guide-call__guideStage"}>
                 <GuidePresence
                   state={callPresenceState}
-                  speechState={guideSnapshot.speechState}
+                  speechState={callSpeechState}
                   detail={callDetail}
                   size="hero"
                   className={"ls-guide-call__callPresence"}
                 />
               </div>
 
+              <GuideConversation
+                draftId={draftId}
+                language={language}
+                openQuestions={caseData.unknowns}
+                hasDraft={Boolean(transcript.trim())}
+                disabled={working || captureBusy || committed}
+                onUserTurn={receiveConversationTurn}
+                onStateChange={setConversationPresentation}
+                onRuntimeEvent={emitVoiceEvent}
+                onActiveChange={setVoiceCallActive}
+              />
+
               <p className={"ls-guide-call__microphoneNote"}>
-                {callPresenceState === 'LISTENING'
+                {conversationPresentation?.status === 'listening' || callPresenceState === 'LISTENING'
                   ? 'Your microphone is active. Stop when you are ready.'
-                  : callPresenceState === 'THINKING'
+                  : conversationPresentation?.status === 'speaking'
+                    ? 'The Guide is speaking. The microphone will resume after the reply.'
+                    : conversationPresentation?.status === 'paused'
+                      ? 'Listening is paused. Resume when you want to continue.'
+                      : callPresenceState === 'THINKING'
                     ? 'Preparing your transcript review. Nothing is added until you confirm.'
-                    : 'Your microphone stays off until you choose to start recording.'}
+                    : 'Your microphone stays off until you choose to speak.'}
               </p>
-              <p className={"ls-guide-call__privacyNote"}>This local synthetic prototype does not promise confidentiality. Check the speech-provider notice before recording; it may use browser speech or a configured service.</p>
             </section>
 
             <section aria-labelledby="transcript-heading" className={"ls-guide-call__transcriptCard"}>
@@ -375,13 +416,16 @@ export default function VoiceCaseClient({ id }: { id: string }) {
                 <button type="button" onClick={() => document.getElementById('voice-transcript')?.focus()} className={"ls-guide-call__typeInsteadButton"}>Type instead</button>
               </div>
 
-          <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <p className="mt-5 text-sm leading-relaxed text-slate-400">
+            Prefer one statement at a time? Record a single take here, then review it before adding anything to the case.
+          </p>
+          <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <label className="flex flex-col gap-2 text-sm font-medium text-slate-200">
               Speech language
               <select
                 value={language}
                 onChange={(event) => setLanguage(event.target.value as RecognitionLanguage)}
-                disabled={working || captureBusy || committed}
+                disabled={working || captureBusy || callBusy || committed}
                 className="h-10 rounded-xl border border-white/[0.1] bg-[#10151c] px-3 text-slate-100"
               >
                 {LANGUAGES.map((option) => <option key={option}>{option}</option>)}
@@ -389,7 +433,7 @@ export default function VoiceCaseClient({ id }: { id: string }) {
             </label>
             <VoiceCapture
               language={language}
-              disabled={working || committed}
+              disabled={working || committed || callBusy}
               onCaptureStateChange={setCaptureBusy}
               onCaptureStatusChange={setCaptureStatus}
               onCaptureEvent={receiveCaptureEvent}
@@ -406,7 +450,7 @@ export default function VoiceCaseClient({ id }: { id: string }) {
             onChange={(event) => updateTranscript(event.target.value)}
             placeholder="Your recognized words will appear here. You can also type your statement."
             rows={7}
-            disabled={working || captureBusy || committed}
+            disabled={working || captureBusy || callBusy || committed}
             className="mt-2 w-full resize-y rounded-2xl border border-white/[0.12] bg-[#f5f2ed] p-4 text-base leading-relaxed text-[#242126] outline-none focus:border-rose-400 disabled:bg-[#e9e4dd]"
           />
 
@@ -435,7 +479,7 @@ export default function VoiceCaseClient({ id }: { id: string }) {
                 <button
                   type="button"
                   onClick={reviewTranscript}
-                  disabled={working || captureBusy || !transcript.trim()}
+                  disabled={working || captureBusy || callBusy || !transcript.trim()}
                   className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-zinc-300 px-5 text-sm font-medium hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
                 >
                   {working ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}

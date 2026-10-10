@@ -1,0 +1,19 @@
+{
+  "scenario_id": "workplace_harassment",
+  "label": "Workplace harassment",
+  "source": {
+    "user_statement": "My coworker repeatedly messages me at work after I asked them to stop. This conduct is workplace harassment. I reported it to my employer.",
+    "language": "english"
+  },
+  "expected": {
+    "issue_categories": ["criminal", "employment"],
+    "parties": [{"role": "employer", "name": null}],
+    "event_types": ["communication", "threat"],
+    "unknowns": ["location relevant", "dates of the described events"],
+    "safety_state": {
+      "context": "potentially_unsafe",
+      "urgency": "elevated",
+      "indicator_categories": ["harassment"]
+    }
+  }
+}

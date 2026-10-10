@@ -134,6 +134,32 @@ async function openHome(page: Page) {
   await expect(page.getByRole('heading', { name: 'Tell me what happened.' })).toBeVisible();
 }
 
+test('homepage has three clear entry points, including case-free safety and official women’s law resources', async ({ page }) => {
+  await page.goto('/');
+  const startCase = page.getByRole('link', { name: 'Start / Continue My Case', exact: true });
+  const safety = page.getByRole('link', { name: /Women & Safety/ });
+  const womenLaws = page.getByRole('link', { name: /Women & Laws/ });
+  await expect(startCase).toHaveAttribute('href', '#your-story');
+  await expect(safety).toHaveAttribute('href', '/women-safety');
+  await expect(womenLaws).toHaveAttribute('href', '/women-laws');
+
+  await startCase.click();
+  await expect(page.getByRole('heading', { name: 'Your cases this session' })).toBeVisible();
+
+  await safety.click();
+  await expect(page).toHaveURL('/women-safety');
+  await expect(page.getByRole('heading', { name: 'Women & Safety' })).toBeVisible();
+  await expect(page.getByText(/No case needed/i)).toBeVisible();
+  await expect(page.getByRole('link', { name: /Call emergency response at 112/ })).toBeVisible();
+
+  await page.goto('/women-laws');
+  await expect(page.getByRole('heading', { name: /Women's rights, with sources and open questions in view/ })).toBeVisible();
+  const officialLaw = page.getByRole('link', { name: 'Open official source', exact: true }).first();
+  await expect(officialLaw).toHaveAttribute('href', 'https://indiacode.gov.in/handle/123456789/496007');
+  await expect(officialLaw).toHaveAttribute('target', '_blank');
+  await expect(page.getByRole('link', { name: 'Legal aid information' })).toHaveAttribute('href', 'https://nalsa.gov.in/promoting-inclusive-legal-system/');
+});
+
 test('home links keep URL history and examples accept typing on the first click', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await mockApi(page);
@@ -149,6 +175,7 @@ test('home links keep URL history and examples accept typing on the first click'
   expect(await page.evaluate(() => getComputedStyle(document.documentElement).scrollBehavior)).toBe('auto');
 
   await page.getByRole('link', { name: 'Examples' }).click();
+  await page.locator('details.examplesDisclosure > summary').click();
   await page.getByRole('button', { name: 'Begin with this' }).first().click();
   const statement = page.locator('#case-statement');
   await expect(statement).toBeFocused();
@@ -158,7 +185,7 @@ test('home links keep URL history and examples accept typing on the first click'
 });
 
 test('text input creates the case, shows loading, derives Guide state, and survives refresh', async ({ page }) => {
-  const { createdRequests, createdCaseIds } = await mockApi(page, 350);
+  const { createdRequests, createdCaseIds } = await mockApi(page, 1200);
   await openHome(page);
 
   const statement = page.locator('#case-statement');

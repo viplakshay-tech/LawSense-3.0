@@ -228,6 +228,7 @@ export function DraftingStudio({ caseId }: { caseId: string }) {
 
   const activeDraft = draft;
   const selectedType = getDocumentType(activeDraft.documentType);
+  const lawMatches = caseState.analysis?.legalKnowledge.lawMatches ?? [];
   const selectedFacts = sourceFacts.filter((fact) => previewDraft?.includedFactIds.includes(fact.id));
   const safeLegalSources = (caseState.analysis?.legalKnowledge.records ?? [])
     .map((record) => ({ record, url: safeSourceUrl(record.sourceUrl || record.provenance.find((item) => item.sourceUrl)?.sourceUrl) }))
@@ -497,6 +498,19 @@ export function DraftingStudio({ caseId }: { caseId: string }) {
           <details className={styles.legalCard}>
             <summary><span><span className={styles.sectionKicker}>OPTIONAL</span><strong>Add legal wording you already have</strong></span><span className={styles.legalSummaryHint}>No legal provisions are added automatically</span></summary>
             <p className={styles.legalIntro}>Law Sense does not invent or insert legal sections. Legal wording can be exported only when its source matches a verified legal record already saved in this case.</p>
+            {lawMatches.length > 0 && (
+              <div className={styles.availableSources}>
+                <p>Law candidates for your preparation · review the fact fit and source status first</p>
+                {lawMatches.slice(0, 3).map((match) => (
+                  <div key={match.candidateId}>
+                    <span>{match.actTitle} · {match.provisionReference || match.provisionTitle} · {match.evidenceAssessment}</span>
+                    <span>{match.whyItMayApply} {match.temporalLimitation}</span>
+                    <Link href={`/case/${encodeURIComponent(caseState.id)}/guide#law-candidate-${encodeURIComponent(match.candidateId)}`}>Review jurisdiction, dates, source and procedure in Law</Link>
+                  </div>
+                ))}
+                <p>These are candidate matches, not a legal finding. No provision text or filing wording has been inserted into this draft.</p>
+              </div>
+            )}
             <div className={styles.stackFields}>
               <Field label="Legal wording · copied or written by you" value={draft.fields.legalText} onChange={(value) => changeField('legalText', value)} placeholder="Optional · leave empty to use no legal wording" multiline rows={4} maxLength={6000} />
               {draft.fields.legalText.trim() && (
