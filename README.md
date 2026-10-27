@@ -407,19 +407,27 @@ npm run dev -- --hostname 127.0.0.1
 
 The frontend should be available at http://localhost:3000. `next.config.ts` uses `NEXT_PUBLIC_API_URL` as the API rewrite origin. Restart the frontend after changing environment variables.
 
-### 5. Optional phone testing over a local hotspot
+### 5. Optional phone testing over a local network
 
-The default commands above bind to loopback and are intentionally not reachable from a phone. For a temporary phone test:
+The default commands above bind to loopback and are intentionally not reachable from a phone. To test from a phone, configure the network access gate first:
 
-1. Use a private, isolated phone hotspot—not shared/public Wi-Fi.
-2. Keep the API bound to `127.0.0.1:8000`; the Next.js server calls it through the same computer.
-3. Stop the frontend and restart it with `npm run dev -- --hostname 0.0.0.0`.
-4. Run `ipconfig`, identify the PC's hotspot IPv4 address, and open `http://<PC-IPv4>:3000` on the phone.
-5. If necessary, allow inbound port 3000 only on the appropriate **Private** Windows network profile. Close the network-accessible frontend when the test is over.
+1. Generate a high-entropy passphrase in CMD or PowerShell:
+   ```cmd
+   node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))"
+   ```
+2. Put the generated value in the repository-root `.env.local` file (create it if needed):
+   ```text
+   LAWSENSE_ACCESS_PIN=PASTE_THE_GENERATED_VALUE_HERE
+   ```
+   Never commit this file or send the value in screenshots or logs. Restart the Next.js server after changing it.
+3. Keep FastAPI bound to `127.0.0.1:8000`; Next.js proxies the backend on the same computer.
+4. Configure HTTPS for the Next.js server with a certificate trusted by the phone, then stop the local-only frontend and restart it with `npm run dev -- --hostname 0.0.0.0`. Do not bypass certificate validation. The unlock endpoint rejects plain HTTP for non-loopback clients.
+5. Connect the PC and phone through a private, isolated hotspot. Run `ipconfig`, identify the PC's active IPv4 address, then open `https://<PC-IPv4>:3000` on the phone and enter the passphrase on the LawSense unlock screen.
+6. If needed, allow inbound port 3000 only on the appropriate **Private** Windows network profile. Stop the network-accessible frontend after testing.
 
-**Critical privacy limitation:** this prototype currently has no user sign-in or case-ownership authorization. A person who can reach the network-exposed Next.js app may be able to read or change case data through its same-origin API proxy. CORS, an unguessable case ID, a trusted Wi-Fi name, and binding the Python API to loopback do not solve that frontend exposure.
+**What the gate does:** when `LAWSENSE_ACCESS_PIN` is configured with at least 16 characters, all application pages and same-origin API requests require a signed, HTTP-only browser session cookie. The session lasts up to eight hours. The health/status checks remain available so the client can establish connectivity.
 
-Until application access control is implemented and tested, use **synthetic/fictional case data only** for phone-over-network tests. Do not use real legal narratives, identity details, evidence, or documents; do not expose this development server on a shared network or the public internet.
+**What it does not do:** this is one shared passphrase for the whole workspace, not user accounts, per-case ownership, or role-based authorization. Anyone with the passphrase can access all cases. Keep using synthetic/fictional cases during testing until the access gate, the device workflow, and the application have been built and tested together. Do not expose the development server to shared/public Wi-Fi or the public internet.
 
 ## Android development
 
