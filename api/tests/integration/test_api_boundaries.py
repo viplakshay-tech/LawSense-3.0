@@ -281,6 +281,7 @@ class ApiBoundaryIntegrationTests(unittest.TestCase):
                 "https://indiacode.gov.in/",
                 "https://www.indiacode.nic.in/",
                 "https://cdnbbsr.s3waas.gov.in/",
+                "https://cdnbbsr.s3waas.gov.in/",
             ))
         )
         self.assertEqual(provision["jurisdiction"], "jurisdiction-uttarakhand")
