@@ -407,6 +407,8 @@ npm run dev -- --hostname 0.0.0.0
 
 The frontend should be available at http://localhost:3000. `next.config.ts` uses `NEXT_PUBLIC_API_URL` as the API rewrite origin. Restart the frontend after changing environment variables.
 
+By default, direct non-loopback requests to FastAPI are refused. Keep the API bound to `127.0.0.1`. `LAWSENSE_ALLOW_REMOTE_API=true` explicitly disables this API network fence for a deliberately isolated development network; it **does not** add authentication, and should not be set on an Internet-facing service.
+
 ### 5. Open on a phone over a local hotspot
 
 1. Connect the PC to the phone's hotspot.
