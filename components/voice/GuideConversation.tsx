@@ -415,7 +415,8 @@ export default function GuideConversation({
     if (!statement) return;
 
     const previousHistory = conversationHistoryRef.current.slice(-8);
-    conversationHistoryRef.current = [...previousHistory, { role: 'user', content: statement }].slice(-8);
+    const userTurn: GuideConversationTurn = { role: 'user', content: statement };
+    conversationHistoryRef.current = [...previousHistory, userTurn].slice(-8);
     appendUserTurn(statement, inputMethod);
 
     const questions = questionsRef.current;
@@ -442,9 +443,10 @@ export default function GuideConversation({
       responseText = `${localUnavailable}${createGuideConversationResponse(statement, question, languageRef.current)}`;
     }
     if (!mountedRef.current) return;
+    const assistantTurn: GuideConversationTurn = { role: 'assistant', content: responseText };
     conversationHistoryRef.current = [
       ...conversationHistoryRef.current,
-      { role: 'assistant', content: responseText },
+      assistantTurn,
     ].slice(-8);
     const responseId = createId('response');
     const response = { id: responseId, text: responseText };
