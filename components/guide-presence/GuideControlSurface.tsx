@@ -8,6 +8,7 @@ import { guidePresenceStateFromSnapshot, useGuideRuntime } from '@/components/gu
 import type { GuideAction } from '@/components/guide-runtime/types';
 import { GuidePresence } from './GuidePresence';
 import { GUIDE_PRESENCE_LABELS } from './types';
+import { buildGuideCaseContext, sendGuideMessage, type GuideChatLanguage } from '@/lib/api';
 
 function actionLabel(action: GuideAction): string {
   switch (action.type) {
@@ -38,9 +39,56 @@ export function GuideControlSurface() {
   const router = useRouter();
   const { snapshot, presentation: model, contextualMessage, messages, actionRunning, runAction, interruptSpeech, dismissError } = useGuideRuntime();
   const [expanded, setExpanded] = useState(false);
+  const [chatLanguage, setChatLanguage] = useState<GuideChatLanguage>('hinglish');
+  const [chatText, setChatText] = useState('');
+  const [chatTurns, setChatTurns] = useState<Array<{ id: string; role: 'you' | 'guide'; text: string }>>([]);
+  const [chatPending, setChatPending] = useState(false);
+  const [chatError, setChatError] = useState<string | null>(null);
+  const chatSequenceRef = useRef(0);
+  const chatRequestRef = useRef(0);
   const expandedRef = useRef(expanded);
   const toggleRef = useRef<HTMLButtonElement>(null);
   const previousPathnameRef = useRef(pathname);
+  const caseId = snapshot.caseState?.id ?? null;
+
+  useEffect(() => {
+    chatRequestRef.current += 1;
+    setChatTurns([]);
+    setChatText('');
+    setChatError(null);
+    setChatPending(false);
+  }, [caseId]);
+
+  useEffect(() => () => {
+    chatRequestRef.current += 1;
+  }, []);
+
+  async function submitGuideChat(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const statement = chatText.trim();
+    const currentCase = snapshot.caseState;
+    if (!statement || !currentCase || chatPending) return;
+
+    const requestId = ++chatRequestRef.current;
+    const turnId = () => `guide-chat-${++chatSequenceRef.current}`;
+    setChatTurns((current) => [...current.slice(-9), { id: turnId(), role: 'you', text: statement }]);
+    setChatText('');
+    setChatError(null);
+    setChatPending(true);
+    try {
+      const response = await sendGuideMessage(statement, chatLanguage, buildGuideCaseContext(currentCase));
+      if (requestId !== chatRequestRef.current || currentCase.id !== caseId) return;
+      const answer = response.status === 'unavailable'
+        ? `Local assistant unavailable · ${response.reply}`
+        : response.reply;
+      setChatTurns((current) => [...current.slice(-9), { id: turnId(), role: 'guide', text: answer }]);
+    } catch {
+      if (requestId !== chatRequestRef.current || currentCase.id !== caseId) return;
+      setChatError('The configured local assistant could not be reached. Your message was not added to the saved case. Try again or open the voice/review workspace.');
+    } finally {
+      if (requestId === chatRequestRef.current) setChatPending(false);
+    }
+  }
 
   function updateExpanded(next: boolean) {
     expandedRef.current = next;
@@ -178,6 +226,65 @@ export function GuideControlSurface() {
             detail={contextualMessage.text}
             accessibleLabel={`Guide state: ${stateText}`}
           />
+
+          <section aria-labelledby="guide-chat-heading" className="rounded-xl border border-[#e9bd7b]/20 bg-[linear-gradient(145deg,rgba(233,189,123,0.07),rgba(255,255,255,0.02))] p-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 id="guide-chat-heading" className="text-sm font-semibold text-slate-100">Talk to your Guide</h2>
+                <p className="mt-1 text-xs leading-5 text-slate-400">Ask a question or explain a detail. The Guide receives a compact snapshot of this case and its uncertainty labels.</p>
+              </div>
+              <label className="shrink-0 text-xs text-slate-400">
+                <span className="sr-only">Reply language</span>
+                <select
+                  aria-label="Guide reply language"
+                  value={chatLanguage}
+                  onChange={(event) => setChatLanguage(event.target.value as GuideChatLanguage)}
+                  disabled={chatPending}
+                  className="min-h-10 max-w-28 rounded-lg border border-white/10 bg-[#101722] px-2 text-xs text-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e9bd7b] disabled:opacity-50"
+                >
+                  <option value="hinglish">Hinglish</option>
+                  <option value="hindi">Hindi</option>
+                  <option value="english">English</option>
+                </select>
+              </label>
+            </div>
+
+            <div role="log" aria-label="Guide conversation" aria-live="polite" aria-relevant="additions" className="mt-3 max-h-56 space-y-2 overflow-y-auto">
+              {chatTurns.length === 0 ? (
+                <p className="rounded-lg border border-dashed border-white/10 p-3 text-sm leading-5 text-slate-400">
+                  Try: “What information is still missing?” or “Explain what the case record says in simple words.”
+                </p>
+              ) : chatTurns.map((turn) => (
+                <article key={turn.id} className={`rounded-lg border p-3 ${turn.role === 'you' ? 'border-white/[0.07] bg-white/[0.025]' : 'border-[#e9bd7b]/15 bg-[#e9bd7b]/[0.045]'}`}>
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{turn.role === 'you' ? 'You' : 'Guide'}</p>
+                  <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-slate-200">{turn.text}</p>
+                </article>
+              ))}
+              {chatPending && <p role="status" className="text-sm text-[#f2d7aa]">Guide is preparing a reply…</p>}
+            </div>
+
+            {chatError && <p role="alert" className="mt-2 rounded-lg border border-rose-200/15 bg-rose-200/[0.05] p-3 text-xs leading-5 text-rose-100">{chatError}</p>}
+
+            <form onSubmit={submitGuideChat} className="mt-3 space-y-2">
+              <label htmlFor="guide-chat-message" className="block text-xs font-medium text-slate-300">Your message</label>
+              <textarea
+                id="guide-chat-message"
+                value={chatText}
+                onChange={(event) => setChatText(event.target.value)}
+                maxLength={4000}
+                rows={3}
+                disabled={!snapshot.caseState || chatPending}
+                placeholder="Tell me what you want to understand…"
+                className="w-full resize-y rounded-lg border border-white/10 bg-[#090f17] px-3 py-2.5 text-sm leading-6 text-slate-100 placeholder:text-slate-500 focus:border-[#e9bd7b]/50 focus:outline-none focus:ring-1 focus:ring-[#e9bd7b]/25 disabled:opacity-50"
+              />
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-[11px] leading-4 text-slate-500">Local assistant · no cloud fallback. Chat does not edit or save case facts.</p>
+                <button type="submit" disabled={!snapshot.caseState || chatPending || !chatText.trim()} className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-lg bg-[#d9bd8c] px-3 text-xs font-semibold text-[#171a1e] transition hover:bg-[#ead5ac] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#e9bd7b] disabled:cursor-not-allowed disabled:opacity-45">
+                  {chatPending ? 'Replying…' : 'Send'}
+                </button>
+              </div>
+            </form>
+          </section>
 
           <section aria-labelledby="guide-understanding-heading" className="rounded-xl border border-white/[0.065] bg-white/[0.025] p-3">
             <h2 id="guide-understanding-heading" className="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500">
