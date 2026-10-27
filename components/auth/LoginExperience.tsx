@@ -16,7 +16,11 @@ export default function LoginExperience() {
   useEffect(() => {
     let active = true;
     const hostname = window.location.hostname.replace(/^\[|\]$/g, '').toLowerCase();
-    const isLoopback = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
+    const isLoopbackHost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
+    // First-account creation calls the API directly, so require plain local HTTP
+    // here; this lets FastAPI verify the actual client address rather than trust
+    // a loopback Origin relayed through the Next.js rewrite proxy.
+    const isLoopback = isLoopbackHost && window.location.protocol === 'http:';
     fetch('/api/auth/setup-status', { cache: 'no-store' })
       .then(async (response) => {
         if (!response.ok) throw new Error('Unable to check account setup.');
@@ -39,14 +43,45 @@ export default function LoginExperience() {
     setBusy(true);
     try {
       const isSetup = screen === 'setup';
-      const response = await fetch(isSetup ? '/api/auth/register' : '/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
-        cache: 'no-store',
-      });
-      const data = (await response.json().catch(() => ({}))) as { detail?: string };
-      if (!response.ok) throw new Error(data.detail ?? 'Authentication failed.');
+      const body = JSON.stringify({ username, password });
+
+      if (isSetup) {
+        const apiOrigin = (process.env.NEXT_PUBLIC_API_URL ?? 'http://127.0.0.1:8000').replace(/\\/$/, '');
+        const registerResponse = await fetch(`${apiOrigin}/auth/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body,
+          credentials: 'include',
+          cache: 'no-store',
+        });
+        const registerData = (await registerResponse.json().catch(() => ({}))) as { detail?: string };
+        if (!registerResponse.ok) throw new Error(registerData.detail ?? 'Account setup failed.');
+
+        // The direct API request proves loopback access but stores its cookie
+        // for the API hostname. Sign in once through the same-origin rewrite so
+        // subsequent browser requests carry a cookie for the web-app hostname.
+        const loginResponse = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body,
+          cache: 'no-store',
+        });
+        const loginData = (await loginResponse.json().catch(() => ({}))) as { detail?: string };
+        if (!loginResponse.ok) {
+          setScreen('login');
+          throw new Error(loginData.detail ?? 'Account created. Sign in with your new credentials.');
+        }
+      } else {
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body,
+          cache: 'no-store',
+        });
+        const data = (await response.json().catch(() => ({}))) as { detail?: string };
+        if (!response.ok) throw new Error(data.detail ?? 'Authentication failed.');
+      }
+
       router.replace('/');
       router.refresh();
     } catch (reason) {
@@ -79,7 +114,7 @@ export default function LoginExperience() {
         </p>
         {screen === 'host-setup-required' ? (
           <div className="mt-6 rounded-2xl border border-amber-200/15 bg-amber-200/[0.05] p-4 text-sm leading-6 text-amber-100/90">
-            Open a browser on the host computer and visit <strong>http://localhost:3000</strong>. Create the first account there, then return to this device to sign in.
+            Open a browser on the host computer, use plain HTTP at <strong>http://localhost:3000</strong> (not HTTPS), create the first account there, then return to this device to sign in.
           </div>
         ) : screen === 'checking' ? (
           <div role="status" className="mt-7 text-sm text-slate-400">Checking local account setup…</div>
