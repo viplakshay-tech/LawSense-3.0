@@ -15,7 +15,6 @@ export function AuthGate({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (isPublic) return;
     let active = true;
-    setChecking(true);
     fetch('/api/auth/me', { cache: 'no-store' })
       .then(async (response) => {
         if (!response.ok) throw new Error('unauthenticated');
