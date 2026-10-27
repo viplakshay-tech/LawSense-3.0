@@ -1,5 +1,7 @@
 import json
+import os
 import sqlite3
+import logging
 from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Optional
@@ -60,6 +62,32 @@ def init_db() -> None:
             "CREATE INDEX IF NOT EXISTS idx_document_packages_case_id ON document_packages(case_id)"
         )
         connection.commit()
+
+    _secure_local_storage_permissions()
+
+
+def _secure_local_storage_permissions() -> None:
+    """Restrict the database and its dedicated directory to the current OS user.
+
+    This is a defence-in-depth measure for single-user local deployments. It
+    does not encrypt records, provide application-level authentication, or
+    replace platform ACL review on Windows.
+    """
+    if os.name == "nt":
+        return
+
+    try:
+        # Restrict the directory first so SQLite sidecar/journal files inherit
+        # a private directory boundary as well as the database file mode.
+        DB_PATH.parent.chmod(0o700)
+        if DB_PATH.exists():
+            DB_PATH.chmod(0o600)
+    except OSError:
+        # Do not put filesystem paths or user data into logs. The runtime can
+        # continue, but operators must treat storage permissions as unverified.
+        logging.getLogger("lawsense.privacy").warning(
+            "local_storage_permissions_unverified"
+        )
 
 
 def save_case(case: CaseState) -> None:
