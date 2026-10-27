@@ -41,15 +41,13 @@ type GuideChatEntry = {
   status?: 'ok' | 'unavailable';
 };
 
-export function GuideControlSurface() {
-  const pathname = usePathname();
-  const router = useRouter();
-  const { snapshot, presentation: model, contextualMessage, messages, actionRunning, runAction, interruptSpeech, dismissError } = useGuideRuntime();
-  const [expanded, setExpanded] = useState(false);
-  const expandedRef = useRef(expanded);
-  const toggleRef = useRef<HTMLButtonElement>(null);
-  const previousPathnameRef = useRef(pathname);
-  const activeCaseId = snapshot.caseState?.id ?? null;
+function GuideConversationPanel({
+  caseId,
+  onOpenVoice,
+}: {
+  caseId: string | null;
+  onOpenVoice: () => void;
+}) {
   const [chatEntries, setChatEntries] = useState<GuideChatEntry[]>([]);
   const [chatDraft, setChatDraft] = useState('');
   const [chatLanguage, setChatLanguage] = useState<GuideChatLanguage>('english');
@@ -59,11 +57,46 @@ export function GuideControlSurface() {
   const chatEntrySequenceRef = useRef(0);
   const chatInFlightRef = useRef(false);
 
-  const [chatCaseId, setChatCaseId] = useState(activeCaseId);
-  if (chatCaseId !== activeCaseId) {
-    // Reset synchronously before committing a new case's UI, so a previous
-    // case's temporary conversation is never painted beside the new case.
-    setChatCaseId(activeCaseId);
+  async function handleChatSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const message = chatDraft.trim();
+    if (!message || !caseId || chatInFlightRef.current) return;
+
+    chatInFlightRef.current = true;
+    const requestToken = ++chatRequestSequenceRef.current;
+    setChatDraft('');
+    setChatSending(true);
+    setChatError(null);
+    const userEntry: GuideChatEntry = {
+      id: `guide-chat-${++chatEntrySequenceRef.current}`,
+      role: 'you',
+      text: message,
+    };
+    setChatEntries((current) => [...current.slice(-9), userEntry]);
+
+    try {
+      const response = await sendGuideMessage(message, chatLanguage, caseId);
+      if (requestToken !== chatRequestSequenceRef.current) return;
+      const guideEntry: GuideChatEntry = {
+        id: `guide-chat-${++chatEntrySequenceRef.current}`,
+        role: 'guide',
+        text: response.reply,
+        status: response.status,
+      };
+      setChatEntries((current) => [...current.slice(-9), guideEntry]);
+    } catch {
+      if (requestToken === chatRequestSequenceRef.current) {
+        setChatError('The local Guide service could not be reached. No cloud fallback was used. Try again or use the existing case actions.');
+      }
+    } finally {
+      if (requestToken === chatRequestSequenceRef.current) {
+        chatInFlightRef.current = false;
+        setChatSending(false);
+      }
+    }
+  }
+
+  function clearChat() {
     chatRequestSequenceRef.current += 1;
     chatInFlightRef.current = false;
     setChatEntries([]);
@@ -71,6 +104,106 @@ export function GuideControlSurface() {
     setChatSending(false);
     setChatError(null);
   }
+
+  return (
+              <section aria-labelledby="guide-chat-heading" className="rounded-xl border border-[#e9bd7b]/20 bg-[linear-gradient(145deg,rgba(233,189,123,0.055),rgba(255,255,255,0.018)_65%)] p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start gap-2">
+                    <MessageCircle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-[#e9bd7b]" />
+                    <div>
+                      <h2 id="guide-chat-heading" className="text-xs font-semibold text-slate-100">Talk to your Guide</h2>
+                      <p className="mt-1 text-[10px] leading-4 text-slate-400">Uses your saved case context with the configured local assistant. This chat is not saved to the case; legal advice stays in Legal Advisory.</p>
+                    </div>
+                  </div>
+                  {chatEntries.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={clearChat}
+                      className="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-lg px-2 text-[10px] text-slate-400 hover:bg-white/[0.05] hover:text-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e9bd7b]"
+                      aria-label="Clear Guide chat from this screen"
+                    >
+                      <Trash2 aria-hidden="true" className="h-3 w-3" /> Clear
+                    </button>
+                  )}
+                </div>
+    
+                <div role="log" aria-label="Guide conversation" aria-live="polite" aria-relevant="additions" className="mt-3 max-h-56 space-y-2 overflow-y-auto">
+                  {chatEntries.length === 0 ? (
+                    <p className="rounded-lg border border-dashed border-white/[0.09] px-3 py-2.5 text-[11px] leading-5 text-slate-400">
+                      Tell me what part is confusing, or ask me to help identify a missing detail. I cannot decide a legal issue or invent a source.
+                    </p>
+                  ) : chatEntries.map((entry) => (
+                    <article key={entry.id} className={`rounded-xl border p-2.5 ${entry.role === 'you' ? 'ml-5 border-white/[0.08] bg-white/[0.04]' : 'mr-2 border-[#e9bd7b]/15 bg-[#e9bd7b]/[0.04]'}`}>
+                      <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-500">{entry.role === 'you' ? 'You' : 'Guide'}{entry.status === 'unavailable' ? ' · local assistant unavailable' : ''}</p>
+                      <p className="mt-1 whitespace-pre-wrap text-[11px] leading-[1.6] text-slate-200">{entry.text}</p>
+                    </article>
+                  ))}
+                  {chatSending && (
+                    <p role="status" className="flex items-center gap-2 rounded-lg px-2 py-1 text-[10px] text-slate-400">
+                      <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" />
+                      Checking the case context with the local assistant…
+                    </p>
+                  )}
+                </div>
+    
+                {chatError && <p role="alert" className="mt-2 rounded-lg border border-rose-200/15 bg-rose-200/[0.05] px-2.5 py-2 text-[10px] leading-4 text-rose-100">{chatError}</p>}
+    
+                <form onSubmit={handleChatSubmit} className="mt-3 space-y-2">
+                  <label htmlFor="guide-chat-language" className="sr-only">Guide reply language</label>
+                  <select
+                    id="guide-chat-language"
+                    value={chatLanguage}
+                    onChange={(event) => setChatLanguage(event.target.value as GuideChatLanguage)}
+                    className="min-h-9 w-full rounded-lg border border-white/[0.1] bg-[#101923] px-2.5 text-[11px] text-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e9bd7b]"
+                  >
+                    <option value="english">Reply in English</option>
+                    <option value="hindi">हिंदी में जवाब दें</option>
+                    <option value="hinglish">Reply in Hinglish</option>
+                  </select>
+                  <label htmlFor="guide-chat-message" className="sr-only">Message your Guide</label>
+                  <textarea
+                    id="guide-chat-message"
+                    value={chatDraft}
+                    onChange={(event) => setChatDraft(event.target.value)}
+                    maxLength={10000}
+                    rows={3}
+                    placeholder="Type your question or explain what is missing…"
+                    disabled={!caseId || chatSending}
+                    className="w-full resize-y rounded-xl border border-white/[0.1] bg-[#080e15] px-3 py-2.5 text-xs leading-5 text-slate-100 placeholder:text-slate-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e9bd7b] disabled:cursor-not-allowed disabled:opacity-60"
+                  />
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="submit"
+                      disabled={!caseId || chatSending || !chatDraft.trim()}
+                      className="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg border border-[#e9bd7b]/25 bg-[#e9bd7b]/[0.1] px-3 text-[11px] font-semibold text-[#f2d7aa] transition hover:bg-[#e9bd7b]/[0.17] disabled:cursor-not-allowed disabled:opacity-45 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e9bd7b] motion-reduce:transition-none"
+                    >
+                      {chatSending ? <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" /> : <Send aria-hidden="true" className="h-3.5 w-3.5" />}
+                      {chatSending ? 'Thinking…' : 'Send to local Guide'}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!caseId}
+                      onClick={onOpenVoice}
+                      className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg border border-white/[0.1] px-3 text-[10px] font-semibold text-slate-300 hover:bg-white/[0.05] disabled:opacity-45 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e9bd7b]"
+                    >
+                      <Mic2 aria-hidden="true" className="h-3.5 w-3.5" /> Voice
+                    </button>
+                  </div>
+                  <p className="text-[9px] leading-4 text-slate-500">Local-only assistant · no cloud fallback · this temporary chat is not added to the case record.</p>
+                </form>
+              </section>
+  );
+}
+
+export function GuideControlSurface() {
+  const pathname = usePathname();
+  const router = useRouter();
+  const { snapshot, presentation: model, contextualMessage, messages, actionRunning, runAction, interruptSpeech, dismissError } = useGuideRuntime();
+  const [expanded, setExpanded] = useState(false);
+  const expandedRef = useRef(expanded);
+  const toggleRef = useRef<HTMLButtonElement>(null);
+  const previousPathnameRef = useRef(pathname);
+  const activeCaseId = snapshot.caseState?.id ?? null;
 
   function updateExpanded(next: boolean) {
     expandedRef.current = next;
@@ -110,69 +243,6 @@ export function GuideControlSurface() {
     event.preventDefault();
     updateExpanded(false);
     window.requestAnimationFrame(() => toggleRef.current?.focus({ preventScroll: true }));
-  }
-
-  async function handleChatSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const message = chatDraft.trim();
-    const requestedCaseId = activeCaseId;
-    if (!message || !requestedCaseId || chatInFlightRef.current) return;
-
-    chatInFlightRef.current = true;
-    const requestToken = ++chatRequestSequenceRef.current;
-    setChatDraft('');
-    setChatSending(true);
-    setChatError(null);
-    const userEntry: GuideChatEntry = {
-      id: `guide-chat-${++chatEntrySequenceRef.current}`,
-      role: 'you',
-      text: message,
-    };
-    setChatEntries((current) => [...current.slice(-9), userEntry]);
-
-    try {
-      const response = await sendGuideMessage(message, chatLanguage, requestedCaseId);
-      if (
-        requestToken !== chatRequestSequenceRef.current
-        || activeCaseIdRef.current !== requestedCaseId
-      ) return;
-      const guideEntry: GuideChatEntry = {
-        id: `guide-chat-${++chatEntrySequenceRef.current}`,
-        role: 'guide',
-        text: response.reply,
-        status: response.status,
-      };
-      setChatEntries((current) => [...current.slice(-9), guideEntry]);
-    } catch {
-      if (
-        requestToken === chatRequestSequenceRef.current
-        && activeCaseIdRef.current === requestedCaseId
-      ) {
-        setChatError('The local Guide service could not be reached. No cloud fallback was used. Try again or use the existing case actions.');
-      }
-    } finally {
-      if (
-        requestToken === chatRequestSequenceRef.current
-        && activeCaseIdRef.current === requestedCaseId
-      ) {
-        chatInFlightRef.current = false;
-        setChatSending(false);
-      }
-    }
-  }
-
-  const activeCaseIdRef = useRef<string | null>(activeCaseId);
-  useEffect(() => {
-    activeCaseIdRef.current = activeCaseId;
-  }, [activeCaseId]);
-
-  function clearChat() {
-    chatRequestSequenceRef.current += 1;
-    chatInFlightRef.current = false;
-    setChatEntries([]);
-    setChatDraft('');
-    setChatSending(false);
-    setChatError(null);
   }
 
   if (safetyMode) {
@@ -272,95 +342,14 @@ export function GuideControlSurface() {
             accessibleLabel={`Guide state: ${stateText}`}
           />
 
-          <section aria-labelledby="guide-chat-heading" className="rounded-xl border border-[#e9bd7b]/20 bg-[linear-gradient(145deg,rgba(233,189,123,0.055),rgba(255,255,255,0.018)_65%)] p-3">
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex items-start gap-2">
-                <MessageCircle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-[#e9bd7b]" />
-                <div>
-                  <h2 id="guide-chat-heading" className="text-xs font-semibold text-slate-100">Talk to your Guide</h2>
-                  <p className="mt-1 text-[10px] leading-4 text-slate-400">Uses your saved case context with the configured local assistant. This chat is not saved to the case; legal advice stays in Legal Advisory.</p>
-                </div>
-              </div>
-              {chatEntries.length > 0 && (
-                <button
-                  type="button"
-                  onClick={clearChat}
-                  className="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-lg px-2 text-[10px] text-slate-400 hover:bg-white/[0.05] hover:text-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e9bd7b]"
-                  aria-label="Clear Guide chat from this screen"
-                >
-                  <Trash2 aria-hidden="true" className="h-3 w-3" /> Clear
-                </button>
-              )}
-            </div>
-
-            <div role="log" aria-label="Guide conversation" aria-live="polite" aria-relevant="additions" className="mt-3 max-h-56 space-y-2 overflow-y-auto">
-              {chatEntries.length === 0 ? (
-                <p className="rounded-lg border border-dashed border-white/[0.09] px-3 py-2.5 text-[11px] leading-5 text-slate-400">
-                  Tell me what part is confusing, or ask me to help identify a missing detail. I cannot decide a legal issue or invent a source.
-                </p>
-              ) : chatEntries.map((entry) => (
-                <article key={entry.id} className={`rounded-xl border p-2.5 ${entry.role === 'you' ? 'ml-5 border-white/[0.08] bg-white/[0.04]' : 'mr-2 border-[#e9bd7b]/15 bg-[#e9bd7b]/[0.04]'}`}>
-                  <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-500">{entry.role === 'you' ? 'You' : 'Guide'}{entry.status === 'unavailable' ? ' · local assistant unavailable' : ''}</p>
-                  <p className="mt-1 whitespace-pre-wrap text-[11px] leading-[1.6] text-slate-200">{entry.text}</p>
-                </article>
-              ))}
-              {chatSending && (
-                <p role="status" className="flex items-center gap-2 rounded-lg px-2 py-1 text-[10px] text-slate-400">
-                  <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" />
-                  Checking the case context with the local assistant…
-                </p>
-              )}
-            </div>
-
-            {chatError && <p role="alert" className="mt-2 rounded-lg border border-rose-200/15 bg-rose-200/[0.05] px-2.5 py-2 text-[10px] leading-4 text-rose-100">{chatError}</p>}
-
-            <form onSubmit={handleChatSubmit} className="mt-3 space-y-2">
-              <label htmlFor="guide-chat-language" className="sr-only">Guide reply language</label>
-              <select
-                id="guide-chat-language"
-                value={chatLanguage}
-                onChange={(event) => setChatLanguage(event.target.value as GuideChatLanguage)}
-                className="min-h-9 w-full rounded-lg border border-white/[0.1] bg-[#101923] px-2.5 text-[11px] text-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e9bd7b]"
-              >
-                <option value="english">Reply in English</option>
-                <option value="hindi">हिंदी में जवाब दें</option>
-                <option value="hinglish">Reply in Hinglish</option>
-              </select>
-              <label htmlFor="guide-chat-message" className="sr-only">Message your Guide</label>
-              <textarea
-                id="guide-chat-message"
-                value={chatDraft}
-                onChange={(event) => setChatDraft(event.target.value)}
-                maxLength={10000}
-                rows={3}
-                placeholder="Type your question or explain what is missing…"
-                disabled={!activeCaseId || chatSending}
-                className="w-full resize-y rounded-xl border border-white/[0.1] bg-[#080e15] px-3 py-2.5 text-xs leading-5 text-slate-100 placeholder:text-slate-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e9bd7b] disabled:cursor-not-allowed disabled:opacity-60"
-              />
-              <div className="flex items-center gap-2">
-                <button
-                  type="submit"
-                  disabled={!activeCaseId || chatSending || !chatDraft.trim()}
-                  className="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg border border-[#e9bd7b]/25 bg-[#e9bd7b]/[0.1] px-3 text-[11px] font-semibold text-[#f2d7aa] transition hover:bg-[#e9bd7b]/[0.17] disabled:cursor-not-allowed disabled:opacity-45 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e9bd7b] motion-reduce:transition-none"
-                >
-                  {chatSending ? <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" /> : <Send aria-hidden="true" className="h-3.5 w-3.5" />}
-                  {chatSending ? 'Thinking…' : 'Send to local Guide'}
-                </button>
-                <button
-                  type="button"
-                  disabled={!activeCaseId}
-                  onClick={() => {
-                    updateExpanded(false);
-                    if (activeCaseId) router.push(`/case/${encodeURIComponent(activeCaseId)}/voice`);
-                  }}
-                  className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg border border-white/[0.1] px-3 text-[10px] font-semibold text-slate-300 hover:bg-white/[0.05] disabled:opacity-45 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e9bd7b]"
-                >
-                  <Mic2 aria-hidden="true" className="h-3.5 w-3.5" /> Voice
-                </button>
-              </div>
-              <p className="text-[9px] leading-4 text-slate-500">Local-only assistant · no cloud fallback · this temporary chat is not added to the case record.</p>
-            </form>
-          </section>
+          <GuideConversationPanel
+            key={activeCaseId ?? 'no-case'}
+            caseId={activeCaseId}
+            onOpenVoice={() => {
+              updateExpanded(false);
+              if (activeCaseId) router.push(`/case/${encodeURIComponent(activeCaseId)}/voice`);
+            }}
+          />
 
           <section aria-labelledby="guide-understanding-heading" className="rounded-xl border border-white/[0.065] bg-white/[0.025] p-3">
             <h2 id="guide-understanding-heading" className="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500">
