@@ -425,7 +425,7 @@ The default commands above bind to loopback and are intentionally not reachable 
 5. Connect the PC and phone through a private, isolated hotspot. Run `ipconfig`, identify the PC's active IPv4 address, then open `https://<PC-IPv4>:3000` on the phone and enter the passphrase on the LawSense unlock screen.
 6. If needed, allow inbound port 3000 only on the appropriate **Private** Windows network profile. Stop the network-accessible frontend after testing.
 
-**What the gate does:** when `LAWSENSE_ACCESS_PIN` is configured with at least 16 characters, all application pages and same-origin API requests require a signed, HTTP-only browser session cookie. The session lasts up to eight hours. The health/status checks remain available so the client can establish connectivity.
+**What the gate does:** when `LAWSENSE_ACCESS_PIN` is configured with at least 16 characters, all application pages and same-origin API requests require a signed, HTTP-only browser session cookie. The session lasts up to eight hours. The health/status checks remain available so the client can establish connectivity. Without a configured passphrase, the app is intended for a server bound to loopback only; the hostname check is not a security boundary and must not be relied on for network exposure.
 
 **What it does not do:** this is one shared passphrase for the whole workspace, not user accounts, per-case ownership, or role-based authorization. Anyone with the passphrase can access all cases. Keep using synthetic/fictional cases during testing until the access gate, the device workflow, and the application have been built and tested together. Do not expose the development server to shared/public Wi-Fi or the public internet.
 
