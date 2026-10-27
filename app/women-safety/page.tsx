@@ -25,17 +25,24 @@ type RegistryResource = {
 async function readResourceCatalog(): Promise<RegistryResource[]> {
   'use cache';
 
-  try {
-    const registryPath = resolve(
-      process.cwd(),
-      '../../apps/api/app/engines/safety_support/data/india_official_resources.json',
-    );
-    const registryText = await readFile(registryPath, 'utf8');
-    const parsed: unknown = JSON.parse(registryText);
-    return Array.isArray(parsed) ? parsed as RegistryResource[] : [];
-  } catch {
-    return [];
+  const registryPaths = [
+    // Public repository checkout: frontend and API live side by side.
+    resolve(process.cwd(), 'api/app/engines/safety_support/data/india_official_resources.json'),
+    // Backward compatibility for older apps/api + apps/web workspace layouts.
+    resolve(process.cwd(), '../../apps/api/app/engines/safety_support/data/india_official_resources.json'),
+  ];
+
+  for (const registryPath of registryPaths) {
+    try {
+      const registryText = await readFile(registryPath, 'utf8');
+      const parsed: unknown = JSON.parse(registryText);
+      if (Array.isArray(parsed)) return parsed as RegistryResource[];
+    } catch {
+      // Try the other known repository layout. If neither exists, fail closed
+      // with no listings rather than fabricating emergency contacts.
+    }
   }
+  return [];
 }
 
 function verifiedIndiaResources(catalog: RegistryResource[]): RegistryResource[] {
