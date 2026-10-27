@@ -80,7 +80,8 @@ _SOURCES = (
         effective_date=None,
         jurisdiction_id=_UTTARAKHAND_JURISDICTION_ID,
         retrieved_at=datetime(2026, 10, 27, 0, 0, tzinfo=timezone.utc),
-    ),    _SourceSeed(
+    ),
+    _SourceSeed(
         id="source-pib-model-tenancy-act-adoption-2021",
         title="Cabinet approves Model Tenancy Act for circulation to States/UTs for adoption",
         authority_id=_PIB_AUTHORITY_ID,
