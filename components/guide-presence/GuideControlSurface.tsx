@@ -119,10 +119,12 @@ export function GuideControlSurface() {
     setChatDraft('');
     setChatSending(true);
     setChatError(null);
-    setChatEntries((current) => [
-      ...current.slice(-9),
-      { id: `guide-chat-${++chatEntrySequenceRef.current}`, role: 'you', text: message },
-    ]);
+    const userEntry: GuideChatEntry = {
+      id: `guide-chat-${++chatEntrySequenceRef.current}`,
+      role: 'you',
+      text: message,
+    };
+    setChatEntries((current) => [...current.slice(-9), userEntry]);
 
     try {
       const response = await sendGuideMessage(message, chatLanguage, requestedCaseId);
@@ -130,15 +132,13 @@ export function GuideControlSurface() {
         requestToken !== chatRequestSequenceRef.current
         || activeCaseIdRef.current !== requestedCaseId
       ) return;
-      setChatEntries((current) => [
-        ...current.slice(-9),
-        {
-          id: `guide-chat-${++chatEntrySequenceRef.current}`,
-          role: 'guide',
-          text: response.reply,
-          status: response.status,
-        },
-      ]);
+      const guideEntry: GuideChatEntry = {
+        id: `guide-chat-${++chatEntrySequenceRef.current}`,
+        role: 'guide',
+        text: response.reply,
+        status: response.status,
+      };
+      setChatEntries((current) => [...current.slice(-9), guideEntry]);
     } catch {
       if (
         requestToken === chatRequestSequenceRef.current
@@ -354,7 +354,7 @@ export function GuideControlSurface() {
                   <Mic2 aria-hidden="true" className="h-3.5 w-3.5" /> Voice
                 </button>
               </div>
-              <p className="text-[9px] leading-4 text-slate-500">Local-only assistant · no cloud fallback · chat cleared when you switch cases or close this screen.</p>
+              <p className="text-[9px] leading-4 text-slate-500">Local-only assistant · no cloud fallback · this temporary chat is not added to the case record.</p>
             </form>
           </section>
 
