@@ -5,7 +5,7 @@ import {
   MIN_ACCESS_PASSPHRASE_LENGTH,
   getConfiguredAccessPassphrase,
   verifyAccessSessionToken,
-} from '../../../lib/server/access-session';
+} from '../../../lib/server/access-session.ts';
 
 export function GET(request: NextRequest) {
   const mode = getAccessMode();
