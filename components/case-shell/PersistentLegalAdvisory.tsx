@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { AlertTriangle, CircleHelp, FileText, LoaderCircle, RefreshCw, Scale, ShieldAlert, X } from 'lucide-react';
 import { useCaseState } from '@/app/case/[id]/CaseStateProvider';
+import type { CaseState } from '@/lib/api';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -36,12 +37,52 @@ function stringList(value: unknown): string[] {
 function verifiedResource(value: JsonRecord): boolean {
   const status = textValue(value.verification_status ?? value.verificationStatus).toLowerCase();
   const phone = textValue(value.phone);
-  const official = value.official === true || status === 'verified_official';
+  const official = value.official === true && status === 'verified_official';
   return official && /^\+?[0-9 ()-]{3,24}$/.test(phone);
 }
 
 function humanize(value: string): string {
   return value.replace(/[_-]+/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function getRequestedSupportCategories(caseState: CaseState): string[] {
+  const issues = caseState.legalIssues
+    .map((issue) => `${issue.category} ${issue.subcategory ?? ''}`)
+    .join(' ')
+    .toLowerCase();
+  const categories = new Set<string>(['legal_aid']);
+
+  if (/(consumer|refund|defect|defective|product|purchase|seller)/.test(issues)) {
+    categories.add('consumer_support');
+  }
+  if (/(cyber|phishing|online_fraud|digital_payment|upi|account_hack|identity_theft)/.test(issues)) {
+    categories.add('cybercrime');
+    categories.add('cyber_safety');
+  }
+  if (/(government|grievance|public_service|administrative|municipal)/.test(issues)) {
+    categories.add('government_grievance');
+  }
+  if (/(workplace|employment|labour|labor|wage|salary|posh|sexual_harassment)/.test(issues)) {
+    categories.add('workplace_harassment');
+    categories.add('government_grievance');
+  }
+  if (/(posh|sexual_harassment)/.test(issues)) categories.add('workplace_safeguarding');
+  if (/(child|minor|juvenile)/.test(issues)) {
+    categories.add('child_protection');
+    categories.add('women_child_protection');
+  }
+  if (/(women|domestic_violence|sexual_violence|stalking|dowry|coercion|trafficking)/.test(issues)) {
+    categories.add('women_child_protection');
+  }
+  if (/(crime|assault|threat|stalking|domestic_violence|sexual_violence|dowry|police|violence|harassment)/.test(issues)) {
+    categories.add('police_official');
+  }
+  if (caseState.analysis?.safetyContext && caseState.analysis.safetyContext.context !== 'none') {
+    categories.add('emergency');
+    categories.add('police_official');
+  }
+
+  return [...categories].slice(0, 12);
 }
 
 export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
@@ -74,10 +115,10 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
       setLegalKnowledgeStatus(textValue(body.legalKnowledgeStatus));
       setResources([]);
 
-      // Resource lookup is local and read-only with respect to people/external
-      // services. Only run it when the saved safety analysis flags a context.
-      const safetyContext = caseState?.analysis?.safetyContext;
-      if (safetyContext && safetyContext.context !== 'none') {
+      // Use the existing local registry for general legal aid and issue-relevant
+      // helplines. Its jurisdiction rules decide which resources are eligible.
+      const requestedCategories = caseState ? getRequestedSupportCategories(caseState) : [];
+      if (caseState?.initialStatement?.trim() && requestedCategories.length > 0) {
         try {
           const supportResponse = await fetch(
             '/api/cases/' + encodeURIComponent(caseId) + '/safety-support',
@@ -85,7 +126,7 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
               method: 'POST',
               cache: 'no-store',
               headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-              body: '{}',
+              body: JSON.stringify({ requested_resource_categories: requestedCategories }),
             },
           );
           if (supportResponse.ok) {
@@ -106,7 +147,7 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
     } finally {
       setLoading(false);
     }
-  }, [caseId]);
+  }, [caseId, caseState]);
 
   useEffect(() => {
     if (open) void loadAdvisory();
