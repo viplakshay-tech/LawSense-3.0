@@ -56,7 +56,7 @@ def write_local_export(path: str | Path, value: Any, *, overwrite: bool = False)
         try:
             descriptor = os.open(target, flags, 0o600)
             created = True
-            with os.fdopen(descriptor, "w", encoding="utf-8", newline="\\n") as stream:
+            with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as stream:
                 descriptor = None
                 stream.write(serialized)
         except Exception:
