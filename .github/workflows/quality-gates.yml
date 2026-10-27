@@ -43,6 +43,9 @@ jobs:
       - name: Test Guide voice/presentation
         run: npm run test:guide
 
+      - name: Test Guide case-context boundary
+        run: npm run test:guide-context
+
       - name: Test case session restoration
         run: npm run test:session-restoration
 
