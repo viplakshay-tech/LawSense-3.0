@@ -10,7 +10,8 @@
     "test:api": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test tests/api/legal-knowledge.test.mjs",
     "test:resources": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test tests/resources/official-resources.test.mjs",
     "test:guide": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test tests/guide/voice-presentation.test.mjs",
-    "test:session-restoration": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test tests/session-case-restoration.test.mjs"
+    "test:session-restoration": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test tests/session-case-restoration.test.mjs",
+    "test:guide-context": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test tests/guide/guide-case-context.test.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.3",
