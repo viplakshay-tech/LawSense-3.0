@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.core.network_guard import LocalOnlyApiMiddleware
 from app.db.database import init_db
 from app.routes.analysis import router as analysis_router
 from app.routes.cases import router as cases_router
@@ -38,6 +39,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Added after CORS so the local-boundary policy wraps every API route.
+# The Next.js same-machine rewrite reaches FastAPI over loopback.
+app.add_middleware(LocalOnlyApiMiddleware)
 
 
 @app.get("/health")
