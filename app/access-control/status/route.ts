@@ -7,8 +7,6 @@ import {
   verifyAccessSessionToken,
 } from '@/lib/server/access-session';
 
-export const dynamic = 'force-dynamic';
-
 export function GET(request: NextRequest) {
   const mode = getAccessMode();
   const passphrase = getConfiguredAccessPassphrase();
