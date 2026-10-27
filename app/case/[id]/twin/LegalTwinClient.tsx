@@ -1254,12 +1254,12 @@ export default function LegalTwinClient({ id }: { id: string }) {
             </div>
           </div>
 
-          <div className={showGuide ? 'grid gap-3 xl:grid-cols-[minmax(0,1fr)_18rem]' : ''}>
+          <div className={`min-w-0 max-w-full ${showGuide ? 'grid gap-3 xl:grid-cols-[minmax(0,1fr)_18rem]' : ''}`}>
           <div
             role="region"
             aria-label="Living Legal Twin CaseState projection"
             aria-busy={!snapshotMatchesDate}
-            className="relative overflow-hidden rounded-2xl border border-cyan-100/[0.08] bg-[#070b13] shadow-[0_22px_70px_rgba(0,0,0,0.32)]"
+            className="relative min-w-0 max-w-full overflow-hidden rounded-2xl border border-cyan-100/[0.08] bg-[#070b13] shadow-[0_22px_70px_rgba(0,0,0,0.32)]"
           >
             <div aria-hidden={!snapshotMatchesDate} inert={!snapshotMatchesDate}>
               <TwinCanvas
