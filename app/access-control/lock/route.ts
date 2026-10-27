@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { ACCESS_SESSION_COOKIE } from '@/lib/server/access-session';
+import { ACCESS_SESSION_COOKIE } from '../../../lib/server/access-session';
 
 export function POST(request: NextRequest) {
   const response = NextResponse.json(
