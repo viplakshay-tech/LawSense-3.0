@@ -18,7 +18,7 @@ export function AccessSessionControl() {
       return;
     }
     const controller = new AbortController();
-    void fetch('/api/access/status', {
+    void fetch('/access-control/status', {
       cache: 'no-store',
       signal: controller.signal,
       headers: { Accept: 'application/json' },
@@ -34,7 +34,7 @@ export function AccessSessionControl() {
 
   async function lock() {
     try {
-      await fetch('/api/access/lock', {
+      await fetch('/access-control/lock', {
         method: 'POST',
         cache: 'no-store',
         headers: { Accept: 'application/json' },
