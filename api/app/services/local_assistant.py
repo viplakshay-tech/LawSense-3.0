@@ -78,32 +78,32 @@ def _build_user_content(
     verified_material: list[dict[str, str]],
     case_context: list[dict[str, str]] | None = None,
 ) -> str:
-    sections = [f"Requested reply language: {language}\\n\\nUser message:\\n{message.strip()}"]
+    sections = [f"Requested reply language: {language}\n\nUser message:\n{message.strip()}"]
     if case_context:
-        rendered_context = "\\n\\n".join(
-            f"Case item {index} · status: {item.get('status', 'unknown')}\\n"
+        rendered_context = "\n\n".join(
+            f"Case item {index} · status: {item.get('status', 'unknown')}\n"
             f"{item.get('label', 'Case context')}: {item.get('text', '').strip()}"
             for index, item in enumerate(case_context, start=1)
         )
         sections.append(
             "Saved case context from LawSense CaseState (preserve status labels; "
-            "this is contextual information, not a legal conclusion):\\n" + rendered_context
+            "this is contextual information, not a legal conclusion):\n" + rendered_context
         )
     else:
         sections.append("No saved case context was supplied for this turn.")
 
     if verified_material:
-        rendered_material = "\\n\\n".join(
-            f"Caller-supplied excerpt {index}: {item['title'].strip()}\\n{item['text'].strip()}"
+        rendered_material = "\n\n".join(
+            f"Caller-supplied excerpt {index}: {item['title'].strip()}\n{item['text'].strip()}"
             for index, item in enumerate(verified_material, start=1)
         )
         sections.append(
-            "Caller-supplied excerpts (not independently authenticated by this endpoint):\\n"
+            "Caller-supplied excerpts (not independently authenticated by this endpoint):\n"
             + rendered_material
         )
     else:
         sections.append("No legal source excerpt was supplied for this turn.")
-    return "\\n\\n".join(sections)
+    return "\n\n".join(sections)
 
 
 def _unavailable_reply(model: str, reason: str) -> AssistantResult:
