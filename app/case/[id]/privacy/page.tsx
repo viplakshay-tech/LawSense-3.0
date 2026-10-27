@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { CaseDeletionControl } from './CaseDeletionControl';
 import { ArrowLeft, Check, CircleHelp, FileCheck2, LockKeyhole, ShieldAlert } from 'lucide-react';
 
 export const instant = false;
@@ -75,6 +76,8 @@ export default async function PrivacyControlPage({
           {provenance.map(([label, description]) => <div key={label} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3"><dt className="text-[10px] font-bold tracking-[0.12em] text-slate-200">{label}</dt><dd className="mt-1.5 text-xs leading-5 text-slate-400">{description}</dd></div>)}
         </dl>
       </section>
+
+      <CaseDeletionControl caseId={id} />
 
       <section className="rounded-2xl border border-white/[0.08] bg-[#10161f] p-5 sm:p-6" aria-labelledby="production-heading">
         <h2 id="production-heading" className="text-sm font-semibold uppercase tracking-[0.13em] text-slate-200">Before production deployment</h2>
