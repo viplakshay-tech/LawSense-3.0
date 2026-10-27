@@ -11,7 +11,7 @@ import ipaddress
 import os
 
 from starlette.responses import JSONResponse
-from starlette.types import ASGIApp, Receive, Scope, Send
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 
 _REMOTE_ACCESS_ENV = "LAWSENSE_ALLOW_REMOTE_API"
@@ -56,14 +56,32 @@ class LocalOnlyApiMiddleware:
         self.app = app
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] != "http" or _remote_access_enabled():
+        if scope["type"] != "http":
             await self.app(scope, receive, send)
+            return
+
+        async def send_no_store(message: Message) -> None:
+            if message["type"] == "http.response.start":
+                # Prevent browser/intermediary caching of sensitive case records.
+                headers = [
+                    (name, value)
+                    for name, value in message.get("headers", [])
+                    if name.lower() != b"cache-control"
+                ]
+                headers.append((b"cache-control", b"no-store"))
+                message = {**message, "headers": headers}
+            await send(message)
+
+        # The explicit operator override changes network exposure only; it must
+        # not turn sensitive API responses into cacheable responses.
+        if _remote_access_enabled():
+            await self.app(scope, receive, send_no_store)
             return
 
         client = scope.get("client")
         client_host = client[0] if client else ""
         if _is_loopback(client_host):
-            await self.app(scope, receive, send)
+            await self.app(scope, receive, send_no_store)
             return
 
         response = JSONResponse(
@@ -78,4 +96,4 @@ class LocalOnlyApiMiddleware:
             },
             headers={"Cache-Control": "no-store"},
         )
-        await response(scope, receive, send)
+        await response(scope, receive, send_no_store)
