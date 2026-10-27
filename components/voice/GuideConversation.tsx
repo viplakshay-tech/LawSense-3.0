@@ -414,9 +414,10 @@ export default function GuideConversation({
     const statement = text.trim();
     if (!statement) return;
 
-    const previousHistory = conversationHistoryRef.current.slice(-8);
+    const previousHistory: GuideConversationTurn[] = conversationHistoryRef.current.slice(-8);
     const userTurn: GuideConversationTurn = { role: 'user', content: statement };
-    conversationHistoryRef.current = [...previousHistory, userTurn].slice(-8);
+    const userHistory: GuideConversationTurn[] = [...previousHistory, userTurn];
+    conversationHistoryRef.current = userHistory.slice(-8);
     appendUserTurn(statement, inputMethod);
 
     const questions = questionsRef.current;
@@ -444,10 +445,11 @@ export default function GuideConversation({
     }
     if (!mountedRef.current) return;
     const assistantTurn: GuideConversationTurn = { role: 'assistant', content: responseText };
-    conversationHistoryRef.current = [
+    const assistantHistory: GuideConversationTurn[] = [
       ...conversationHistoryRef.current,
       assistantTurn,
-    ].slice(-8);
+    ];
+    conversationHistoryRef.current = assistantHistory.slice(-8);
     const responseId = createId('response');
     const response = { id: responseId, text: responseText };
     lastResponseRef.current = response;
