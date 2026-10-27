@@ -14,7 +14,7 @@ type AccessStatus = {
 
 function safeNextPath(value: string | null): string {
   if (!value || !value.startsWith('/') || value.startsWith('//') || value.includes('\\')) return '/';
-  if (value.startsWith('/unlock') || value.startsWith('/api/access/')) return '/';
+  if (value.startsWith('/unlock') || value.startsWith('/api/access/') || value.startsWith('/access-control/')) return '/';
   return value;
 }
 
@@ -32,7 +32,7 @@ export default function UnlockPage() {
     setIsLocalBrowser(host === 'localhost' || host.endsWith('.localhost') || host === '127.0.0.1' || host === '::1');
     setReason(new URLSearchParams(window.location.search).get('reason'));
     const controller = new AbortController();
-    void fetch('/api/access/status', {
+    void fetch('/access-control/status', {
       cache: 'no-store',
       signal: controller.signal,
       headers: { Accept: 'application/json' },
@@ -55,7 +55,7 @@ export default function UnlockPage() {
     try {
       const query = new URLSearchParams(window.location.search);
       const next = safeNextPath(query.get('next'));
-      const response = await fetch('/api/access/unlock', {
+      const response = await fetch('/access-control/unlock', {
         method: 'POST',
         cache: 'no-store',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
@@ -79,7 +79,7 @@ export default function UnlockPage() {
     setWorking(true);
     setError('');
     try {
-      const response = await fetch('/api/access/lock', {
+      const response = await fetch('/access-control/lock', {
         method: 'POST',
         cache: 'no-store',
         headers: { Accept: 'application/json' },
