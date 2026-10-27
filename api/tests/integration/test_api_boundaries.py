@@ -26,6 +26,7 @@ def _asgi_request(
     raw_body: bytes | None = None,
     content_type: str = "application/json",
     client_host: str = "testclient",
+    response_headers: dict[bytes, bytes] | None = None,
 ) -> tuple[int, object]:
     body = (
         raw_body
@@ -49,6 +50,11 @@ def _asgi_request(
         nonlocal status
         if message["type"] == "http.response.start":
             status = int(message["status"])
+            if response_headers is not None:
+                response_headers.clear()
+                response_headers.update({
+                    name.lower(): value for name, value in message.get("headers", [])  # type: ignore[union-attr]
+                })
         elif message["type"] == "http.response.body":
             chunks.append(message.get("body", b""))  # type: ignore[arg-type]
 
@@ -149,29 +155,39 @@ class ApiBoundaryIntegrationTests(unittest.TestCase):
                 database.save_case(case)
 
     def test_remote_api_client_is_blocked_by_default(self) -> None:
+        headers: dict[bytes, bytes] = {}
         with patch.dict(os.environ, {"LAWSENSE_ALLOW_REMOTE_API": "false"}):
             status, body = _asgi_request(
                 "GET",
                 "/health",
                 client_host="192.168.1.50",
+                response_headers=headers,
             )
         self.assertEqual(status, 403, body)
         self.assertIn("local-machine requests only", body["detail"].lower())
+        self.assertEqual(headers.get(b"cache-control"), b"no-store")
 
-    def test_loopback_api_client_remains_available(self) -> None:
+    def test_loopback_api_client_remains_available_without_cacheable_responses(self) -> None:
+        headers: dict[bytes, bytes] = {}
         with patch.dict(os.environ, {"LAWSENSE_ALLOW_REMOTE_API": "false"}):
-            status, body = _asgi_request("GET", "/health", client_host="127.0.0.1")
+            status, body = _asgi_request(
+                "GET", "/health", client_host="127.0.0.1", response_headers=headers
+            )
         self.assertEqual(status, 200, body)
         self.assertEqual(body["service"], "lawsense-api")
+        self.assertEqual(headers.get(b"cache-control"), b"no-store")
 
     def test_remote_api_access_requires_explicit_operator_opt_in(self) -> None:
+        headers: dict[bytes, bytes] = {}
         with patch.dict(os.environ, {"LAWSENSE_ALLOW_REMOTE_API": "true"}):
             status, body = _asgi_request(
                 "GET",
                 "/health",
                 client_host="192.168.1.50",
+                response_headers=headers,
             )
         self.assertEqual(status, 200, body)
+        self.assertEqual(headers.get(b"cache-control"), b"no-store")
 
     def test_landlord_deposit_complete_analysis_and_reasoning_are_structured_and_fail_closed(self) -> None:
         case = self.post_case("My landlord did not return my ₹30,000 security deposit.")
