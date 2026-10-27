@@ -11,6 +11,7 @@ from unittest.mock import patch
 
 from app.db import database
 from app.main import app
+from app.services.privacy import case_deletion
 from app.schemas.case_state import CaseState
 from app.services.voice_case import VoiceCaseService
 from fastapi.middleware.cors import CORSMiddleware
@@ -107,6 +108,45 @@ class ApiBoundaryIntegrationTests(unittest.TestCase):
         origins = cors_options["allow_origins"]
         self.assertIn("https://localhost", origins)
         self.assertNotIn("*", origins)
+
+    def test_case_deletion_requires_exact_case_id_confirmation(self) -> None:
+        case = self.post_case("Synthetic case data that will remain until confirmed.")
+        with patch.object(case_deletion, "DATA_DIR", Path(self.temp_dir.name) / "private-data"):
+            status, body = _asgi_request(
+                "DELETE",
+                f"/cases/{case.id}",
+                {
+                    "confirmation_phrase": "DELETE",
+                    "case_id_confirmation": "a-different-case",
+                },
+            )
+        self.assertEqual(status, 400, body)
+        self.assertIsNotNone(database.get_case(case.id))
+
+    def test_confirmed_case_deletion_removes_case_and_prevents_stale_restore(self) -> None:
+        case = self.post_case("Synthetic case data for deletion integration coverage.")
+        data_dir = Path(self.temp_dir.name) / "private-data"
+        with patch.object(case_deletion, "DATA_DIR", data_dir):
+            status, body = _asgi_request(
+                "DELETE",
+                f"/cases/{case.id}",
+                {
+                    "confirmation_phrase": "DELETE",
+                    "case_id_confirmation": case.id,
+                },
+            )
+            self.assertEqual(status, 200, body)
+            self.assertEqual(body["status"], "deleted")
+            self.assertTrue(body["data_records_removed"])
+            self.assertTrue(body["uploaded_documents_removed"])
+            self.assertTrue(body["minimal_tombstone_retained"])
+            self.assertIsNone(database.get_case(case.id))
+
+            status, body = _asgi_request("GET", f"/cases/{case.id}")
+            self.assertEqual(status, 404, body)
+
+            with self.assertRaises(database.CasePermanentlyDeletedError):
+                database.save_case(case)
 
     def test_remote_api_client_is_blocked_by_default(self) -> None:
         with patch.dict(os.environ, {"LAWSENSE_ALLOW_REMOTE_API": "false"}):
