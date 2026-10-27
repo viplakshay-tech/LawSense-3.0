@@ -37,7 +37,7 @@ function verifiedResource(value: JsonRecord): boolean {
   const status = textValue(value.verification_status ?? value.verificationStatus).toLowerCase();
   const phone = textValue(value.phone);
   const official = value.official === true || status === 'verified_official';
-  return official && /^\\+?[0-9 ()-]{3,24}$/.test(phone);
+  return official && /^\+?[0-9 ()-]{3,24}$/.test(phone);
 }
 
 function humanize(value: string): string {
