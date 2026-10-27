@@ -1085,6 +1085,7 @@ export interface GuideChatResponse {
 export async function sendGuideMessage(
   message: string,
   language: GuideChatLanguage,
+  caseId?: string,
 ): Promise<GuideChatResponse> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 52_000);
@@ -1092,7 +1093,11 @@ export async function sendGuideMessage(
     const response = await fetch(`${BASE_URL}/guide/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message, language }),
+      body: JSON.stringify({
+        message,
+        language,
+        ...(caseId ? { case_id: caseId } : {}),
+      }),
       signal: controller.signal,
     });
     const body = await response.json().catch(() => null);
