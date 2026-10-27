@@ -74,8 +74,16 @@ function commandForAction(action: GuideAction): GuideActionCommand {
   switch (action.type) {
     case 'ASK_CLARIFICATION':
       return { type: 'openClarification' };
-    case 'SHOW_EVIDENCE':
+    case 'SHOW_EVIDENCE': {
+      const { evidenceIds, documentIds } = action.payload;
+      if (evidenceIds.length === 1) {
+        return { type: 'openEvidence', evidenceId: evidenceIds[0] };
+      }
+      if (evidenceIds.length === 0 && documentIds.length === 1) {
+        return { type: 'openDocument', documentId: documentIds[0] };
+      }
       return { type: 'openEvidence' };
+    }
     case 'SHOW_LEGAL_GROUNDING':
       return { type: 'navigate', route: { kind: 'guide', caseId: action.payload.caseId } };
     case 'OPEN_JOURNEY':
@@ -184,8 +192,18 @@ export function GuideRuntimeProvider({ caseId, children }: { caseId: string; chi
     const push = (path: string) => router.push(path);
     return {
       navigate: (route) => push(pathForRoute(route)),
-      openEvidence: (evidenceId) => push(`${base}/documents${evidenceId ? `?evidenceId=${encodeURIComponent(evidenceId)}` : ''}`),
-      openDocument: () => ({ status: 'unavailable', reason: 'The document workspace does not expose selection by document ID.' }),
+      openEvidence: (evidenceId) => {
+        if (evidenceId && !caseState?.evidence.some((item) => item.id === evidenceId)) {
+          return { status: 'unavailable', reason: 'The requested evidence item is not present in the current CaseState.' };
+        }
+        push(`${base}/documents${evidenceId ? `?evidenceId=${encodeURIComponent(evidenceId)}` : ''}`);
+      },
+      openDocument: (documentId) => {
+        if (!caseState || caseState.id !== caseId || !caseState.documents.some((document) => document.id === documentId)) {
+          return { status: 'unavailable', reason: 'The selected document is not present in the current CaseState.' };
+        }
+        push(`${base}/documents?documentId=${encodeURIComponent(documentId)}`);
+      },
       highlightEvidence: () => ({ status: 'unavailable', reason: 'The case view does not expose a Guide finding-highlight callback.' }),
       openLegalGrounding: () => push(`${base}#analysis`),
       openJourney: () => push(`${base}#journey`),
@@ -240,7 +258,7 @@ export function GuideRuntimeProvider({ caseId, children }: { caseId: string; chi
       openSafety: () => push(`${base}/safety`),
       openClarification: () => push(`${base}#clarification`),
     };
-  }, [caseId, dispatch, router]);
+  }, [caseId, caseState, dispatch, router]);
 
   useEffect(() => {
     if (!caseState || revision === 0 || lastCaseRevision.current === revision) return;
