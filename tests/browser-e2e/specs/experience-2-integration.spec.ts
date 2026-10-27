@@ -241,11 +241,13 @@ test('the Guide restores keyboard focus and the real Twin graph remains usable a
   const horizontalOverflow = await page.evaluate(() => {
     if (document.documentElement.scrollWidth <= window.innerWidth) return [];
     const clippingOverflow = new Set(['auto', 'scroll', 'hidden', 'clip']);
-    return Array.from(document.querySelectorAll<HTMLElement>('body *'))
+    const elements = Array.from(document.querySelectorAll<HTMLElement>('body *'));
+    return elements
       .map((element) => {
         const rect = element.getBoundingClientRect();
         const style = window.getComputedStyle(element);
         return {
+          element,
           tag: element.tagName.toLowerCase(),
           id: element.id || null,
           className: typeof element.className === 'string' ? element.className.slice(0, 180) : null,
@@ -257,12 +259,11 @@ test('the Guide restores keyboard focus and the real Twin graph remains usable a
           clientWidth: element.clientWidth,
         };
       })
-      .filter((item, index, all) => {
-        const element = document.querySelectorAll<HTMLElement>('body *')[index];
+      .filter((item) => {
         if (item.width <= 0 || (item.left >= -1 && item.right <= window.innerWidth + 1)) return false;
-        // Exclude content intentionally scrolled/clipped by an ancestor, but
-        // keep the ancestor itself as a diagnostic candidate if it overflows.
-        let parent = element.parentElement;
+        // Exclude descendants intentionally scrolled/clipped by an ancestor.
+        // Keep the overflowing ancestor itself as a candidate.
+        let parent = item.element.parentElement;
         while (parent && parent !== document.documentElement) {
           if (clippingOverflow.has(window.getComputedStyle(parent).overflowX)) return false;
           parent = parent.parentElement;
@@ -270,11 +271,12 @@ test('the Guide restores keyboard focus and the real Twin graph remains usable a
         return true;
       })
       .sort((a, b) => Math.max(b.right - window.innerWidth, -b.left) - Math.max(a.right - window.innerWidth, -a.left))
-      .slice(0, 12);
+      .slice(0, 12)
+      .map(({ element: _element, ...item }) => item);
   });
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
-    `Unexpected horizontal page overflow at 390px (document scrollWidth=${await page.evaluate(() => document.documentElement.scrollWidth)}, viewport=${await page.evaluate(() => window.innerWidth)}): ${JSON.stringify(horizontalOverflow)}`,
+    \`Unexpected horizontal page overflow at 390px: \${JSON.stringify(horizontalOverflow)}\`,
   ).toBe(true);
 });
 
