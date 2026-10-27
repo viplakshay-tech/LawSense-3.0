@@ -475,6 +475,7 @@ LawSense can handle sensitive personal and safety-related information. Use synth
 - **Treat sources conservatively:** legal knowledge in the prototype is curated and incomplete; it is not a complete, continuously updated repository of every Indian statute, rule, judgment or local procedure.
 - **Safety first:** in immediate danger, contact appropriate local emergency services or trusted support. Do not rely on this application as the sole source of help.
 - **Local-first is not automatically secure:** production use needs a dedicated review of authentication, authorization, encryption, storage, backups, retention, deletion, dependency security and incident response.
+- **Local API boundary:** FastAPI accepts loopback clients only by default, and POSIX installs restrict the local database/document/export files to owner-only permissions where supported. This is exposure reduction—not encryption or per-case/user authorization. Windows file protection still relies on Windows ACLs and device security. Do not expose the API to an untrusted network.
 - **Protect secrets:** never commit `.env` files, credentials, private keys, live databases, real case documents or personal identifying information.
 - **Review extracted facts:** automated extraction may be incomplete or wrong. A candidate finding should not silently become a confirmed fact.
 
