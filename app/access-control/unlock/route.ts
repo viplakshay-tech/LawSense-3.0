@@ -1,4 +1,4 @@
-import { NextResponse, type NextRequest } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server.js';
 import {
   ACCESS_SESSION_COOKIE,
   ACCESS_SESSION_TTL_SECONDS,
