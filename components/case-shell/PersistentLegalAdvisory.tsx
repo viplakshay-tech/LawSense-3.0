@@ -128,13 +128,6 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
   const risks = rows(result?.risks);
   const paths = rows(result?.possibleProceduralPaths);
   const blocked = rows(result?.blockedConclusions);
-  const nextSteps: string[] = [];
-  if (conflicts.length > 0) nextSteps.push('Review the conflicting entries against the original records or documents before relying on either version.');
-  if (questions.length > 0) nextSteps.push('Open the Guide and answer the listed unresolved questions. Mark anything you do not know as unknown rather than guessing.');
-  if (evidenceGaps.length > 0) nextSteps.push('Review each evidence gap and attach or identify a relevant source where available. Keep extracted details unconfirmed until you have checked them.');
-  if (jurisdictionStatus.toLowerCase().includes('unknown')) nextSteps.push('Confirm where the relevant events happened, including the state or district when known; procedure and deadlines can depend on jurisdiction.');
-  if (statements.length === 0) nextSteps.push('The current analysis has no reliable source-linked legal statement. Add missing facts and documents, then refresh the review; this does not mean no remedy exists.');
-  if (nextSteps.length === 0) nextSteps.push('Check the relevant original documents and official source links, confirm current jurisdiction and dates, and review any procedural deadline with a qualified legal professional before acting.');
   const jurisdictionStatus = textValue(result?.jurisdictionStatus, 'unknown');
   const uncertainty = isRecord(result?.uncertainty) ? result.uncertainty : {};
   const uncertaintyLevel = textValue(uncertainty.level);
@@ -149,6 +142,13 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
     : needsAttention
       ? 'Provisional review · important gaps remain'
       : 'Provisional review · applicability still needs checking';
+  const nextSteps: string[] = [];
+  if (conflicts.length > 0) nextSteps.push('Review the conflicting entries against the original records or documents before relying on either version.');
+  if (questions.length > 0) nextSteps.push('Open the Guide and answer the listed unresolved questions. Mark anything you do not know as unknown rather than guessing.');
+  if (evidenceGaps.length > 0) nextSteps.push('Review each evidence gap and attach or identify a relevant source where available. Keep extracted details unconfirmed until you have checked them.');
+  if (jurisdictionStatus.toLowerCase().includes('unknown')) nextSteps.push('Confirm where the relevant events happened, including the state or district when known; procedure and deadlines can depend on jurisdiction.');
+  if (statements.length === 0) nextSteps.push('The current analysis has no reliable source-linked legal statement. Add missing facts and documents, then refresh the review; this does not mean no remedy exists.');
+  if (nextSteps.length === 0) nextSteps.push('Check the relevant original documents and official source links, confirm current jurisdiction and dates, and review any procedural deadline with a qualified legal professional before acting.');
 
   function openDialog() {
     setOpen(true);
