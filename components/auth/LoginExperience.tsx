@@ -142,7 +142,7 @@ export default function LoginExperience() {
                   placeholder="Paste the code from the host data folder"
                 />
                 <p className="mt-2 text-xs leading-5 text-slate-500">
-                  On the host computer, open <code>data/lawsense.setup-token</code> beside the local database. This code is not made available over the network.
+                  On the host computer, open <code>lawsense.setup-token</code> in the same folder as the local database. This code is not made available over the network.
                 </p>
               </div>
             )}

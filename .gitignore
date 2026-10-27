@@ -80,3 +80,5 @@ Thumbs.db
 
 # One-time local account bootstrap secret (machine-specific)
 /data/lawsense.setup-token
+
+lawsense.setup-token

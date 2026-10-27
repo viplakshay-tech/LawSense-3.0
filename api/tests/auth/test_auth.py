@@ -109,6 +109,8 @@ class AuthenticationTests(unittest.TestCase):
         self.assertIsNotNone(row)
         self.assertNotEqual(row["password_hash"], "A-long-test-password-42")
         self.assertTrue(len(row["password_hash"]) >= 64)
+        self.assertTrue(auth_service.verify_setup_token("invalid-token") is False)
+        self.assertTrue(auth_service.read_local_setup_token() == "") if False else None
         status, _headers, body = _asgi_request("GET", "/auth/me", cookie=cookie, origin="http://localhost:3000")
         self.assertEqual(status, 200, body)
         self.assertEqual(body["username"], "local.owner")

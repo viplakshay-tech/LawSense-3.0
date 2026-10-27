@@ -67,7 +67,7 @@ def register_first_account(payload: CredentialsRequest, request: Request, respon
     if not auth_service.verify_setup_token(payload.setupToken):
         raise HTTPException(
             status_code=403,
-            detail="A valid local setup code is required. Read data/lawsense.setup-token on the host computer.",
+            detail="A valid local setup code is required. Read lawsense.setup-token beside the local database on the host computer.",
         )
     try:
         user = auth_service.create_first_account(payload.username, payload.password)
