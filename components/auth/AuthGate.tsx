@@ -13,10 +13,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const isPublic = pathname === '/login' || pathname === '/women-safety';
 
   useEffect(() => {
-    if (isPublic) {
-      setChecking(false);
-      return;
-    }
+    if (isPublic) return;
     let active = true;
     setChecking(true);
     fetch('/api/auth/me', { cache: 'no-store' })
