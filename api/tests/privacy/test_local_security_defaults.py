@@ -30,6 +30,7 @@ class LocalNetworkBoundaryTests(unittest.TestCase):
         sent_request = False
         status_code = 500
         chunks: list[bytes] = []
+        response_headers: dict[bytes, bytes] = {}
 
         async def receive() -> dict[str, object]:
             nonlocal sent_request
@@ -42,6 +43,9 @@ class LocalNetworkBoundaryTests(unittest.TestCase):
             nonlocal status_code
             if message["type"] == "http.response.start":
                 status_code = int(message["status"])
+                response_headers.update({
+                    name.lower(): value for name, value in message.get("headers", [])
+                })
             elif message["type"] == "http.response.body":
                 chunks.append(message.get("body", b""))  # type: ignore[arg-type]
 
@@ -66,9 +70,23 @@ class LocalNetworkBoundaryTests(unittest.TestCase):
             asyncio.run(app(scope, receive, send))
 
         self.assertEqual(status_code, 403)
+        self.assertEqual(response_headers.get(b"cache-control"), b"no-store")
         body = json.loads(b"".join(chunks))
         self.assertIn("disabled by default", body["detail"])
         self.assertIn("does not add authentication", body["detail"])
+
+        # The same API remains usable for the same-machine Next.js proxy, and
+        # successful responses carrying case data must not be cacheable either.
+        scope["client"] = ("127.0.0.1", 12345)
+        sent_request = False
+        status_code = 500
+        chunks.clear()
+        response_headers.clear()
+        with patch("app.main._REMOTE_API_FLAG", False):
+            asyncio.run(app(scope, receive, send))
+
+        self.assertEqual(status_code, 200)
+        self.assertEqual(response_headers.get(b"cache-control"), b"no-store")
 
     @unittest.skipIf(os.name == "nt", "POSIX file mode bits are not Windows ACLs")
     def test_sqlite_database_file_is_private_to_the_running_account(self) -> None:
