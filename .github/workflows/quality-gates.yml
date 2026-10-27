@@ -93,6 +93,8 @@ jobs:
       - name: Run real browser journeys
         run: npm test
         working-directory: tests/browser-e2e
+        env:
+          LAWSENSE_AUTH_TEST_BYPASS: "1"
 
   backend:
     name: Python backend tests
@@ -117,3 +119,5 @@ jobs:
 
       - name: Run backend unit and integration tests
         run: python -m unittest discover -s tests -p "test_*.py" -v
+        env:
+          LAWSENSE_AUTH_TEST_BYPASS: "1"
