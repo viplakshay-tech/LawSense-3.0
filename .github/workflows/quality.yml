@@ -1,0 +1,73 @@
+name: LawSense quality checks
+
+on:
+  push:
+    branches:
+      - feature/advisory-first-pass
+  pull_request:
+    branches:
+      - lawsense-3-integration
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lawsense-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Frontend lint, focused tests, and production build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Test legal knowledge helpers
+        run: npm run test:api
+      - name: Test official resource governance
+        run: npm run test:resources
+      - name: Test Guide voice presentation
+        run: npm run test:guide
+      - name: Test Guide case context
+        run: npm run test:guide-context
+      - name: Test session restoration
+        run: npm run test:session-restoration
+      - name: Test access session security helpers
+        run: npm run test:access-session
+      - name: Build production frontend
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+          NEXT_PUBLIC_API_URL: http://127.0.0.1:8000
+        run: npm run build
+
+  backend:
+    name: Python API tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: api/requirements.txt
+      - name: Install API dependencies
+        run: python -m pip install -r api/requirements.txt
+      - name: Run API unit and integration tests
+        working-directory: api
+        env:
+          PYTHONPATH: .
+        run: python -m unittest discover -s tests -p 'test_*.py'
