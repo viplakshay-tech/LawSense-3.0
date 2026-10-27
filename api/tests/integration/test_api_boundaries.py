@@ -189,6 +189,25 @@ class ApiBoundaryIntegrationTests(unittest.TestCase):
         self.assertEqual(status, 200, body)
         self.assertEqual(body["service"], "lawsense-api")
 
+    def test_trusted_reverse_proxy_allowlists_are_explicit(self) -> None:
+        with patch.dict(
+            os.environ,
+            {
+                "LAWSENSE_ALLOW_REMOTE_API": "true",
+                "LAWSENSE_ALLOWED_API_HOSTS": "api.example.test",
+                "LAWSENSE_ALLOWED_API_ORIGINS": "https://portal.example.test",
+            },
+        ):
+            status, body = _asgi_request(
+                "GET",
+                "/health",
+                client_host="10.20.30.40",
+                host_header="api.example.test",
+                origin_header="https://portal.example.test",
+            )
+        self.assertEqual(status, 200, body)
+        self.assertEqual(body["service"], "lawsense-api")
+
     def test_remote_api_client_is_blocked_by_default(self) -> None:
         headers: dict[bytes, bytes] = {}
         with patch.dict(os.environ, {"LAWSENSE_ALLOW_REMOTE_API": "false"}):
