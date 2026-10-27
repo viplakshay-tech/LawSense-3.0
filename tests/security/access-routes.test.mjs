@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { NextRequest } from 'next/server';
+import { NextRequest } from 'next/server.js';
 import { GET as readStatus } from '../../app/access-control/status/route.ts';
 import { POST as unlock } from '../../app/access-control/unlock/route.ts';
 import { POST as lock } from '../../app/access-control/lock/route.ts';
