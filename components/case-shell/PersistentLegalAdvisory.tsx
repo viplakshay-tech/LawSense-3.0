@@ -161,7 +161,7 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
         onClick={openDialog}
         aria-haspopup="dialog"
         aria-label="Open Legal Advisory based on information recorded so far"
-        className="fixed bottom-[calc(5.3rem+env(safe-area-inset-bottom))] left-3 z-[65] lg:left-[18rem] inline-flex min-h-11 items-center gap-2 rounded-full border border-[#d9bd8c]/35 bg-[#111923]/[0.97] px-4 text-xs font-semibold text-[#f2dfb9] shadow-[0_12px_36px_rgba(0,0,0,0.3)] backdrop-blur-xl transition hover:border-[#d9bd8c]/60 hover:bg-[#1b2633] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e9bd7b] motion-reduce:transition-none lg:bottom-5 lg:left-5"
+        className="fixed bottom-[calc(10.5rem+env(safe-area-inset-bottom))] left-3 z-[65] lg:left-[18rem] inline-flex min-h-11 items-center gap-2 rounded-full border border-[#d9bd8c]/35 bg-[#111923]/[0.97] px-4 text-xs font-semibold text-[#f2dfb9] shadow-[0_12px_36px_rgba(0,0,0,0.3)] backdrop-blur-xl transition hover:border-[#d9bd8c]/60 hover:bg-[#1b2633] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e9bd7b] motion-reduce:transition-none lg:bottom-5 lg:left-5"
       >
         <Scale aria-hidden="true" className="h-4 w-4" />
         <span>Legal Advisory</span>
