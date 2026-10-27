@@ -62,6 +62,8 @@ class GuideCaseContext(BaseModel):
 
     case_title: str | None = Field(default=None, max_length=200)
     initial_statement: str | None = Field(default=None, max_length=2_000)
+    user_objective: str | None = Field(default=None, max_length=250)
+    objective_urgency: Literal["low", "medium", "high", "critical"] | None = None
     jurisdiction: str | None = Field(default=None, max_length=400)
     jurisdiction_basis: Literal["user_reported", "document", "inferred", "unknown"] = "unknown"
     facts: list[GuideCaseFact] = Field(default_factory=list, max_length=12)
