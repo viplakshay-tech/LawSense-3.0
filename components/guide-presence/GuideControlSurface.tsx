@@ -277,11 +277,22 @@ export function GuideControlSurface() {
                 placeholder="Tell me what you want to understand…"
                 className="w-full resize-y rounded-lg border border-white/10 bg-[#090f17] px-3 py-2.5 text-sm leading-6 text-slate-100 placeholder:text-slate-500 focus:border-[#e9bd7b]/50 focus:outline-none focus:ring-1 focus:ring-[#e9bd7b]/25 disabled:opacity-50"
               />
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-[11px] leading-4 text-slate-500">Local assistant · no cloud fallback. Chat does not edit or save case facts.</p>
-                <button type="submit" disabled={!snapshot.caseState || chatPending || !chatText.trim()} className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-lg bg-[#d9bd8c] px-3 text-xs font-semibold text-[#171a1e] transition hover:bg-[#ead5ac] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#e9bd7b] disabled:cursor-not-allowed disabled:opacity-45">
-                  {chatPending ? 'Replying…' : 'Send'}
-                </button>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="max-w-52 text-[11px] leading-4 text-slate-500">Configured local assistant · no cloud fallback. Chat does not edit or save case facts.</p>
+                <div className="flex items-center gap-2">
+                  {caseId && (
+                    <button
+                      type="button"
+                      onClick={() => router.push(`/case/${encodeURIComponent(caseId)}/voice`)}
+                      className="inline-flex min-h-10 shrink-0 items-center rounded-lg border border-white/10 px-3 text-xs font-semibold text-slate-200 hover:bg-white/[0.06] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#e9bd7b]"
+                    >
+                      Switch to voice
+                    </button>
+                  )}
+                  <button type="submit" disabled={!snapshot.caseState || chatPending || !chatText.trim()} className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-lg bg-[#d9bd8c] px-3 text-xs font-semibold text-[#171a1e] transition hover:bg-[#ead5ac] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#e9bd7b] disabled:cursor-not-allowed disabled:opacity-45">
+                    {chatPending ? 'Replying…' : 'Send'}
+                  </button>
+                </div>
               </div>
             </form>
           </section>
