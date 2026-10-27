@@ -59,11 +59,21 @@ def _normalise_host(value: str) -> str:
         return ""
     try:
         parsed = urlsplit("//" + candidate)
+        # Host is an authority only. Do not let URL userinfo, path, query, or
+        # fragment syntax collapse an attacker-controlled value to a trusted
+        # hostname (for example, "attacker.example@localhost").
+        if (
+            not parsed.hostname
+            or parsed.username is not None
+            or parsed.password is not None
+            or parsed.path
+            or parsed.query
+            or parsed.fragment
+        ):
+            return ""
         hostname = parsed.hostname
         port = parsed.port
     except ValueError:
-        return ""
-    if not hostname:
         return ""
     hostname = hostname.rstrip(".")
     try:
