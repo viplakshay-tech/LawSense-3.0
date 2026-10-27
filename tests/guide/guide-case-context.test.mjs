@@ -116,10 +116,19 @@ test('Guide chat sends the same status-preserving context using the API schema',
 
   try {
     const context = buildGuideCaseContext(makeCaseState());
-    const response = await sendGuideMessage('What should I clarify first?', 'hinglish', context);
+    const history = Array.from({ length: 10 }, (_, index) => ({
+      role: index % 2 === 0 ? 'user' : 'assistant',
+      content: `${index}:${'x'.repeat(1_998)}`,
+    }));
+    const response = await sendGuideMessage('What should I clarify first?', 'hinglish', context, history);
 
     assert.equal(capturedUrl, '/api/guide/chat');
     assert.equal(capturedBody.language, 'hinglish');
+    assert.equal(capturedBody.conversation_history.length, 4);
+    assert.equal(capturedBody.conversation_history.reduce((sum, turn) => sum + turn.content.length, 0), 8_000);
+    assert.equal(capturedBody.conversation_history[0].content.startsWith('6:'), true);
+    assert.equal(capturedBody.conversation_history[3].content.startsWith('9:'), true);
+    assert.deepEqual(capturedBody.conversation_history.map((turn) => turn.role), ['user', 'assistant', 'user', 'assistant']);
     assert.equal(capturedBody.case_context.initial_statement, 'My landlord has not returned the security deposit.');
     assert.equal(capturedBody.case_context.user_objective, 'Understand my options');
     assert.equal(capturedBody.case_context.objective_urgency, 'medium');
