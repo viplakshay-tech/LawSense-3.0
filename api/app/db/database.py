@@ -96,6 +96,8 @@ def init_db() -> None:
 
 def save_case(case: CaseState) -> None:
     with get_connection() as connection:
+        # Serialize the tombstone check and write against concurrent deletion.
+        connection.execute("BEGIN IMMEDIATE")
         _assert_case_not_deleted(connection, case.id)
         connection.execute(
             """
@@ -129,6 +131,7 @@ def get_case(case_id: str) -> Optional[CaseState]:
 
 def save_document_draft(draft) -> None:
     with get_connection() as connection:
+        connection.execute("BEGIN IMMEDIATE")
         _assert_case_not_deleted(connection, draft.caseId)
         connection.execute(
             """
@@ -174,6 +177,7 @@ def list_document_drafts(case_id: str):
 
 def save_document_package(package) -> None:
     with get_connection() as connection:
+        connection.execute("BEGIN IMMEDIATE")
         _assert_case_not_deleted(connection, package.caseId)
         connection.execute(
             """
