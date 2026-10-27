@@ -267,7 +267,7 @@ test('the Guide restores keyboard focus and the real Twin graph remains usable a
   });
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
-    \`Unexpected horizontal page overflow at 390px: \${JSON.stringify(horizontalOverflow)}\`,
+    `Unexpected horizontal page overflow at 390px: ${JSON.stringify(horizontalOverflow)}`,
   ).toBe(true);
 
   const expandGuide = page.getByRole('button', { name: 'Expand Guide control surface' });
