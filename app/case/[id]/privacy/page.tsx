@@ -88,7 +88,7 @@ export default async function PrivacyControlPage({
           <li className="rounded-lg border border-white/[0.06] px-3 py-2.5">Retention and deletion controls</li>
           <li className="rounded-lg border border-white/[0.06] px-3 py-2.5">Additional security hardening and assessment</li>
         </ul>
-        <p className="mt-3 flex items-start gap-2 text-[10px] leading-4 text-slate-500"><CircleHelp aria-hidden="true" className="mt-0.5 h-3 w-3 shrink-0" />This demo does not provide user-facing case deletion controls or a production retention policy.</p>
+        <p className="mt-3 flex items-start gap-2 text-[10px] leading-4 text-slate-500"><CircleHelp aria-hidden="true" className="mt-0.5 h-3 w-3 shrink-0" />The local deletion control removes app-managed case records and attempts to remove uploaded files. It does not remove exports, OS/device backups, or copied files and does not guarantee forensic erasure. A production retention policy and independent security assessment are still required.</p>
       </section>
     </main>
   );
