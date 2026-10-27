@@ -34,6 +34,16 @@ function stringList(value: unknown): string[] {
     : [];
 }
 
+function safeHttpsUrl(value: unknown): string {
+  if (typeof value !== 'string') return '';
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === 'https:' && parsed.hostname ? parsed.toString() : '';
+  } catch {
+    return '';
+  }
+}
+
 function verifiedResource(value: JsonRecord): boolean {
   const status = textValue(value.verification_status ?? value.verificationStatus).toLowerCase();
   const phone = textValue(value.phone);
@@ -91,6 +101,7 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<JsonRecord | null>(null);
+  const [legalRecords, setLegalRecords] = useState<JsonRecord[]>([]);
   const [resources, setResources] = useState<JsonRecord[]>([]);
   const [legalKnowledgeStatus, setLegalKnowledgeStatus] = useState('');
 
@@ -98,7 +109,7 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/cases/' + encodeURIComponent(caseId) + '/legal-reasoning', {
+      const response = await fetch('/api/cases/' + encodeURIComponent(caseId) + '/analysis', {
         method: 'GET',
         cache: 'no-store',
         headers: { Accept: 'application/json' },
@@ -108,11 +119,17 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
         const message = isRecord(body) ? textValue(body.detail) : '';
         throw new Error(message || 'The case advisory could not be loaded.');
       }
-      if (!isRecord(body) || !isRecord(body.result)) {
+      if (
+        !isRecord(body)
+        || !isRecord(body.legalReasoning)
+        || !isRecord(body.caseAnalysis)
+        || !isRecord(body.caseAnalysis.legalKnowledge)
+      ) {
         throw new Error('The analysis service returned an unexpected response.');
       }
-      setResult(body.result);
+      setResult(body.legalReasoning);
       setLegalKnowledgeStatus(textValue(body.legalKnowledgeStatus));
+      setLegalRecords(rows(body.caseAnalysis.legalKnowledge.records));
       setResources([]);
 
       // Use the existing local registry for general legal aid and issue-relevant
@@ -300,13 +317,32 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
                     {statements.length > 0 ? (
                       <div className="mt-4 space-y-3">
                         <h4 className="text-xs font-semibold uppercase tracking-[0.13em] text-slate-400">Source-linked legal material to review</h4>
-                        {statements.slice(0, 6).map((item, index) => (
-                          <article key={textValue(item.id, 'statement-' + index)} className="rounded-xl border border-white/[0.07] p-3">
-                            <p className="text-sm font-medium leading-6 text-slate-100">{textValue(item.recordTitle, 'Legal record')}</p>
-                            <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-300">{textValue(item.text, 'No statement text was provided.')}</p>
-                            <p className="mt-2 text-xs leading-5 text-amber-100/70">Candidate legal context only. Confirm the source, current version, jurisdiction and applicability before relying on it.</p>
-                          </article>
-                        ))}
+                        {statements.slice(0, 6).map((item, index) => {
+                          const record = legalRecords.find((candidate) => textValue(candidate.id) === textValue(item.recordId));
+                          const sourceUrl = safeHttpsUrl(record?.sourceUrl);
+                          const reference = textValue(record?.reference);
+                          const verification = textValue(record?.sourceVerificationStatus, 'not established');
+                          const freshness = textValue(record?.sourceFreshnessStatus, 'not established');
+                          const applicability = textValue(record?.sourceApplicabilityStatus, 'not established');
+                          return (
+                            <article key={textValue(item.id, 'statement-' + index)} className="rounded-xl border border-white/[0.07] p-3">
+                              <p className="text-sm font-medium leading-6 text-slate-100">{textValue(item.recordTitle, 'Legal record')}</p>
+                              {reference && <p className="mt-1 text-xs leading-5 text-[#d9bd8c]">{reference}</p>}
+                              <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-300">{textValue(item.text, 'No statement text was provided.')}</p>
+                              <dl className="mt-3 grid grid-cols-1 gap-2 text-xs sm:grid-cols-3">
+                                <div><dt className="text-slate-500">Source verification</dt><dd className="mt-0.5 text-slate-300">{humanize(verification)}</dd></div>
+                                <div><dt className="text-slate-500">Freshness</dt><dd className="mt-0.5 text-slate-300">{humanize(freshness)}</dd></div>
+                                <div><dt className="text-slate-500">Applicability</dt><dd className="mt-0.5 text-slate-300">{humanize(applicability)}</dd></div>
+                              </dl>
+                              {sourceUrl && (
+                                <a href={sourceUrl} target="_blank" rel="noreferrer" className="mt-3 inline-flex min-h-9 items-center rounded-lg border border-white/10 px-3 text-xs font-semibold text-slate-200 underline decoration-white/25 underline-offset-4 hover:bg-white/[0.05] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e9bd7b]">
+                                  Open recorded source
+                                </a>
+                              )}
+                              <p className="mt-2 text-xs leading-5 text-amber-100/70">Candidate legal context only. Confirm the source, current version, jurisdiction and applicability before relying on it.</p>
+                            </article>
+                          );
+                        })}
                       </div>
                     ) : (
                       <p className="mt-4 rounded-xl border border-dashed border-white/10 p-3 text-sm leading-6 text-slate-300">
