@@ -390,10 +390,10 @@ In a dedicated CMD window:
 ```cmd
 cd /d C:\LawSense\LawSense-3.0\api
 set "PYTHONPATH=C:\LawSense\LawSense-3.0\api"
-.venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+.venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-Backend docs should be available at http://127.0.0.1:8000/docs.
+Backend docs should be available locally at http://127.0.0.1:8000/docs. The API binds to loopback so other devices cannot call it directly by default; the Next.js server proxies same-origin `/api` requests to it.
 
 ### 4. Start the frontend
 
@@ -414,7 +414,7 @@ The frontend should be available at http://localhost:3000. `next.config.ts` uses
 3. Keep both servers running and open `http://<PC-IPv4>:3000` on the phone.
 4. Allow inbound connections to port 3000 on the appropriate Windows network profile if needed. Some managed Wi-Fi/hotspot networks block device-to-device connections.
 
-This is a development-only HTTP setup. Do not expose the development server or the backend port to the public internet.
+This is a development-only HTTP setup. Keep the backend bound to `127.0.0.1`; only the Next.js frontend should listen on the LAN when a phone needs to connect. The API also rejects non-loopback clients by default. The frontend still has no app-level sign-in, so any device able to reach the LAN frontend may be able to use the app; use only a trusted personal hotspot/network and synthetic cases until access control is added. Never expose either service to the public internet.
 
 ## Android development
 
@@ -474,7 +474,7 @@ LawSense can handle sensitive personal and safety-related information. Use synth
 - **Verify legal material:** check the current official source, jurisdiction, effective date and applicability with an appropriate professional or authority.
 - **Treat sources conservatively:** legal knowledge in the prototype is curated and incomplete; it is not a complete, continuously updated repository of every Indian statute, rule, judgment or local procedure.
 - **Safety first:** in immediate danger, contact appropriate local emergency services or trusted support. Do not rely on this application as the sole source of help.
-- **Local-first is not automatically secure:** production use needs a dedicated review of authentication, authorization, encryption, storage, backups, retention, deletion, dependency security and incident response.
+- **Local-first is not automatically secure:** the API now rejects direct non-loopback requests by default, and POSIX data directories/SQLite files receive restrictive permissions. These controls do not encrypt the data or add user/case authorization. Windows relies on inherited NTFS permissions. The LAN-accessible frontend still has no app-level sign-in, so do not use real sensitive cases over a shared/untrusted network. Production use needs authentication, per-case authorization, encryption, backups, retention/deletion, dependency security and incident-response review.
 - **Protect secrets:** never commit `.env` files, credentials, private keys, live databases, real case documents or personal identifying information.
 - **Review extracted facts:** automated extraction may be incomplete or wrong. A candidate finding should not silently become a confirmed fact.
 
