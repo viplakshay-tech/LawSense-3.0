@@ -62,7 +62,8 @@ class LocalNetworkBoundaryTests(unittest.TestCase):
             "server": ("testserver", 80),
             "state": {},
         }
-        asyncio.run(app(scope, receive, send))
+        with patch("app.main._REMOTE_API_FLAG", False):
+            asyncio.run(app(scope, receive, send))
 
         self.assertEqual(status_code, 403)
         body = json.loads(b"".join(chunks))
