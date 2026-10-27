@@ -1,10 +1,10 @@
-import { NextResponse, type NextRequest } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server.js';
 import {
   ACCESS_SESSION_COOKIE,
   getAccessMode,
   getConfiguredAccessPassphrase,
   verifyAccessSessionToken,
-} from '@/lib/server/access-session';
+} from './lib/server/access-session.ts';
 
 const PUBLIC_PATHS = new Set([
   '/unlock',
