@@ -1,4 +1,7 @@
-from fastapi import FastAPI
+from ipaddress import ip_address
+
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.db.database import init_db
@@ -23,6 +26,30 @@ app = FastAPI(
 # The configured local Whisper model loads only on its first request; without
 # its model directory the service reports audio STT unavailable.
 app.state.voice_case_service = build_voice_case_service()
+
+
+@app.middleware("http")
+async def restrict_api_to_loopback(request: Request, call_next):
+    """Reject direct non-local API clients; the Next.js frontend proxies locally."""
+    client_host = request.client.host if request.client else ""
+    try:
+        local_client = ip_address(client_host).is_loopback
+    except ValueError:
+        local_client = False
+
+    if not local_client:
+        return JSONResponse(
+            status_code=403,
+            content={
+                "detail": (
+                    "The LawSense API accepts local connections only. "
+                    "Use the web workspace on the same computer."
+                )
+            },
+            headers={"Cache-Control": "no-store"},
+        )
+
+    return await call_next(request)
 
 
 app.add_middleware(
