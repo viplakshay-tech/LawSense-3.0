@@ -25,6 +25,7 @@ def _asgi_request(
     *,
     raw_body: bytes | None = None,
     content_type: str = "application/json",
+    client_host: str = "127.0.0.1",
 ) -> tuple[int, object]:
     body = (
         raw_body
@@ -63,7 +64,7 @@ def _asgi_request(
         "query_string": parsed.query.encode("ascii"),
         "root_path": "",
         "headers": [(b"host", b"testserver"), (b"content-type", content_type.encode("ascii"))],
-        "client": ("testclient", 123),
+        "client": (client_host, 123),
         "server": ("testserver", 80),
         "state": {},
     }
@@ -105,6 +106,18 @@ class ApiBoundaryIntegrationTests(unittest.TestCase):
 
         self.assertEqual(directory_mode & 0o777, 0o700)
         self.assertEqual(database_mode & 0o777, 0o600)
+
+    def test_api_rejects_direct_non_loopback_clients(self) -> None:
+        local_status, local_body = _asgi_request("GET", "/health")
+        remote_status, remote_body = _asgi_request(
+            "GET",
+            "/health",
+            client_host="192.0.2.10",
+        )
+
+        self.assertEqual(local_status, 200, local_body)
+        self.assertEqual(remote_status, 403, remote_body)
+        self.assertIn("local connections only", remote_body["detail"])
 
     def test_capacitor_android_origin_is_allowlisted_for_local_health_check(self) -> None:
         cors_options = next(
