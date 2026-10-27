@@ -85,7 +85,7 @@ def _asgi_request(
         "query_string": parsed_path.query.encode("ascii"),
         "root_path": "",
         "headers": [(b"host", b"testserver"), (b"content-type", content_type.encode("ascii"))],
-        "client": ("testclient", 123),
+        "client": ("127.0.0.1", 123),
         "server": ("testserver", 80),
         "state": {},
     }
