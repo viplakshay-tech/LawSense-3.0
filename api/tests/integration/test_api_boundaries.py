@@ -179,6 +179,18 @@ class ApiBoundaryIntegrationTests(unittest.TestCase):
         self.assertEqual(status, 403, body)
         self.assertIn("Origin", body["detail"])
 
+    def test_private_lan_frontend_host_is_allowed_for_android_proxy_requests(self) -> None:
+        with patch.dict(os.environ, {"LAWSENSE_ALLOW_REMOTE_API": "false"}):
+            status, body = _asgi_request(
+                "GET",
+                "/health",
+                client_host="127.0.0.1",
+                host_header="192.168.1.25:3000",
+                origin_header="https://192.168.1.25:3000",
+            )
+        self.assertEqual(status, 200, body)
+        self.assertEqual(body["service"], "lawsense-api")
+
     def test_https_private_lan_frontend_origin_is_allowed_for_android_development(self) -> None:
         with patch.dict(os.environ, {"LAWSENSE_ALLOW_REMOTE_API": "false"}):
             status, body = _asgi_request(
