@@ -46,7 +46,7 @@ def asgi_request(method: str, path: str, payload: dict[str, object] | None = Non
         "query_string": parsed.query.encode("ascii"),
         "root_path": "",
         "headers": [(b"host", b"testserver"), (b"content-type", b"application/json")],
-        "client": ("testclient", 123),
+        "client": ("127.0.0.1", 123),
         "server": ("testserver", 80),
         "state": {},
     }
