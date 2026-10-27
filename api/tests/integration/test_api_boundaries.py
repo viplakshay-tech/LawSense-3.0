@@ -69,7 +69,7 @@ def _asgi_request(
         "raw_path": parsed.path.encode("ascii"),
         "query_string": parsed.query.encode("ascii"),
         "root_path": "",
-        "headers": [(b"host", b"testserver"), (b"content-type", content_type.encode("ascii"))],
+        "headers": [(b"host", host_header.encode("ascii")), (b"content-type", content_type.encode("ascii"))] + ([(b"origin", origin_header.encode("ascii"))] if origin_header is not None else []),
         "client": (client_host, 123),
         "server": ("testserver", 80),
         "state": {},
@@ -153,6 +153,41 @@ class ApiBoundaryIntegrationTests(unittest.TestCase):
 
             with self.assertRaises(database.CasePermanentlyDeletedError):
                 database.save_case(case)
+
+    def test_untrusted_host_is_rejected_even_for_loopback_clients(self) -> None:
+        with patch.dict(os.environ, {"LAWSENSE_ALLOW_REMOTE_API": "false"}):
+            status, body = _asgi_request(
+                "GET",
+                "/health",
+                client_host="127.0.0.1",
+                host_header="attacker.example",
+            )
+        self.assertEqual(status, 403, body)
+        self.assertIn("Host header", body["detail"])
+
+    def test_untrusted_browser_origin_is_rejected(self) -> None:
+        with patch.dict(os.environ, {"LAWSENSE_ALLOW_REMOTE_API": "false"}):
+            status, body = _asgi_request(
+                "GET",
+                "/health",
+                client_host="127.0.0.1",
+                host_header="127.0.0.1:8000",
+                origin_header="https://attacker.example",
+            )
+        self.assertEqual(status, 403, body)
+        self.assertIn("Origin", body["detail"])
+
+    def test_https_private_lan_frontend_origin_is_allowed_for_android_development(self) -> None:
+        with patch.dict(os.environ, {"LAWSENSE_ALLOW_REMOTE_API": "false"}):
+            status, body = _asgi_request(
+                "GET",
+                "/health",
+                client_host="127.0.0.1",
+                host_header="127.0.0.1:8000",
+                origin_header="https://192.168.1.25:3000",
+            )
+        self.assertEqual(status, 200, body)
+        self.assertEqual(body["service"], "lawsense-api")
 
     def test_remote_api_client_is_blocked_by_default(self) -> None:
         headers: dict[bytes, bytes] = {}
