@@ -38,6 +38,15 @@ class SessionAuthenticationMiddleware:
             return
         # Set only on CI test steps while legacy route tests migrate to sessions.
         if os.getenv("LAWSENSE_AUTH_TEST_BYPASS", "").strip() == "1":
+            # The browser fixture checks /auth/me to decide whether to render the
+            # protected app. Give that route a synthetic identity only in the
+            # explicitly enabled CI bypass; ordinary API fixture requests remain
+            # unscoped so existing test data behaves as it did before auth.
+            if scope.get("path") == "/auth/me":
+                scope.setdefault("state", {})["auth_user"] = {
+                    "id": "lawsense-ci-test-user",
+                    "username": "ci-test",
+                }
             await self.app(scope, receive, send)
             return
         path = scope.get("path", "")
