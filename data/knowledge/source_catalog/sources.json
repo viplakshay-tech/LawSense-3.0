@@ -1,0 +1,27 @@
+{
+  "catalogVersion": "2026-10-27",
+  "sources": [
+    {
+      "id": "india-code",
+      "title": "India Code",
+      "publisher": "Government of India",
+      "officialUrl": "https://indiacode.gov.in/",
+      "verificationDate": "2026-10-09",
+      "verificationStatus": "verified_official",
+      "verificationNote": "Official portal metadata recorded by the project catalog; the date is a recorded verification date, not a live check."
+    },
+    {
+      "id": "uttarakhand-tenancy-act-2021",
+      "title": "The Uttarakhand Tenancy Act, 2021",
+      "publisher": "Uttarakhand Urban Development Department, Government of Uttarakhand",
+      "officialUrl": "https://cdnbbsr.s3waas.gov.in/s38208974663db80265e9bfe7b222dcb18/uploads/2025/12/202512292052328583.pdf",
+      "verificationDate": "2026-10-27",
+      "verificationStatus": "verified_official",
+      "catalogPage": "https://udd.uk.gov.in/document/uttarakhand-tenancy-act-2021/",
+      "version": "Act No. 02 of 2022; state-government copy listed 2025-12-29; commencement notification under section 1(3) not verified",
+      "jurisdiction": "Uttarakhand, India",
+      "applicabilityStatus": "not_verified",
+      "verificationNote": "The official Uttarakhand Urban Development Department page lists this Act copy dated 2025-12-29. Section 1(3) makes commencement depend on a state Gazette notification; that notification has not been verified here. Do not represent current operation or applicability as established."
+    }
+  ]
+}

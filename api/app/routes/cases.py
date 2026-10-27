@@ -1,4 +1,4 @@
-from typing import cast
+from typing import Literal, cast
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
 from fastapi.responses import Response
@@ -13,6 +13,7 @@ from app.schemas.case_state import CaseState, EvidenceProvenance
 from app.schemas.documents import DocumentUploadResponse, ExtractedDocumentValue
 from app.schemas.legal_twin import LegalTwinSummary, TwinDeltaSummary, TwinSnapshotSummary
 from app.services.case_service import create_case_from_statement, get_case_state
+from app.services.privacy.case_deletion import delete_case_locally
 from app.services.case_pipeline import run_persisted_case_pipeline
 from app.services.document_service import document_fact_key, upload_document_for_case
 from app.services.legal_twin_service import build_case_twin, build_case_twin_delta, build_case_twin_snapshot
@@ -22,6 +23,20 @@ from app.services.voice_case import VoiceCaseError, VoiceCaseService, build_voic
 
 
 router = APIRouter(prefix="/cases", tags=["cases"])
+
+
+class DeleteCaseRequest(BaseModel):
+    confirmation_phrase: Literal["DELETE"]
+    case_id_confirmation: str = Field(..., min_length=1, max_length=64)
+
+
+class DeleteCaseResponse(BaseModel):
+    case_id: str
+    status: Literal["deleted"] = "deleted"
+    data_records_removed: bool = True
+    uploaded_documents_removed: bool
+    cleanup_warning: str | None = None
+    minimal_tombstone_retained: bool = True
 
 
 class CreateCaseRequest(BaseModel):
@@ -263,6 +278,31 @@ async def upload_case_document(case_id: str, file: UploadFile = File(...)):
         processingStatus=result.status.value,
         document=document,
         extractedValues=values,
+    )
+
+
+@router.delete("/{case_id}", response_model=DeleteCaseResponse)
+def delete_case(case_id: str, payload: DeleteCaseRequest) -> DeleteCaseResponse:
+    """Permanently remove a local case after an explicit phrase and case-ID confirmation."""
+    if payload.confirmation_phrase != "DELETE" or payload.case_id_confirmation != case_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Deletion requires the exact word DELETE and the matching case ID.",
+        )
+    try:
+        result = delete_case_locally(case_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    if not result.deleted:
+        raise HTTPException(status_code=404, detail="Case not found")
+
+    return DeleteCaseResponse(
+        case_id=case_id,
+        data_records_removed=True,
+        uploaded_documents_removed=result.uploaded_documents_removed,
+        cleanup_warning=result.cleanup_warning,
+        minimal_tombstone_retained=True,
     )
 
 
