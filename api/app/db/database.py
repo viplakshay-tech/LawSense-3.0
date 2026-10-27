@@ -1,12 +1,34 @@
+import hashlib
 import json
 import sqlite3
 from collections.abc import Iterator
+from datetime import datetime, timezone
 from contextlib import contextmanager
 from typing import Optional
 
 from app.core.config import DB_PATH
 from app.core.storage_security import prepare_private_file
 from app.schemas.case_state import CaseState
+
+class CasePermanentlyDeletedError(RuntimeError):
+    """A stale operation attempted to recreate or mutate a permanently deleted case."""
+
+
+def _case_tombstone_hash(case_id: str) -> str:
+    return hashlib.sha256(case_id.encode("utf-8")).hexdigest()
+
+
+def _assert_case_not_deleted(connection: sqlite3.Connection, case_id: str) -> None:
+    row = connection.execute(
+        "SELECT 1 FROM deleted_case_tombstones WHERE case_hash = ?",
+        (_case_tombstone_hash(case_id),),
+    ).fetchone()
+    if row is not None:
+        raise CasePermanentlyDeletedError(
+            "This case was permanently deleted. Start a new case instead of restoring stale data."
+        )
+
+
 
 
 @contextmanager
@@ -61,11 +83,20 @@ def init_db() -> None:
         connection.execute(
             "CREATE INDEX IF NOT EXISTS idx_document_packages_case_id ON document_packages(case_id)"
         )
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS deleted_case_tombstones (
+                case_hash TEXT PRIMARY KEY,
+                deleted_at TEXT NOT NULL
+            )
+            """
+        )
         connection.commit()
 
 
 def save_case(case: CaseState) -> None:
     with get_connection() as connection:
+        _assert_case_not_deleted(connection, case.id)
         connection.execute(
             """
             INSERT OR REPLACE INTO cases
@@ -98,6 +129,7 @@ def get_case(case_id: str) -> Optional[CaseState]:
 
 def save_document_draft(draft) -> None:
     with get_connection() as connection:
+        _assert_case_not_deleted(connection, draft.caseId)
         connection.execute(
             """
             INSERT OR REPLACE INTO document_drafts
@@ -142,6 +174,7 @@ def list_document_drafts(case_id: str):
 
 def save_document_package(package) -> None:
     with get_connection() as connection:
+        _assert_case_not_deleted(connection, package.caseId)
         connection.execute(
             """
             INSERT OR REPLACE INTO document_packages
@@ -181,6 +214,43 @@ def list_document_packages(case_id: str):
             (case_id,),
         ).fetchall()
     return [DocumentPackage.model_validate(json.loads(row["package_json"])) for row in rows]
+
+
+def delete_case_records(case_id: str) -> bool:
+    """Delete a case and all SQL-backed derivatives in one SQLite transaction.
+
+    A hash-only tombstone is retained so an already-running request cannot
+    silently recreate the same case ID after this transaction commits.
+    """
+    with get_connection() as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        try:
+            row = connection.execute(
+                "SELECT 1 FROM cases WHERE id = ?",
+                (case_id,),
+            ).fetchone()
+            if row is None:
+                connection.rollback()
+                return False
+
+            connection.execute(
+                """
+                INSERT OR IGNORE INTO deleted_case_tombstones (case_hash, deleted_at)
+                VALUES (?, ?)
+                """,
+                (
+                    _case_tombstone_hash(case_id),
+                    datetime.now(timezone.utc).isoformat(),
+                ),
+            )
+            connection.execute("DELETE FROM document_drafts WHERE case_id = ?", (case_id,))
+            connection.execute("DELETE FROM document_packages WHERE case_id = ?", (case_id,))
+            connection.execute("DELETE FROM cases WHERE id = ?", (case_id,))
+            connection.commit()
+            return True
+        except Exception:
+            connection.rollback()
+            raise
 
 
 def sync_document_to_packages(draft) -> None:
