@@ -24,9 +24,13 @@ export default function UnlockPage() {
   const [passphrase, setPassphrase] = useState('');
   const [working, setWorking] = useState(false);
   const [error, setError] = useState('');
-  const [statusMessage, setStatusMessage] = useState('');
+  const [isLocalBrowser, setIsLocalBrowser] = useState(false);
+  const [reason, setReason] = useState<string | null>(null);
 
   useEffect(() => {
+    const host = window.location.hostname.toLowerCase().replace(/^\[|\]$/g, '');
+    setIsLocalBrowser(host === 'localhost' || host.endsWith('.localhost') || host === '127.0.0.1' || host === '::1');
+    setReason(new URLSearchParams(window.location.search).get('reason'));
     const controller = new AbortController();
     void fetch('/api/access/status', {
       cache: 'no-store',
@@ -47,7 +51,6 @@ export default function UnlockPage() {
   async function unlock(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError('');
-    setStatusMessage('');
     setWorking(true);
     try {
       const query = new URLSearchParams(window.location.search);
@@ -88,10 +91,6 @@ export default function UnlockPage() {
       setWorking(false);
     }
   }
-
-  const reason = typeof window !== 'undefined'
-    ? new URLSearchParams(window.location.search).get('reason')
-    : null;
 
   return (
     <main className="min-h-dvh bg-[#080d14] px-4 py-10 text-slate-100 sm:grid sm:place-items-center sm:py-14">
@@ -164,7 +163,11 @@ export default function UnlockPage() {
           </form>
 
           <div className="flex flex-wrap items-center gap-3 border-t border-white/[0.08] pt-4">
-            <a href="/" className="inline-flex min-h-10 items-center rounded-lg px-3 text-sm font-medium text-slate-300 transition hover:bg-white/[0.05] hover:text-white">Continue on this device</a>
+            {(sessionActive || (mode === 'local-only' && isLocalBrowser)) && (
+              <a href="/" className="inline-flex min-h-10 items-center rounded-lg px-3 text-sm font-medium text-slate-300 transition hover:bg-white/[0.05] hover:text-white">
+                {sessionActive ? 'Return to workspace' : 'Continue on this device'}
+              </a>
+            )}
             {sessionActive && (
               <button type="button" disabled={working} onClick={() => void lockSession()} className="ml-auto inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/10 px-3 text-sm font-medium text-slate-300 hover:bg-white/[0.05] disabled:opacity-50">
                 <LockKeyhole aria-hidden="true" className="h-4 w-4" />
