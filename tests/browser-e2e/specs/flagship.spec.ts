@@ -141,6 +141,39 @@ async function enterCase(page: Page): Promise<void> {
   await expect(page).toHaveURL(/\/case\/[^/]+$/);
 }
 
+test('case workspace exposes persistent Legal Advisory and case-aware Guide chat', async ({ page }) => {
+  await enterCase(page);
+  const caseIdMatch = page.url().match(/\/case\/([^/]+)$/);
+  expect(caseIdMatch).toBeTruthy();
+  const advisory = page.getByRole('button', {
+    name: 'Open Legal Advisory based on information recorded so far',
+  });
+  await expect(advisory).toBeVisible();
+
+  const reasoningResponsePromise = page.waitForResponse((response) => {
+    const requestUrl = new URL(response.url());
+    return response.request().method() === 'GET'
+      && requestUrl.pathname.endsWith('/legal-reasoning')
+      && requestUrl.pathname.includes(`/cases/${caseIdMatch?.[1]}/`);
+  });
+  await advisory.click();
+  const reasoningResponse = await reasoningResponsePromise;
+  expect(reasoningResponse.status()).toBe(200);
+
+  const dialog = page.getByRole('dialog', { name: 'Legal Advisory' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText(/This is a provisional, source-aware case review/)).toBeVisible();
+  await expect(dialog.getByRole('heading', { name: 'Suggested next steps' })).toBeVisible();
+  await dialog.getByRole('button', { name: 'Close legal advisory' }).click();
+  await expect(dialog).toBeHidden();
+
+  await page.getByRole('button', { name: 'Expand Guide control surface' }).click();
+  await expect(page.getByRole('heading', { name: 'Talk to your Guide' })).toBeVisible();
+  await expect(page.getByLabel('Guide reply language')).toHaveValue('english');
+  await expect(page.getByLabel('Message your Guide')).toBeVisible();
+  await expect(page.getByText(/This chat is not saved to the case/)).toBeVisible();
+});
+
 test('real landlord-deposit flow refreshes CaseState and the Living Twin timeline', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
 

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { Mic, MicOff, RotateCcw, Send } from 'lucide-react';
 import type { GuideVoiceEvent, VoiceLanguage } from '@/components/guide-runtime/voice-adapter/events';
 import type { RecognitionLanguage } from './VoiceCapture';
-import { sendGuideMessage } from '@/lib/api';
+import { sendGuideMessage, type GuideConversationTurn } from '@/lib/api';
 import {
   requestNativeGuideAudio,
   subscribeNativeGuideAudio,
@@ -64,6 +64,7 @@ type ConversationTurn = {
 
 interface GuideConversationProps {
   draftId: string;
+  caseId: string;
   language: RecognitionLanguage;
   openQuestions: readonly string[];
   hasDraft: boolean;
@@ -108,6 +109,7 @@ function recognitionErrorMessage(code: string): { status: GuideConversationStatu
 
 export default function GuideConversation({
   draftId,
+  caseId,
   language,
   openQuestions,
   hasDraft,
@@ -141,6 +143,7 @@ export default function GuideConversation({
   const currentCaptureIdRef = useRef('');
   const questionIndexRef = useRef(0);
   const questionsRef = useRef(openQuestions);
+  const conversationHistoryRef = useRef<GuideConversationTurn[]>([]);
   const hasDraftRef = useRef(hasDraft);
   const draftIdRef = useRef(draftId);
   const languageRef = useRef(language);
@@ -156,6 +159,7 @@ export default function GuideConversation({
 
   useEffect(() => { disabledRef.current = disabled; }, [disabled]);
   useEffect(() => { questionsRef.current = openQuestions; }, [openQuestions]);
+  useEffect(() => { conversationHistoryRef.current = []; }, [caseId]);
   useEffect(() => { hasDraftRef.current = hasDraft; }, [hasDraft]);
   useEffect(() => { draftIdRef.current = draftId; }, [draftId]);
   useEffect(() => { languageRef.current = language; }, [language]);
@@ -409,6 +413,9 @@ export default function GuideConversation({
     const statement = text.trim();
     if (!statement) return;
 
+    const previousHistory = conversationHistoryRef.current.slice(-8);
+    const userTurn: GuideConversationTurn = { role: 'user', content: statement };
+    conversationHistoryRef.current = [...previousHistory, userTurn].slice(-8);
     appendUserTurn(statement, inputMethod);
 
     const questions = questionsRef.current;
@@ -419,7 +426,12 @@ export default function GuideConversation({
     transition('processing', 'Preparing a response from the local LawSense Guide.');
     let responseText: string;
     try {
-      const result = await sendGuideMessage(statement, languageRef.current.toLowerCase() as 'english' | 'hindi' | 'hinglish');
+      const result = await sendGuideMessage(
+        statement,
+        languageRef.current.toLowerCase() as 'english' | 'hindi' | 'hinglish',
+        caseId,
+        previousHistory,
+      );
       responseText = result.reply;
     } catch {
       const localUnavailable = languageRef.current === 'Hindi'
@@ -430,6 +442,8 @@ export default function GuideConversation({
       responseText = `${localUnavailable}${createGuideConversationResponse(statement, question, languageRef.current)}`;
     }
     if (!mountedRef.current) return;
+    const assistantTurn: GuideConversationTurn = { role: 'assistant', content: responseText };
+    conversationHistoryRef.current = [...conversationHistoryRef.current, assistantTurn].slice(-8);
     const responseId = createId('response');
     const response = { id: responseId, text: responseText };
     lastResponseRef.current = response;
@@ -446,7 +460,7 @@ export default function GuideConversation({
       );
     };
     speakResponse(responseText, responseId, finishTurn);
-  }, [addTurn, appendUserTurn, speakResponse, transition]);
+  }, [addTurn, appendUserTurn, caseId, speakResponse, transition]);
 
   const startListening = useCallback(async () => {
     if (!callActiveRef.current || !shouldListenRef.current || disabledRef.current) return;
