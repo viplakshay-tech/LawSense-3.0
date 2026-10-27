@@ -13,10 +13,7 @@ export function AccessSessionControl() {
   const [enabled, setEnabled] = useState(false);
 
   useEffect(() => {
-    if (pathname === '/unlock') {
-      setEnabled(false);
-      return;
-    }
+    if (pathname === '/unlock') return;
     const controller = new AbortController();
     void fetch('/access-control/status', {
       cache: 'no-store',
