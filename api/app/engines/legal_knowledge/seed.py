@@ -69,13 +69,14 @@ _SOURCES = (
         id="source-indiacode-uttarakhand-tenancy-act-2021",
         title="The Uttarakhand Tenancy Act, 2021",
         authority_id=_UTTARAKHAND_ASSEMBLY_AUTHORITY_ID,
-        publisher_name="India Code, Government of India",
-        source_url="https://indiacode.gov.in/handle/123456789/613822",
+        publisher_name="Uttarakhand Urban Development Department, Government of Uttarakhand",
+        source_url="https://cdnbbsr.s3waas.gov.in/s38208974663db80265e9bfe7b222dcb18/uploads/2025/12/202512292052328583.pdf",
         reference="Act No. 02 of 2022; Sections 1(3) and 11",
         version=(
-            "Act No. 02 of 2022 as published in India Code; commencement notification "
-            "under section 1(3) not verified"
-        ),
+            "Act No. 02 of 2022; official Uttarakhand UDD copy listed 2025-12-29; "
+            "commencement notification under section 1(3) not verified"
+    ,
+        retrieved_at=datetime(2026, 10, 27, 0, 0, tzinfo=timezone.utc)    ),
         publication_date=date(2022, 1, 27),
         effective_date=None,
         jurisdiction_id=_UTTARAKHAND_JURISDICTION_ID,
