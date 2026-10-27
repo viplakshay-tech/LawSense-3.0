@@ -26,6 +26,8 @@ def _asgi_request(
     raw_body: bytes | None = None,
     content_type: str = "application/json",
     client_host: str = "testclient",
+    host_header: str = "testserver",
+    origin_header: str | None = None,
     response_headers: dict[bytes, bytes] | None = None,
 ) -> tuple[int, object]:
     body = (
