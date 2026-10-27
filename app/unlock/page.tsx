@@ -110,8 +110,8 @@ export default function UnlockPage() {
               <div className="flex items-start gap-3">
                 <ShieldAlert aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-amber-200" />
                 <div>
-                  <p className="text-sm font-semibold text-amber-100">Network access is disabled</p>
-                  <p className="mt-1 text-sm leading-6 text-slate-300">To use LawSense from a phone or another device, set <code className="rounded bg-black/20 px-1.5 py-0.5">LAWSENSE_ACCESS_PIN</code> on the web server to a generated random passphrase of at least 16 characters, then restart Next.js. Ordinary localhost development can continue without it.</p>
+                  <p className="text-sm font-semibold text-amber-100">Network passphrase not configured</p>
+                  <p className="mt-1 text-sm leading-6 text-slate-300">To use LawSense from a phone or another device, set <code className="rounded bg-black/20 px-1.5 py-0.5">LAWSENSE_ACCESS_PIN</code> on the web server to a generated random passphrase of at least 16 characters, then restart Next.js. Ordinary localhost development can continue without it. Without this setting, do not expose the frontend on a network; the hostname check is not a substitute for authentication.</p>
                 </div>
               </div>
             </div>
