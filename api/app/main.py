@@ -1,5 +1,9 @@
-from fastapi import FastAPI
+import ipaddress
+import os
+
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.db.database import init_db
 from app.routes.analysis import router as analysis_router
@@ -57,4 +61,45 @@ app.include_router(document_compiler_router)
 app.include_router(safety_support_router)
 app.include_router(journey_execution_router)
 app.include_router(legal_sources_router)
+
+_REMOTE_API_FLAG = os.getenv("LAWSENSE_ALLOW_REMOTE_API", "").strip().casefold() in {"1", "true", "yes"}
+
+
+def _is_local_api_client(host: str | None) -> bool:
+    """Allow only loopback peers by default; 'testclient' is an in-process ASGI test sentinel."""
+    if host == "testclient":
+        return True
+    if not host:
+        return False
+    # IPv6 zone identifiers are not part of the IP address syntax accepted by ip_address().
+    candidate = host.split("%", 1)[0]
+    try:
+        return ipaddress.ip_address(candidate).is_loopback
+    except ValueError:
+        return False
+
+
+@app.middleware("http")
+async def restrict_direct_api_network_access(request: Request, call_next):
+    """Keep the raw API loopback-only by default; Next.js proxies to 127.0.0.1."""
+    if not _REMOTE_API_FLAG and not _is_local_api_client(
+        request.client.host if request.client else None
+    ):
+        return JSONResponse(
+            status_code=403,
+            content={
+                "detail": (
+                    "Direct network access to the LawSense API is disabled by default. "
+                    "Use the same-origin frontend /api route. For a trusted isolated "
+                    "development network only, set LAWSENSE_ALLOW_REMOTE_API=true; "
+                    "this switch does not add authentication."
+                )
+            },
+            headers={"Cache-Control": "no-store"},
+        )
+    response = await call_next(request)
+    response.headers.setdefault("Cache-Control", "no-store")
+    return response
+
+
 app.include_router(guide_router)
