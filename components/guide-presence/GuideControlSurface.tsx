@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import type { KeyboardEvent } from 'react';
+import type { FormEvent, KeyboardEvent } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Activity, ArrowLeft, ChevronDown, ChevronUp, CircleHelp, Mic2, Radio, ShieldAlert, Volume2, VolumeX } from 'lucide-react';
 import { guidePresenceStateFromSnapshot, useGuideRuntime } from '@/components/guide-runtime';
@@ -63,7 +63,7 @@ export function GuideControlSurface() {
     chatRequestRef.current += 1;
   }, []);
 
-  async function submitGuideChat(event: React.FormEvent<HTMLFormElement>) {
+  async function submitGuideChat(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const statement = chatText.trim();
     const currentCase = snapshot.caseState;
