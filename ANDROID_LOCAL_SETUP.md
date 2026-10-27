@@ -2,9 +2,15 @@
 
 This is a Capacitor shell for personal use. The current Next.js app uses dynamic `/case/[id]` routes and a server-side `/api` rewrite, so its frontend and API are not a self-contained static bundle. The APK opens the existing web app in a WebView and requires the user's own computer to run both services. This avoids a frontend rewrite but is not offline or standalone operation.
 
-**Access-control warning — do not skip:** the current app does not have user sign-in or case-ownership authorization. The phone reaches the Next.js server over the network, and that server proxies case API requests. A person who can reach the server may be able to read or change case information. Keeping FastAPI on computer loopback alone does not protect the network-exposed Next.js proxy.
+**Access gate required for phone access:** configure `LAWSENSE_ACCESS_PIN` in the repository-root `.env.local` before starting Next.js. Generate a random value using:
 
-Until access control is implemented and independently tested, use synthetic/fictional cases only on a private, isolated hotspot. Do not enter real legal narratives, personal identifiers, evidence, or documents. Do not use shared/public Wi-Fi and never expose the development server to the public internet.
+```cmd
+node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))"
+```
+
+Add the output as `LAWSENSE_ACCESS_PIN=...` and restart the web server. When this setting is configured, LawSense requires the shared passphrase before serving case pages or same-origin case API requests; a signed HTTP-only session expires after eight hours. Use HTTPS with a certificate trusted by the phone. Plain HTTP is rejected for network unlock.
+
+This is a shared workspace passphrase, not per-user accounts or per-case authorization. Anyone who knows it can access all cases. Continue to use fictional/synthetic data until the complete Android flow and application security checks have passed. Never use a shared/public Wi-Fi network or expose the development service to the public internet.
 
 The shell asks for an HTTPS origin such as `https://192.168.1.25:3000`, checks `${origin}/api/health`, and opens the app only after it receives a healthy LawSense API response. It rejects phone-local `localhost` addresses. The phone makes same-origin requests to the web server; the web server's upstream API origin is configurable on the computer with `NEXT_PUBLIC_API_URL` (for a backend on that same computer, `http://127.0.0.1:8000` is a server-side setting, not the phone's backend address).
 
