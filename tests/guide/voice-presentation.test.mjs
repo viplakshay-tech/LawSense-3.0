@@ -11,7 +11,7 @@ import {
 const guidePresenceCss = await readFile(new URL('../../components/guide-presence/GuidePresence.css', import.meta.url), 'utf8');
 const avatarCss = await readFile(new URL('../../components/guide-presence/avatar/IllustratedAvatarRenderer.css', import.meta.url), 'utf8');
 const callCss = await readFile(new URL('../../app/case/[id]/voice/VoiceCaseClient.css', import.meta.url), 'utf8');
-const voiceClient = await readFile(new URL('../../app/case/[id]/voice/VoiceCaseClient.tsx', import.meta.url), 'utf8');
+const voicePage = await readFile(new URL('../../app/case/[id]/voice/page.tsx', import.meta.url), 'utf8');
 
 test('voice milestones present the state reported by the call flow', () => {
   const started = guideVoiceSnapshotForEvent({ type: 'capture_started', draftId: 'd', captureId: 'c', provider: 'browser', language: 'english' }, 'IDLE', 'idle');
@@ -106,6 +106,6 @@ test('the call layout has a stacked narrow viewport treatment', () => {
 });
 
 
-test('voice conversation is remounted per case so prior dialogue cannot bleed into another case', () => {
-  assert.match(voiceClient, /<GuideConversation\s+key=\{caseData\.id\}/);
+test('the entire voice workspace remounts per case so transcript and conversation state cannot bleed', () => {
+  assert.match(voicePage, /<VoiceCaseClient\s+key=\{id\}\s+id=\{id\}\s*\/>/);
 });
