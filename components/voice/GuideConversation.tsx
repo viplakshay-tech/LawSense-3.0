@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { Mic, MicOff, RotateCcw, Send } from 'lucide-react';
 import type { GuideVoiceEvent, VoiceLanguage } from '@/components/guide-runtime/voice-adapter/events';
 import type { RecognitionLanguage } from './VoiceCapture';
-import { sendGuideMessage, type GuideCaseContext } from '@/lib/api';
+import { sendGuideMessage, type GuideCaseContext, type GuideConversationTurn } from '@/lib/api';
 import {
   requestNativeGuideAudio,
   subscribeNativeGuideAudio,
@@ -144,6 +144,7 @@ export default function GuideConversation({
   const questionIndexRef = useRef(0);
   const questionsRef = useRef(openQuestions);
   const caseContextRef = useRef(caseContext);
+  const conversationHistoryRef = useRef<GuideConversationTurn[]>([]);
   const hasDraftRef = useRef(hasDraft);
   const draftIdRef = useRef(draftId);
   const languageRef = useRef(language);
@@ -413,6 +414,8 @@ export default function GuideConversation({
     const statement = text.trim();
     if (!statement) return;
 
+    const previousHistory = conversationHistoryRef.current.slice(-8);
+    conversationHistoryRef.current = [...previousHistory, { role: 'user', content: statement }].slice(-8);
     appendUserTurn(statement, inputMethod);
 
     const questions = questionsRef.current;
@@ -427,6 +430,7 @@ export default function GuideConversation({
         statement,
         languageRef.current.toLowerCase() as 'english' | 'hindi' | 'hinglish',
         caseContextRef.current,
+        previousHistory,
       );
       responseText = result.reply;
     } catch {
@@ -438,6 +442,10 @@ export default function GuideConversation({
       responseText = `${localUnavailable}${createGuideConversationResponse(statement, question, languageRef.current)}`;
     }
     if (!mountedRef.current) return;
+    conversationHistoryRef.current = [
+      ...conversationHistoryRef.current,
+      { role: 'assistant', content: responseText },
+    ].slice(-8);
     const responseId = createId('response');
     const response = { id: responseId, text: responseText };
     lastResponseRef.current = response;
