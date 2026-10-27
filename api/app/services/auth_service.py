@@ -44,7 +44,7 @@ def read_local_setup_token() -> str:
 
     token = secrets.token_urlsafe(32)
     with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
-        stream.write(token + "\\n")
+        stream.write(token + "\n")
         stream.flush()
         os.fsync(stream.fileno())
     try:
