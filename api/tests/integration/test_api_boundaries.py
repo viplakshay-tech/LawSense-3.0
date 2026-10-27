@@ -281,8 +281,9 @@ class ApiBoundaryIntegrationTests(unittest.TestCase):
                 "https://indiacode.gov.in/",
                 "https://www.indiacode.nic.in/",
                 "https://cdnbbsr.s3waas.gov.in/",
-                "https://cdnbbsr.s3waas.gov.in/",
-            ))
+                "https://udd.uk.gov.in/document/uttarakhand-tenancy-act-2021/",
+            )),
+            f"Unexpected/non-canonical source URL for the verified Uttarakhand government record: {provision['sourceUrl']!r}",
         )
         self.assertEqual(provision["jurisdiction"], "jurisdiction-uttarakhand")
         reasoning = body["legalReasoning"]
