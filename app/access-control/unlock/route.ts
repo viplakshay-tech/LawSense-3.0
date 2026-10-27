@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
   const mode = getAccessMode();
   if (mode === 'local-only') {
     return NextResponse.json(
-      { status: 'unavailable', detail: 'Network access is disabled. Configure LAWSENSE_ACCESS_PIN with a random passphrase of at least 16 characters on the server.' },
+      { status: 'unavailable', detail: 'Network use requires a configured LAWSENSE_ACCESS_PIN with a random passphrase of at least 16 characters on the server.' },
       { status: 503, headers: { 'Cache-Control': 'no-store' } },
     );
   }
