@@ -150,10 +150,6 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
   }, [caseId, caseState]);
 
   useEffect(() => {
-    if (open) void loadAdvisory();
-  }, [open, loadAdvisory]);
-
-  useEffect(() => {
     if (!open) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setOpen(false);
@@ -193,6 +189,7 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
 
   function openDialog() {
     setOpen(true);
+    void loadAdvisory();
   }
 
   return (
