@@ -13,7 +13,8 @@
     "test:session-restoration": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test tests/session-case-restoration.test.mjs",
     "test:guide-context": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test tests/guide/guide-case-context.test.mjs",
     "test:access-session": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test tests/security/access-session.test.mjs",
-    "test:access-routes": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test tests/security/access-routes.test.mjs"
+    "test:access-routes": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test tests/security/access-routes.test.mjs",
+    "test:access-proxy": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test tests/security/access-proxy.test.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.3",
