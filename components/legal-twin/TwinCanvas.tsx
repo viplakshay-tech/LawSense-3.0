@@ -706,7 +706,7 @@ export function TwinCanvas({
 
   return (
     <figure
-      className={`relative overflow-hidden rounded-2xl border border-white/[0.08] bg-[#070b13] ${className}`}
+      className={`relative w-full min-w-0 max-w-full overflow-hidden rounded-2xl border border-white/[0.08] bg-[#070b13] ${className}`}
     >
       <style>{`
         @keyframes lawsense-twin-pulse {
@@ -776,7 +776,7 @@ export function TwinCanvas({
         </div>
 
         <div
-          className="flex items-center gap-1"
+          className="flex max-w-full flex-wrap items-center gap-1"
           aria-label="Graph view controls"
         >
           <button

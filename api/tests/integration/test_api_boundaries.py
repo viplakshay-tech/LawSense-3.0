@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -10,6 +11,7 @@ from unittest.mock import patch
 
 from app.db import database
 from app.main import app
+from app.services.privacy import case_deletion
 from app.schemas.case_state import CaseState
 from app.services.voice_case import VoiceCaseService
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,6 +25,10 @@ def _asgi_request(
     *,
     raw_body: bytes | None = None,
     content_type: str = "application/json",
+    client_host: str = "testclient",
+    host_header: str = "testserver",
+    origin_header: str | None = None,
+    response_headers: dict[bytes, bytes] | None = None,
 ) -> tuple[int, object]:
     body = (
         raw_body
@@ -46,6 +52,11 @@ def _asgi_request(
         nonlocal status
         if message["type"] == "http.response.start":
             status = int(message["status"])
+            if response_headers is not None:
+                response_headers.clear()
+                response_headers.update({
+                    name.lower(): value for name, value in message.get("headers", [])  # type: ignore[union-attr]
+                })
         elif message["type"] == "http.response.body":
             chunks.append(message.get("body", b""))  # type: ignore[arg-type]
 
@@ -60,8 +71,8 @@ def _asgi_request(
         "raw_path": parsed.path.encode("ascii"),
         "query_string": parsed.query.encode("ascii"),
         "root_path": "",
-        "headers": [(b"host", b"testserver"), (b"content-type", content_type.encode("ascii"))],
-        "client": ("testclient", 123),
+        "headers": [(b"host", host_header.encode("ascii")), (b"content-type", content_type.encode("ascii"))] + ([(b"origin", origin_header.encode("ascii"))] if origin_header is not None else []),
+        "client": (client_host, 123),
         "server": ("testserver", 80),
         "state": {},
     }
@@ -106,6 +117,189 @@ class ApiBoundaryIntegrationTests(unittest.TestCase):
         self.assertIn("https://localhost", origins)
         self.assertNotIn("*", origins)
 
+    def test_case_deletion_requires_exact_case_id_confirmation(self) -> None:
+        case = self.post_case("Synthetic case data that will remain until confirmed.")
+        with patch.object(case_deletion, "DATA_DIR", Path(self.temp_dir.name) / "private-data"):
+            status, body = _asgi_request(
+                "DELETE",
+                f"/cases/{case.id}",
+                {
+                    "confirmation_phrase": "DELETE",
+                    "case_id_confirmation": "a-different-case",
+                },
+            )
+        self.assertEqual(status, 400, body)
+        self.assertIsNotNone(database.get_case(case.id))
+
+    def test_confirmed_case_deletion_removes_case_and_prevents_stale_restore(self) -> None:
+        case = self.post_case("Synthetic case data for deletion integration coverage.")
+        data_dir = Path(self.temp_dir.name) / "private-data"
+        with patch.object(case_deletion, "DATA_DIR", data_dir):
+            status, body = _asgi_request(
+                "DELETE",
+                f"/cases/{case.id}",
+                {
+                    "confirmation_phrase": "DELETE",
+                    "case_id_confirmation": case.id,
+                },
+            )
+            self.assertEqual(status, 200, body)
+            self.assertEqual(body["status"], "deleted")
+            self.assertTrue(body["data_records_removed"])
+            self.assertTrue(body["uploaded_documents_removed"])
+            self.assertTrue(body["minimal_tombstone_retained"])
+            self.assertIsNone(database.get_case(case.id))
+
+            status, body = _asgi_request("GET", f"/cases/{case.id}")
+            self.assertEqual(status, 404, body)
+
+            with self.assertRaises(database.CasePermanentlyDeletedError):
+                database.save_case(case)
+
+    def test_untrusted_host_is_rejected_even_for_loopback_clients(self) -> None:
+        with patch.dict(os.environ, {"LAWSENSE_ALLOW_REMOTE_API": "false"}):
+            status, body = _asgi_request(
+                "GET",
+                "/health",
+                client_host="127.0.0.1",
+                host_header="attacker.example",
+            )
+        self.assertEqual(status, 403, body)
+        self.assertIn("Host header", body["detail"])
+
+    def test_malformed_host_authorities_cannot_normalize_to_trusted_hosts(self) -> None:
+        # A malformed Host must not become an allowlisted hostname after URL parsing.
+        with patch.dict(os.environ, {"LAWSENSE_ALLOW_REMOTE_API": "true"}):
+            for malformed_host in (
+                "attacker.example@localhost",
+                "localhost:8000/path",
+                "localhost?unexpected=query",
+            ):
+                status, body = _asgi_request(
+                    "GET",
+                    "/health",
+                    client_host="192.168.1.50",
+                    host_header=malformed_host,
+                )
+                self.assertEqual(status, 403, (malformed_host, body))
+                self.assertIn("Host header", body["detail"])
+
+    def test_untrusted_browser_origin_is_rejected(self) -> None:
+        with patch.dict(os.environ, {"LAWSENSE_ALLOW_REMOTE_API": "false"}):
+            status, body = _asgi_request(
+                "GET",
+                "/health",
+                client_host="127.0.0.1",
+                host_header="127.0.0.1:8000",
+                origin_header="https://attacker.example",
+            )
+        self.assertEqual(status, 403, body)
+        self.assertIn("Origin", body["detail"])
+
+    def test_private_lan_frontend_host_is_allowed_for_android_proxy_requests(self) -> None:
+        with patch.dict(os.environ, {"LAWSENSE_ALLOW_REMOTE_API": "false"}):
+            status, body = _asgi_request(
+                "GET",
+                "/health",
+                client_host="127.0.0.1",
+                host_header="192.168.1.25:3000",
+                origin_header="https://192.168.1.25:3000",
+            )
+        self.assertEqual(status, 200, body)
+        self.assertEqual(body["service"], "lawsense-api")
+
+    def test_https_private_lan_frontend_origin_is_allowed_for_android_development(self) -> None:
+        with patch.dict(os.environ, {"LAWSENSE_ALLOW_REMOTE_API": "false"}):
+            status, body = _asgi_request(
+                "GET",
+                "/health",
+                client_host="127.0.0.1",
+                host_header="127.0.0.1:8000",
+                origin_header="https://192.168.1.25:3000",
+            )
+        self.assertEqual(status, 200, body)
+        self.assertEqual(body["service"], "lawsense-api")
+
+    def test_trusted_reverse_proxy_allowlists_are_explicit(self) -> None:
+        with patch.dict(
+            os.environ,
+            {
+                "LAWSENSE_ALLOW_REMOTE_API": "true",
+                "LAWSENSE_ALLOWED_API_HOSTS": "api.example.test",
+                "LAWSENSE_ALLOWED_API_ORIGINS": "https://portal.example.test",
+            },
+        ):
+            status, body = _asgi_request(
+                "GET",
+                "/health",
+                client_host="10.20.30.40",
+                host_header="api.example.test",
+                origin_header="https://portal.example.test",
+            )
+        self.assertEqual(status, 200, body)
+        self.assertEqual(body["service"], "lawsense-api")
+
+    def test_remote_api_client_is_blocked_by_default(self) -> None:
+        headers: dict[bytes, bytes] = {}
+        with patch.dict(os.environ, {"LAWSENSE_ALLOW_REMOTE_API": "false"}):
+            status, body = _asgi_request(
+                "GET",
+                "/health",
+                client_host="192.168.1.50",
+                response_headers=headers,
+            )
+        self.assertEqual(status, 403, body)
+        self.assertIn("local-machine requests only", body["detail"].lower())
+        self.assertEqual(headers.get(b"cache-control"), b"no-store")
+
+    def test_loopback_api_client_remains_available_without_cacheable_responses(self) -> None:
+        headers: dict[bytes, bytes] = {}
+        with patch.dict(os.environ, {"LAWSENSE_ALLOW_REMOTE_API": "false"}):
+            status, body = _asgi_request(
+                "GET", "/health", client_host="127.0.0.1", response_headers=headers
+            )
+        self.assertEqual(status, 200, body)
+        self.assertEqual(body["service"], "lawsense-api")
+        self.assertEqual(headers.get(b"cache-control"), b"no-store")
+
+    def test_remote_api_access_requires_explicit_host_and_origin_allowlists(self) -> None:
+        headers: dict[bytes, bytes] = {}
+        with patch.dict(os.environ, {"LAWSENSE_ALLOW_REMOTE_API": "true"}):
+            status, body = _asgi_request(
+                "GET",
+                "/health",
+                client_host="192.168.1.50",
+                response_headers=headers,
+            )
+        self.assertEqual(status, 403, body)
+        self.assertIn("explicit", body["detail"].lower())
+        self.assertEqual(headers.get(b"cache-control"), b"no-store")
+
+    def test_remote_api_requests_cannot_use_default_host_or_origin_allowlists(self) -> None:
+        environment = {
+            "LAWSENSE_ALLOW_REMOTE_API": "true",
+            "LAWSENSE_ALLOWED_API_HOSTS": "api.example.test",
+            "LAWSENSE_ALLOWED_API_ORIGINS": "https://portal.example.test",
+        }
+        with patch.dict(os.environ, environment):
+            default_host_status, default_host_body = _asgi_request(
+                "GET",
+                "/health",
+                client_host="192.168.1.50",
+                host_header="testserver",
+            )
+            default_origin_status, default_origin_body = _asgi_request(
+                "GET",
+                "/health",
+                client_host="192.168.1.50",
+                host_header="api.example.test",
+                origin_header="http://localhost:3000",
+            )
+        self.assertEqual(default_host_status, 403, default_host_body)
+        self.assertIn("LAWSENSE_ALLOWED_API_HOSTS", default_host_body["detail"])
+        self.assertEqual(default_origin_status, 403, default_origin_body)
+        self.assertIn("LAWSENSE_ALLOWED_API_ORIGINS", default_origin_body["detail"])
+
     def test_landlord_deposit_complete_analysis_and_reasoning_are_structured_and_fail_closed(self) -> None:
         case = self.post_case("My landlord did not return my ₹30,000 security deposit.")
 
@@ -129,7 +323,10 @@ class ApiBoundaryIntegrationTests(unittest.TestCase):
             provision["sourceUrl"].startswith((
                 "https://indiacode.gov.in/",
                 "https://www.indiacode.nic.in/",
-            ))
+                "https://cdnbbsr.s3waas.gov.in/",
+                "https://udd.uk.gov.in/document/uttarakhand-tenancy-act-2021/",
+            )),
+            f"Unexpected/non-canonical source URL for the verified Uttarakhand government record: {provision['sourceUrl']!r}",
         )
         self.assertEqual(provision["jurisdiction"], "jurisdiction-uttarakhand")
         reasoning = body["legalReasoning"]

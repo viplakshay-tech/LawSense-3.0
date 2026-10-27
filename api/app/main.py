@@ -1,7 +1,9 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
-from app.db.database import init_db
+from app.core.network_guard import LocalOnlyApiMiddleware
+from app.db.database import CasePermanentlyDeletedError, init_db
 from app.routes.analysis import router as analysis_router
 from app.routes.cases import router as cases_router
 from app.routes.clarification import router as clarification_router
@@ -38,6 +40,22 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Added after CORS so the local-boundary policy wraps every API route.
+# The Next.js same-machine rewrite reaches FastAPI over loopback.
+app.add_middleware(LocalOnlyApiMiddleware)
+
+
+@app.exception_handler(CasePermanentlyDeletedError)
+async def permanently_deleted_case_handler(
+    request: Request,
+    exc: CasePermanentlyDeletedError,
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=410,
+        content={"detail": str(exc)},
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 @app.get("/health")
