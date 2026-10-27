@@ -480,6 +480,8 @@ LawSense can handle sensitive personal and safety-related information. Use synth
 - **Treat sources conservatively:** legal knowledge in the prototype is curated and incomplete; it is not a complete, continuously updated repository of every Indian statute, rule, judgment or local procedure.
 - **Safety first:** in immediate danger, contact appropriate local emergency services or trusted support. Do not rely on this application as the sole source of help.
 - **Local-first is not automatically secure:** production use needs a dedicated review of authentication, authorization, encryption, storage, backups, retention, deletion, dependency security and incident response.
+- **Storage permission hardening:** on POSIX systems, API startup attempts to restrict the SQLite data directory to mode `0700` and the database file to `0600`; if this fails, it logs a generic warning. Windows permissions are not modified by this code. These permissions do not encrypt data or replace sign-in/access control.
+- **Network exposure:** the documented normal development commands bind both servers to loopback. The optional phone-over-hotspot workflow intentionally exposes the frontend and is not safe for real case data until application access control is implemented and tested.
 - **Protect secrets:** never commit `.env` files, credentials, private keys, live databases, real case documents or personal identifying information.
 - **Review extracted facts:** automated extraction may be incomplete or wrong. A candidate finding should not silently become a confirmed fact.
 
