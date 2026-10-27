@@ -8,7 +8,7 @@ import { guidePresenceStateFromSnapshot, useGuideRuntime } from '@/components/gu
 import type { GuideAction } from '@/components/guide-runtime/types';
 import { GuidePresence } from './GuidePresence';
 import { GUIDE_PRESENCE_LABELS } from './types';
-import { buildGuideCaseContext, sendGuideMessage, type GuideChatLanguage } from '@/lib/api';
+import { buildGuideCaseContext, sendGuideMessage, type GuideChatLanguage, type GuideConversationTurn } from '@/lib/api';
 
 function actionLabel(action: GuideAction): string {
   switch (action.type) {
@@ -76,7 +76,16 @@ export function GuideControlSurface() {
     setChatError(null);
     setChatPending(true);
     try {
-      const response = await sendGuideMessage(statement, chatLanguage, buildGuideCaseContext(currentCase));
+      const conversationHistory: GuideConversationTurn[] = chatTurns.slice(-8).map((turn) => ({
+        role: turn.role === 'you' ? 'user' : 'assistant',
+        content: turn.text,
+      }));
+      const response = await sendGuideMessage(
+        statement,
+        chatLanguage,
+        buildGuideCaseContext(currentCase),
+        conversationHistory,
+      );
       if (requestId !== chatRequestRef.current || currentCase.id !== caseId) return;
       const answer = response.status === 'unavailable'
         ? `Local assistant unavailable · ${response.reply}`
