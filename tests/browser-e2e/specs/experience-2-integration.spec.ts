@@ -240,27 +240,41 @@ test('the Guide restores keyboard focus and the real Twin graph remains usable a
   await expect(graph.locator('svg').first()).toBeVisible();
   const horizontalOverflow = await page.evaluate(() => {
     if (document.documentElement.scrollWidth <= window.innerWidth) return [];
+    const clippingOverflow = new Set(['auto', 'scroll', 'hidden', 'clip']);
     return Array.from(document.querySelectorAll<HTMLElement>('body *'))
       .map((element) => {
         const rect = element.getBoundingClientRect();
+        const style = window.getComputedStyle(element);
         return {
           tag: element.tagName.toLowerCase(),
           id: element.id || null,
           className: typeof element.className === 'string' ? element.className.slice(0, 180) : null,
-          right: Math.round(rect.right),
           left: Math.round(rect.left),
+          right: Math.round(rect.right),
           width: Math.round(rect.width),
+          overflowX: style.overflowX,
           scrollWidth: element.scrollWidth,
           clientWidth: element.clientWidth,
         };
       })
-      .filter((element) => element.width > 0 && (element.left < -1 || element.right > window.innerWidth + 1 || element.scrollWidth > element.clientWidth + 1))
+      .filter((item, index, all) => {
+        const element = document.querySelectorAll<HTMLElement>('body *')[index];
+        if (item.width <= 0 || (item.left >= -1 && item.right <= window.innerWidth + 1)) return false;
+        // Exclude content intentionally scrolled/clipped by an ancestor, but
+        // keep the ancestor itself as a diagnostic candidate if it overflows.
+        let parent = element.parentElement;
+        while (parent && parent !== document.documentElement) {
+          if (clippingOverflow.has(window.getComputedStyle(parent).overflowX)) return false;
+          parent = parent.parentElement;
+        }
+        return true;
+      })
       .sort((a, b) => Math.max(b.right - window.innerWidth, -b.left) - Math.max(a.right - window.innerWidth, -a.left))
       .slice(0, 12);
   });
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
-    `Unexpected horizontal overflow at 390px: ${JSON.stringify(horizontalOverflow)}`,
+    `Unexpected horizontal page overflow at 390px (document scrollWidth=${await page.evaluate(() => document.documentElement.scrollWidth)}, viewport=${await page.evaluate(() => window.innerWidth)}): ${JSON.stringify(horizontalOverflow)}`,
   ).toBe(true);
 });
 
