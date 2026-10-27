@@ -76,7 +76,7 @@ export function GuideControlSurface() {
     setChatError(null);
     setChatPending(true);
     try {
-      const conversationHistory: GuideConversationTurn[] = chatTurns.slice(-8).map((turn) => ({
+      const conversationHistory = chatTurns.slice(-8).map<GuideConversationTurn>((turn) => ({
         role: turn.role === 'you' ? 'user' : 'assistant',
         content: turn.text,
       }));
