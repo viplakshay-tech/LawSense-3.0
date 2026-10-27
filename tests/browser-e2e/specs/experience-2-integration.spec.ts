@@ -238,7 +238,30 @@ test('the Guide restores keyboard focus and the real Twin graph remains usable a
   const graph = page.getByRole('region', { name: 'Living Legal Twin CaseState projection' });
   await expect(graph).toBeVisible();
   await expect(graph.locator('svg').first()).toBeVisible();
-  await expect(page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).resolves.toBe(true);
+  const horizontalOverflow = await page.evaluate(() => {
+    if (document.documentElement.scrollWidth <= window.innerWidth) return [];
+    return Array.from(document.querySelectorAll<HTMLElement>('body *'))
+      .map((element) => {
+        const rect = element.getBoundingClientRect();
+        return {
+          tag: element.tagName.toLowerCase(),
+          id: element.id || null,
+          className: typeof element.className === 'string' ? element.className.slice(0, 180) : null,
+          right: Math.round(rect.right),
+          left: Math.round(rect.left),
+          width: Math.round(rect.width),
+          scrollWidth: element.scrollWidth,
+          clientWidth: element.clientWidth,
+        };
+      })
+      .filter((element) => element.width > 0 && (element.left < -1 || element.right > window.innerWidth + 1 || element.scrollWidth > element.clientWidth + 1))
+      .sort((a, b) => Math.max(b.right - window.innerWidth, -b.left) - Math.max(a.right - window.innerWidth, -a.left))
+      .slice(0, 12);
+  });
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+    `Unexpected horizontal overflow at 390px: ${JSON.stringify(horizontalOverflow)}`,
+  ).toBe(true);
 });
 
 test('a case update marks a saved draft stale and blocks old fact reuse until source refresh', async ({ page }) => {
