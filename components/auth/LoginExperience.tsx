@@ -10,6 +10,7 @@ export default function LoginExperience() {
   const [screen, setScreen] = useState<ScreenState>('checking');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [setupToken, setSetupToken] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -43,7 +44,7 @@ export default function LoginExperience() {
     setBusy(true);
     try {
       const isSetup = screen === 'setup';
-      const body = JSON.stringify({ username, password });
+      const body = JSON.stringify({ username, password, ...(isSetup ? { setupToken: setupToken.trim() } : {}) });
 
       if (isSetup) {
         const configuredApiOrigin = process.env.NEXT_PUBLIC_API_URL ?? 'http://127.0.0.1:8000';
@@ -108,7 +109,7 @@ export default function LoginExperience() {
         </h1>
         <p className="mt-2 text-sm leading-6 text-slate-400">
           {screen === 'setup'
-            ? 'Set a strong password. Your existing local cases will be assigned to this account.'
+            ? 'Set a strong password and enter the one-time setup code from the host computer. Your existing local cases will be assigned to this account.'
             : screen === 'host-setup-required'
               ? 'For safety, the first account must be created on the computer hosting LawSense. After setup, you can sign in from this device.'
               : 'Sign in to open your saved cases and continue your legal journey.'}
@@ -125,6 +126,26 @@ export default function LoginExperience() {
               <label htmlFor="username" className="mb-2 block text-sm font-medium text-slate-200">Username</label>
               <input id="username" name="username" autoComplete="username" required minLength={3} maxLength={32} pattern="[A-Za-z0-9._-]+" value={username} onChange={(event) => setUsername(event.target.value)} className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none transition placeholder:text-slate-600 focus:border-cyan-300/60 focus:ring-2 focus:ring-cyan-300/10" placeholder="your.username" />
             </div>
+            {screen === 'setup' && (
+              <div>
+                <label htmlFor="setupToken" className="mb-2 block text-sm font-medium text-slate-200">Local setup code</label>
+                <input
+                  id="setupToken"
+                  name="setupToken"
+                  autoComplete="off"
+                  required
+                  minLength={32}
+                  maxLength={128}
+                  value={setupToken}
+                  onChange={(event) => setSetupToken(event.target.value)}
+                  className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 font-mono text-sm outline-none transition placeholder:text-slate-600 focus:border-cyan-300/60 focus:ring-2 focus:ring-cyan-300/10"
+                  placeholder="Paste the code from the host data folder"
+                />
+                <p className="mt-2 text-xs leading-5 text-slate-500">
+                  On the host computer, open <code>data/lawsense.setup-token</code> beside the local database. This code is not made available over the network.
+                </p>
+              </div>
+            )}
             <div>
               <label htmlFor="password" className="mb-2 block text-sm font-medium text-slate-200">Password</label>
               <input id="password" name="password" type="password" autoComplete={screen === 'setup' ? 'new-password' : 'current-password'} required minLength={12} maxLength={128} value={password} onChange={(event) => setPassword(event.target.value)} className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none transition placeholder:text-slate-600 focus:border-cyan-300/60 focus:ring-2 focus:ring-cyan-300/10" placeholder="At least 12 characters" />

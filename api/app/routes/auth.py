@@ -15,6 +15,7 @@ class CredentialsRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
     username: str = Field(min_length=3, max_length=32)
     password: str = Field(min_length=12, max_length=128)
+    setupToken: str | None = Field(default=None, min_length=32, max_length=128)
 
 class UserResponse(BaseModel):
     userId: str
@@ -59,10 +60,14 @@ def read_setup_status() -> dict[str, bool]:
 
 @router.post("/register", response_model=UserResponse, status_code=201)
 def register_first_account(payload: CredentialsRequest, request: Request, response: Response) -> UserResponse:
+    if not auth_service.setup_required():
+        raise HTTPException(status_code=409, detail="Initial account setup is already complete.")
     if not _is_loopback_browser_bootstrap(request):
+        raise HTTPException(status_code=403, detail="Initial setup must be completed from a browser on the host computer.")
+    if not auth_service.verify_setup_token(payload.setupToken):
         raise HTTPException(
             status_code=403,
-            detail="Initial account setup must be completed in a browser on the host computer using http://localhost:3000. Then sign in from your other devices.",
+            detail="A valid local setup code is required. Read data/lawsense.setup-token on the host computer.",
         )
     try:
         user = auth_service.create_first_account(payload.username, payload.password)

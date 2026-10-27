@@ -70,7 +70,9 @@ class AuthenticationTests(unittest.TestCase):
         self.temporary_directory.cleanup()
 
     def create_first_user(self, username: str = "local.owner", password: str = "A-long-test-password-42") -> str:
-        status, headers, body = _asgi_request("POST", "/auth/register", {"username": username, "password": password}, origin="http://localhost:3000")
+        _asgi_request("GET", "/auth/setup-status")
+        setup_token = auth_service.read_local_setup_token()
+        status, headers, body = _asgi_request("POST", "/auth/register", {"username": username, "password": password, "setupToken": setup_token}, origin="http://localhost:3000")
         self.assertEqual(status, 201, body)
         return _cookie(headers)
 
@@ -96,7 +98,8 @@ class AuthenticationTests(unittest.TestCase):
         status, _headers, body = _asgi_request("GET", "/auth/setup-status")
         self.assertEqual(status, 200, body)
         self.assertTrue(body["setupRequired"])
-        status, headers, body = _asgi_request("POST", "/auth/register", {"username": "local.owner", "password": "A-long-test-password-42"}, origin="http://localhost:3000")
+        setup_token = auth_service.read_local_setup_token()
+        status, headers, body = _asgi_request("POST", "/auth/register", {"username": "local.owner", "password": "A-long-test-password-42", "setupToken": setup_token}, origin="http://localhost:3000")
         self.assertEqual(status, 201, body)
         cookie = _cookie(headers)
         self.assertIn("lawsense_session=", cookie)
@@ -110,6 +113,16 @@ class AuthenticationTests(unittest.TestCase):
         self.assertEqual(status, 200, body)
         self.assertEqual(body["username"], "local.owner")
         self.assertFalse(auth_service.setup_required())
+
+    def test_local_setup_code_is_required_even_for_loopback_origin(self) -> None:
+        _asgi_request("GET", "/auth/setup-status")
+        status, _headers, body = _asgi_request(
+            "POST", "/auth/register",
+            {"username": "local.owner", "password": "A-long-test-password-42"},
+            origin="http://localhost:3000",
+        )
+        self.assertEqual(status, 403, body)
+        self.assertTrue(auth_service.setup_required())
 
     def test_protected_case_routes_require_a_session(self) -> None:
         status, _headers, body = _asgi_request("GET", "/cases/nonexistent")

@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 import hashlib
+import os
 import re
 import secrets
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from uuid import uuid4
+from app.db import database
 from app.db.database import get_connection
 
 SESSION_TTL = timedelta(hours=12)
@@ -26,9 +29,47 @@ def hash_password(password: str, salt: bytes) -> bytes:
         raise ValueError("Password must contain between 12 and 128 characters.")
     return hashlib.scrypt(password.encode("utf-8"), salt=salt, n=2**14, r=8, p=1, dklen=32)
 
+def _setup_token_path() -> Path:
+    return database.DB_PATH.with_suffix(".setup-token")
+
+
+def read_local_setup_token() -> str:
+    """Create/read the bootstrap code on disk; never return it from an API route."""
+    path = _setup_token_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        descriptor = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+    except FileExistsError:
+        return path.read_text(encoding="utf-8").strip()
+
+    token = secrets.token_urlsafe(32)
+    with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+        stream.write(token + "\\n")
+        stream.flush()
+        os.fsync(stream.fileno())
+    try:
+        os.chmod(path, 0o600)
+    except OSError:
+        pass
+    return token
+
+
+def verify_setup_token(token: str | None) -> bool:
+    if not token or len(token) > 128:
+        return False
+    try:
+        expected = _setup_token_path().read_text(encoding="utf-8").strip()
+    except (OSError, UnicodeError):
+        return False
+    return bool(expected) and secrets.compare_digest(expected, token.strip())
+
+
 def setup_required() -> bool:
     with get_connection() as connection:
-        return connection.execute("SELECT COUNT(*) FROM auth_users").fetchone()[0] == 0
+        required = connection.execute("SELECT COUNT(*) FROM auth_users").fetchone()[0] == 0
+    if required:
+        read_local_setup_token()
+    return required
 
 def create_first_account(username: str, password: str) -> dict[str, str]:
     username = normalize_username(username)
@@ -51,6 +92,10 @@ def create_first_account(username: str, password: str) -> dict[str, str]:
         except Exception:
             connection.rollback()
             raise
+    try:
+        _setup_token_path().unlink(missing_ok=True)
+    except OSError:
+        pass
     return {"id": user_id, "username": username}
 
 def verify_credentials(username: str, password: str) -> dict[str, str] | None:
