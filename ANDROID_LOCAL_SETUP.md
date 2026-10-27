@@ -2,6 +2,10 @@
 
 This is a Capacitor shell for personal use. The current Next.js app uses dynamic `/case/[id]` routes and a server-side `/api` rewrite, so its frontend and API are not a self-contained static bundle. The APK opens the existing web app in a WebView and requires the user's own computer to run both services. This avoids a frontend rewrite but is not offline or standalone operation.
 
+**Access-control warning — do not skip:** the current app does not have user sign-in or case-ownership authorization. The phone reaches the Next.js server over the network, and that server proxies case API requests. A person who can reach the server may be able to read or change case information. Keeping FastAPI on computer loopback alone does not protect the network-exposed Next.js proxy.
+
+Until access control is implemented and independently tested, use synthetic/fictional cases only on a private, isolated hotspot. Do not enter real legal narratives, personal identifiers, evidence, or documents. Do not use shared/public Wi-Fi and never expose the development server to the public internet.
+
 The shell asks for an HTTPS origin such as `https://192.168.1.25:3000`, checks `${origin}/api/health`, and opens the app only after it receives a healthy LawSense API response. It rejects phone-local `localhost` addresses. The phone makes same-origin requests to the web server; the web server's upstream API origin is configurable on the computer with `NEXT_PUBLIC_API_URL` (for a backend on that same computer, `http://127.0.0.1:8000` is a server-side setting, not the phone's backend address).
 
 ## Local run requirements
