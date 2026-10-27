@@ -43,6 +43,21 @@ export function getSessionCaseIds(): string[] {
   return readStoredCaseIds();
 }
 
+/** Forget one deleted case ID without clearing the user's other session cases. */
+export function forgetSessionCase(caseId: string): void {
+  if (typeof window === 'undefined' || !isValidSessionCaseId(caseId)) return;
+  try {
+    const remaining = readStoredCaseIds().filter((id) => id !== caseId);
+    if (remaining.length === 0) {
+      window.sessionStorage.removeItem(SESSION_CASES_KEY);
+    } else {
+      window.sessionStorage.setItem(SESSION_CASES_KEY, JSON.stringify(remaining));
+    }
+  } catch {
+    // This only cleans a convenience index; canonical case data is deleted server-side.
+  }
+}
+
 export function clearSessionCases(): void {
   if (typeof window === 'undefined') return;
   try {
