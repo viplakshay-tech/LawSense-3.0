@@ -814,7 +814,7 @@ export function buildGuideCaseContext(caseState: CaseState): GuideCaseContext {
     caseState.jurisdiction.country,
   ].filter((value): value is string => Boolean(value?.trim()));
   const legalKnowledge = caseState.analysis?.legalKnowledge;
-  const journeyQuestions = caseState.analysis?.journey.unknowns.map((item) => item.question) ?? [];
+  const journeyQuestions = caseState.analysis?.journey?.unknowns?.map((item) => item.question) ?? [];
   const questions = [...new Set([...caseState.unknowns, ...journeyQuestions])]
     .filter((item) => typeof item === 'string' && item.trim())
     .slice(0, 6)
