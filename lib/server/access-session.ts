@@ -52,6 +52,6 @@ export function verifyAccessSessionToken(
 export function safeReturnPath(value: unknown): string {
   if (typeof value !== 'string') return '/';
   if (!value.startsWith('/') || value.startsWith('//') || value.includes('\\')) return '/';
-  if (value.startsWith('/unlock') || value.startsWith('/api/access/')) return '/';
+  if (value.startsWith('/unlock') || value.startsWith('/api/access/') || value.startsWith('/access-control/')) return '/';
   return value;
 }
