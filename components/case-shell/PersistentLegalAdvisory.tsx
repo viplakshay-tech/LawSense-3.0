@@ -128,6 +128,13 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
   const risks = rows(result?.risks);
   const paths = rows(result?.possibleProceduralPaths);
   const blocked = rows(result?.blockedConclusions);
+  const nextSteps: string[] = [];
+  if (conflicts.length > 0) nextSteps.push('Review the conflicting entries against the original records or documents before relying on either version.');
+  if (questions.length > 0) nextSteps.push('Open the Guide and answer the listed unresolved questions. Mark anything you do not know as unknown rather than guessing.');
+  if (evidenceGaps.length > 0) nextSteps.push('Review each evidence gap and attach or identify a relevant source where available. Keep extracted details unconfirmed until you have checked them.');
+  if (jurisdictionStatus.toLowerCase().includes('unknown')) nextSteps.push('Confirm where the relevant events happened, including the state or district when known; procedure and deadlines can depend on jurisdiction.');
+  if (statements.length === 0) nextSteps.push('The current analysis has no reliable source-linked legal statement. Add missing facts and documents, then refresh the review; this does not mean no remedy exists.');
+  if (nextSteps.length === 0) nextSteps.push('Check the relevant original documents and official source links, confirm current jurisdiction and dates, and review any procedural deadline with a qualified legal professional before acting.');
   const jurisdictionStatus = textValue(result?.jurisdictionStatus, 'unknown');
   const uncertainty = isRecord(result?.uncertainty) ? result.uncertainty : {};
   const uncertaintyLevel = textValue(uncertainty.level);
@@ -310,6 +317,16 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
                           </li>
                         ))}
                       </ul>
+                    </section>
+                  )}
+
+                  {nextSteps.length > 0 && (
+                    <section className="rounded-2xl border border-[#d9bd8c]/20 bg-[#d9bd8c]/[0.035] p-4 sm:p-5">
+                      <h3 className="text-sm font-semibold text-[#f2dfb9]">Suggested next steps</h3>
+                      <p className="mt-1 text-xs leading-5 text-slate-400">Prioritized from the open questions and limitations in this analysis—not a guarantee of legal outcome.</p>
+                      <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm leading-6 text-slate-200">
+                        {nextSteps.slice(0, 5).map((step, index) => <li key={index}>{step}</li>)}
+                      </ol>
                     </section>
                   )}
 
