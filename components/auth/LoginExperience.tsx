@@ -46,7 +46,8 @@ export default function LoginExperience() {
       const body = JSON.stringify({ username, password });
 
       if (isSetup) {
-        const apiOrigin = (process.env.NEXT_PUBLIC_API_URL ?? 'http://127.0.0.1:8000').replace(/\\/$/, '');
+        const configuredApiOrigin = process.env.NEXT_PUBLIC_API_URL ?? 'http://127.0.0.1:8000';
+        const apiOrigin = configuredApiOrigin.endsWith('/') ? configuredApiOrigin.slice(0, -1) : configuredApiOrigin;
         const registerResponse = await fetch(`${apiOrigin}/auth/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
