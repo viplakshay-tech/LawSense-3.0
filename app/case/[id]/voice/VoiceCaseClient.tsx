@@ -382,7 +382,6 @@ export default function VoiceCaseClient({ id }: { id: string }) {
               </div>
 
               <GuideConversation
-                key={caseData.id}
                 draftId={draftId}
                 caseId={caseData.id}
                 language={language}
