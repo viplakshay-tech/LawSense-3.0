@@ -47,6 +47,8 @@ jobs:
         run: npm run test:access-session
       - name: Test access-control route handlers
         run: npm run test:access-routes
+      - name: Test network access gate
+        run: npm run test:access-proxy
       - name: Build production frontend
         env:
           NEXT_TELEMETRY_DISABLED: '1'
