@@ -1,9 +1,6 @@
 name: LawSense quality gates
 
 on:
-  push:
-    branches:
-      - feature/unified-guide-chat
   pull_request:
     branches:
       - lawsense-3-integration
