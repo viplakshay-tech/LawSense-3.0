@@ -11,6 +11,8 @@ type AccessStatus = {
 export function AccessSessionControl() {
   const pathname = usePathname();
   const [enabled, setEnabled] = useState(false);
+  const [locking, setLocking] = useState(false);
+  const [lockError, setLockError] = useState(false);
 
   useEffect(() => {
     if (pathname === '/unlock') return;
@@ -30,30 +32,36 @@ export function AccessSessionControl() {
   if (!enabled || pathname === '/unlock') return null;
 
   async function lock() {
+    setLocking(true);
+    setLockError(false);
     try {
-      await fetch('/access-control/lock', {
+      const response = await fetch('/access-control/lock', {
         method: 'POST',
         cache: 'no-store',
         headers: { Accept: 'application/json' },
       });
-    } catch {
-      // Redirecting still takes the user to the unlock screen if the lock
-      // request fails because the session expired or the network disconnected.
-    } finally {
+      if (!response.ok) throw new Error('The session lock was rejected.');
       window.location.replace('/unlock?reason=locked');
+    } catch {
+      setLockError(true);
+      setLocking(false);
     }
   }
 
   return (
-    <button
-      type="button"
-      onClick={() => void lock()}
-      aria-label="Lock LawSense session"
-      title="Lock LawSense session"
-      className="inline-flex min-h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-white/[0.12] bg-white/[0.035] px-2.5 text-[11px] font-semibold text-slate-300 transition hover:border-[#d9bd8c]/40 hover:bg-white/[0.07] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e9bd7b]"
-    >
-      <LockKeyhole aria-hidden="true" className="h-3.5 w-3.5" />
-      <span className="hidden xl:inline">Lock</span>
-    </button>
+    <div className="flex shrink-0 items-center gap-2">
+      <button
+        type="button"
+        onClick={() => void lock()}
+        disabled={locking}
+        aria-label="Lock LawSense session"
+        title="Lock LawSense session"
+        className="inline-flex min-h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-white/[0.12] bg-white/[0.035] px-2.5 text-[11px] font-semibold text-slate-300 transition hover:border-[#d9bd8c]/40 hover:bg-white/[0.07] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e9bd7b] disabled:cursor-wait disabled:opacity-60"
+      >
+        <LockKeyhole aria-hidden="true" className="h-3.5 w-3.5" />
+        <span className="hidden xl:inline">{locking ? 'Locking…' : 'Lock'}</span>
+      </button>
+      {lockError && <span role="alert" className="text-[10px] text-rose-200">Lock failed; retry.</span>}
+    </div>
   );
 }
