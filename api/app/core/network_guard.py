@@ -116,6 +116,23 @@ def _normalise_origin(value: str) -> str | None:
     return f"{parsed.scheme.casefold()}://{host}" if host else None
 
 
+def _host_is_allowed(host_value: str) -> bool:
+    normalized = _normalise_host(host_value)
+    if normalized in _allowed_hosts():
+        return True
+
+    # Next.js may preserve the LAN Host header when proxying an Android WebView
+    # request. Permit only a private, non-loopback IP on the documented UI port.
+    try:
+        parsed = urlsplit("//" + normalized)
+        if not parsed.hostname or parsed.port != 3000:
+            return False
+        address = ipaddress.ip_address(parsed.hostname)
+    except ValueError:
+        return False
+    return address.is_private and not address.is_loopback and not address.is_link_local
+
+
 def _allowed_origins() -> frozenset[str]:
     configured = {
         normalized
@@ -196,7 +213,7 @@ class LocalOnlyApiMiddleware:
 
         headers = Headers(scope=scope)
         host_value = headers.get("host", "")
-        if _normalise_host(host_value) not in _allowed_hosts():
+        if not _host_is_allowed(host_value):
             response = JSONResponse(
                 status_code=403,
                 content={"detail": "The LawSense API rejected this Host header."},
