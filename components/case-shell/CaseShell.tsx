@@ -33,6 +33,7 @@ import {
 } from '@/lib/case-journey';
 import { useCaseState } from '../../app/case/[id]/CaseStateProvider';
 import { GuideControlSurface } from '@/components/guide-presence';
+import { AccessSessionControl } from '@/components/access/AccessSessionControl';
 import { PersistentLegalAdvisory } from '@/components/case-shell/PersistentLegalAdvisory';
 import { StatusPill, type StatusTone } from '@/components/design-system/StatusPill';
 import { CaseContextPanel } from './CaseContextPanel';
@@ -475,6 +476,7 @@ export function CaseShell({ caseId, children }: { caseId: string; children: Reac
               <span className="max-w-[28rem] truncate normal-case tracking-normal text-slate-200">{caseTitle}</span>
             </div>
             <div className="ml-auto flex shrink-0 items-center gap-2">
+              <AccessSessionControl />
               <Link href="/women-safety" aria-label="Women & Safety" className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-rose-300/20 bg-rose-300/[0.07] px-2.5 text-[11px] font-medium text-rose-100/90 transition hover:border-rose-300/35 hover:bg-rose-300/[0.12] focus-visible:outline focus-visible:outline-2 focus-visible:outline-rose-200 motion-reduce:transition-none">
                 <ShieldAlert className="h-3.5 w-3.5" aria-hidden="true" />
                 <span className="hidden sm:inline">Women &amp; Safety</span>
