@@ -761,6 +761,111 @@ export interface CaseState {
   analysis?: CaseAnalysis | null;
 }
 
+export interface GuideCaseContext {
+  caseTitle: string | null;
+  initialStatement: string | null;
+  userObjective: string | null;
+  objectiveUrgency: 'low' | 'medium' | 'high' | 'critical' | null;
+  jurisdiction: string | null;
+  jurisdictionBasis: Jurisdiction['basis'];
+  facts: Array<{
+    key: string;
+    value: string;
+    status: InformationStatus;
+    confidence: ConfidenceLevel;
+  }>;
+  openQuestions: string[];
+  assumptions: string[];
+  conflicts: string[];
+  evidence: Array<{ title: string; source: EvidenceSource; status: InformationStatus }>;
+  documentCount: number;
+  legalIssueCategories: string[];
+  legalKnowledgeStatus: string;
+  legalSources: Array<{
+    title: string;
+    recordType: string;
+    status: string;
+    jurisdiction: string | null;
+    verificationStatus: string | null;
+    freshnessStatus: string | null;
+    applicabilityStatus: string | null;
+  }>;
+  safetyContext: SafetyContextSummary['context'];
+  safetyUrgency: SafetyContextSummary['urgency'];
+}
+
+function guideContextValue(value: unknown): string {
+  if (typeof value === 'string') return value.slice(0, 240);
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (value === null || value === undefined) return '';
+  try {
+    return (JSON.stringify(value) ?? '').slice(0, 240);
+  } catch {
+    return '[Value unavailable]';
+  }
+}
+
+/** Builds a compact, status-preserving snapshot for the loopback-only Guide model. */
+export function buildGuideCaseContext(caseState: CaseState): GuideCaseContext {
+  const location = [
+    caseState.jurisdiction.city,
+    caseState.jurisdiction.district,
+    caseState.jurisdiction.state,
+    caseState.jurisdiction.country,
+  ].filter((value): value is string => Boolean(value?.trim()));
+  const legalKnowledge = caseState.analysis?.legalKnowledge;
+  const journeyQuestions = caseState.analysis?.journey.unknowns.map((item) => item.question) ?? [];
+  const questions = [...new Set([...caseState.unknowns, ...journeyQuestions])]
+    .filter((item) => typeof item === 'string' && item.trim())
+    .slice(0, 6)
+    .map((item) => item.slice(0, 250));
+  const safety = caseState.analysis?.safetyContext;
+
+  return {
+    caseTitle: caseState.title?.trim().slice(0, 160) || null,
+    initialStatement: caseState.initialStatement?.trim().slice(0, 1_400) || null,
+    userObjective: caseState.intent?.objective.trim().slice(0, 250) || null,
+    objectiveUrgency: caseState.intent?.urgency ?? null,
+    jurisdiction: location.join(', ').slice(0, 350)
+      || caseState.jurisdiction.locationText?.trim().slice(0, 350)
+      || null,
+    jurisdictionBasis: caseState.jurisdiction.basis,
+    facts: caseState.facts.slice(0, 6).map((fact) => ({
+      key: fact.key.slice(0, 100),
+      value: guideContextValue(fact.value),
+      status: fact.status,
+      confidence: fact.confidence,
+    })),
+    openQuestions: questions,
+    assumptions: caseState.assumptions.slice(0, 4).map((item) => item.slice(0, 200)),
+    conflicts: caseState.conflicts.slice(0, 4).map((item) => item.slice(0, 200)),
+    evidence: caseState.evidence.slice(0, 5).map((item) => ({
+      title: item.title.slice(0, 140),
+      source: item.source,
+      status: item.status,
+    })),
+    documentCount: caseState.documents.length,
+    legalIssueCategories: [...new Set(caseState.legalIssues.map((item) => item.category.trim()).filter(Boolean))]
+      .slice(0, 5)
+      .map((item) => item.slice(0, 120)),
+    legalKnowledgeStatus: legalKnowledge?.status ?? 'unknown',
+    legalSources: (legalKnowledge?.status === 'records_found' ? legalKnowledge.records : [])
+      .slice(0, 4)
+      .map((record) => ({
+        title: record.title.slice(0, 180),
+        recordType: record.type.slice(0, 80),
+        status: record.status.slice(0, 80),
+        jurisdiction: record.jurisdiction?.slice(0, 120) ?? null,
+        verificationStatus: record.sourceVerificationStatus?.slice(0, 60) ?? null,
+        freshnessStatus: record.sourceFreshnessStatus?.slice(0, 60) ?? null,
+        applicabilityStatus: record.sourceApplicabilityStatus?.slice(0, 60) ?? null,
+      })),
+    safetyContext: safety?.context ?? 'none',
+    safetyUrgency: safety?.urgency ?? 'none',
+  };
+}
+
+
 export type CompiledDocumentType =
   | 'formal_demand_representation'
   | 'complaint_draft'
@@ -1085,6 +1190,7 @@ export interface GuideChatResponse {
 export async function sendGuideMessage(
   message: string,
   language: GuideChatLanguage,
+  caseContext?: GuideCaseContext,
 ): Promise<GuideChatResponse> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 52_000);
@@ -1092,7 +1198,39 @@ export async function sendGuideMessage(
     const response = await fetch(`${BASE_URL}/guide/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message, language }),
+      body: JSON.stringify({
+        message,
+        language,
+        ...(caseContext ? {
+          case_context: {
+            case_title: caseContext.caseTitle,
+            initial_statement: caseContext.initialStatement,
+            user_objective: caseContext.userObjective,
+            objective_urgency: caseContext.objectiveUrgency,
+            jurisdiction: caseContext.jurisdiction,
+            jurisdiction_basis: caseContext.jurisdictionBasis,
+            facts: caseContext.facts.map((fact) => ({ ...fact })),
+            open_questions: [...caseContext.openQuestions],
+            assumptions: [...caseContext.assumptions],
+            conflicts: [...caseContext.conflicts],
+            evidence: caseContext.evidence.map((item) => ({ ...item })),
+            document_count: caseContext.documentCount,
+            legal_issue_categories: [...caseContext.legalIssueCategories],
+            legal_knowledge_status: caseContext.legalKnowledgeStatus,
+            legal_sources: caseContext.legalSources.map((source) => ({
+              title: source.title,
+              record_type: source.recordType,
+              status: source.status,
+              jurisdiction: source.jurisdiction,
+              verification_status: source.verificationStatus,
+              freshness_status: source.freshnessStatus,
+              applicability_status: source.applicabilityStatus,
+            })),
+            safety_context: caseContext.safetyContext,
+            safety_urgency: caseContext.safetyUrgency,
+          },
+        } : {}),
+      }),
       signal: controller.signal,
     });
     const body = await response.json().catch(() => null);
