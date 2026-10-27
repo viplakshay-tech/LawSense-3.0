@@ -143,7 +143,7 @@ async function enterCase(page: Page): Promise<void> {
 
 test('case workspace exposes persistent Legal Advisory and case-aware Guide chat', async ({ page }) => {
   await enterCase(page);
-  const caseIdMatch = page.url().match(/\\/case\\/([^/]+)$/);
+  const caseIdMatch = page.url().match(/\/case\/([^/]+)$/);
   expect(caseIdMatch).toBeTruthy();
   const advisory = page.getByRole('button', {
     name: 'Open Legal Advisory based on information recorded so far',
