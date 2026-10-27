@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
+import stat
 import tempfile
 import unittest
 from pathlib import Path
@@ -95,6 +97,14 @@ class ApiBoundaryIntegrationTests(unittest.TestCase):
         status, body = _asgi_request("POST", "/cases", {"initialStatement": statement})
         self.assertEqual(status, 201, body)
         return CaseState.model_validate(body)
+
+    @unittest.skipIf(os.name == "nt", "POSIX mode bits are not Windows ACLs")
+    def test_local_database_and_directory_permissions_are_restricted(self) -> None:
+        directory_mode = stat.S_IMODE(database.DB_PATH.parent.stat().st_mode)
+        database_mode = stat.S_IMODE(database.DB_PATH.stat().st_mode)
+
+        self.assertEqual(directory_mode & 0o777, 0o700)
+        self.assertEqual(database_mode & 0o777, 0o600)
 
     def test_capacitor_android_origin_is_allowlisted_for_local_health_check(self) -> None:
         cors_options = next(
