@@ -131,9 +131,11 @@ def chat_with_local_model(
     # The route validates these turns, but sanitize again at the model boundary so
     # direct internal callers cannot add arbitrary roles or unbounded history.
     for turn in (conversation_history or [])[-8:]:
+        if not isinstance(turn, dict):
+            continue
         role = turn.get("role")
         content = turn.get("content")
-        if role not in {"user", "assistant"} or not isinstance(content, str) or not content.strip():
+        if role not in ("user", "assistant") or not isinstance(content, str) or not content.strip():
             continue
         messages.append({"role": role, "content": content.strip()[:2_000]})
     messages.append({
