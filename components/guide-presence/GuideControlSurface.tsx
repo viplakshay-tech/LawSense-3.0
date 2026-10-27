@@ -59,14 +59,18 @@ export function GuideControlSurface() {
   const chatEntrySequenceRef = useRef(0);
   const chatInFlightRef = useRef(false);
 
-  useEffect(() => {
+  const [chatCaseId, setChatCaseId] = useState(activeCaseId);
+  if (chatCaseId !== activeCaseId) {
+    // Reset synchronously before committing a new case's UI, so a previous
+    // case's temporary conversation is never painted beside the new case.
+    setChatCaseId(activeCaseId);
     chatRequestSequenceRef.current += 1;
     chatInFlightRef.current = false;
     setChatEntries([]);
     setChatDraft('');
     setChatSending(false);
     setChatError(null);
-  }, [activeCaseId]);
+  }
 
   function updateExpanded(next: boolean) {
     expandedRef.current = next;
