@@ -209,7 +209,7 @@ class AuthoritativeLegalKnowledgeSeedTests(unittest.TestCase):
 
     def test_india_code_catalog_uses_the_current_portal_and_verified_tenancy_record(self) -> None:
         catalog_path = (
-            Path(__file__).resolve().parents[4]
+            Path(__file__).resolve().parents[3]
             / "data"
             / "knowledge"
             / "source_catalog"
