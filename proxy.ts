@@ -8,8 +8,8 @@ import {
 
 const PUBLIC_PATHS = new Set([
   '/unlock',
-  '/api/access/status',
-  '/api/access/unlock',
+  '/access-control/status',
+  '/access-control/unlock',
   '/api/health',
 ]);
 
@@ -30,7 +30,7 @@ export function proxy(request: NextRequest) {
   if (PUBLIC_PATHS.has(pathname)) return NextResponse.next();
 
   const mode = getAccessMode();
-  const isApiRequest = pathname.startsWith('/api/');
+  const isApiRequest = pathname.startsWith('/api/') || pathname.startsWith('/access-control/');
   const localHost = isLoopbackHost(request.nextUrl.hostname);
 
   if (mode === 'local-only') {
