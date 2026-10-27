@@ -7,7 +7,7 @@ import {
   getAccessMode,
   getConfiguredAccessPassphrase,
   safeReturnPath,
-} from '@/lib/server/access-session';
+} from '../../../lib/server/access-session';
 
 function isLoopbackHost(hostname: string): boolean {
   const host = hostname.toLowerCase().replace(/^\[|\]$/g, '');
