@@ -51,14 +51,6 @@ export function GuideControlSurface() {
   const previousPathnameRef = useRef(pathname);
   const caseId = snapshot.caseState?.id ?? null;
 
-  useEffect(() => {
-    chatRequestRef.current += 1;
-    setChatTurns([]);
-    setChatText('');
-    setChatError(null);
-    setChatPending(false);
-  }, [caseId]);
-
   useEffect(() => () => {
     chatRequestRef.current += 1;
   }, []);
