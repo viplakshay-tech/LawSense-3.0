@@ -226,7 +226,7 @@ class AuthoritativeLegalKnowledgeSeedTests(unittest.TestCase):
             tenancy["officialUrl"],
             "https://cdnbbsr.s3waas.gov.in/s38208974663db80265e9bfe7b222dcb18/uploads/2025/12/202512292052328583.pdf",
         )
-        self.assertEqual(tenancy["verificationDate"], "2026-10-09")
+        self.assertEqual(tenancy["verificationDate"], "2026-10-27")
         self.assertIn("commencement notification under section 1(3) not verified", tenancy["version"])
 
 
