@@ -219,6 +219,25 @@ test('the Guide restores keyboard focus and the real Twin graph remains usable a
   expect(widths.content).toBeGreaterThan(widths.visible);
   await expect(mobileNavigation.getByRole('link', { name: 'Understand' })).toBeVisible();
   await expect(mobileNavigation.getByRole('link', { name: 'Evidence' })).toHaveAttribute('aria-label', 'Evidence');
+  await expect(page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).resolves.toBe(true);
+
+  const expandGuide = page.getByRole('button', { name: 'Expand Guide control surface' });
+  await expandGuide.click();
+  await page.keyboard.press('Escape');
+  await expect(expandGuide).toHaveAttribute('aria-expanded', 'false');
+  await expect(expandGuide).toBeFocused();
+
+  await expandGuide.click();
+  await mobileNavigation.getByRole('link', { name: 'Law', exact: true }).click();
+  await expect(page).toHaveURL(`/case/${caseId}/guide`);
+  await expect(expandGuide).toHaveAttribute('aria-expanded', 'false');
+  await expect(expandGuide).toBeFocused();
+
+  await mobileNavigation.getByRole('link', { name: 'Legal Twin' }).click();
+  await expect(page).toHaveURL(`/case/${caseId}/twin`);
+  const graph = page.getByRole('region', { name: 'Living Legal Twin CaseState projection' });
+  await expect(graph).toBeVisible();
+  await expect(graph.locator('svg').first()).toBeVisible();
   const horizontalOverflow = await page.evaluate(() => {
     if (document.documentElement.scrollWidth <= window.innerWidth) return [];
     const clippingOverflow = new Set(['auto', 'scroll', 'hidden', 'clip']);
@@ -269,25 +288,6 @@ test('the Guide restores keyboard focus and the real Twin graph remains usable a
     await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
     `Unexpected horizontal page overflow at 390px: ${JSON.stringify(horizontalOverflow)}`,
   ).toBe(true);
-
-  const expandGuide = page.getByRole('button', { name: 'Expand Guide control surface' });
-  await expandGuide.click();
-  await page.keyboard.press('Escape');
-  await expect(expandGuide).toHaveAttribute('aria-expanded', 'false');
-  await expect(expandGuide).toBeFocused();
-
-  await expandGuide.click();
-  await mobileNavigation.getByRole('link', { name: 'Law', exact: true }).click();
-  await expect(page).toHaveURL(`/case/${caseId}/guide`);
-  await expect(expandGuide).toHaveAttribute('aria-expanded', 'false');
-  await expect(expandGuide).toBeFocused();
-
-  await mobileNavigation.getByRole('link', { name: 'Legal Twin' }).click();
-  await expect(page).toHaveURL(`/case/${caseId}/twin`);
-  const graph = page.getByRole('region', { name: 'Living Legal Twin CaseState projection' });
-  await expect(graph).toBeVisible();
-  await expect(graph.locator('svg').first()).toBeVisible();
-  await expect(page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).resolves.toBe(true);
 });
 
 test('a case update marks a saved draft stale and blocks old fact reuse until source refresh', async ({ page }) => {
