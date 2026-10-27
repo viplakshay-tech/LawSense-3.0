@@ -5,7 +5,7 @@ import type { FormEvent, KeyboardEvent } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Activity, ArrowLeft, ChevronDown, ChevronUp, CircleHelp, Loader2, MessageCircle, Mic2, Radio, Send, ShieldAlert, Trash2, Volume2, VolumeX } from 'lucide-react';
 import { guidePresenceStateFromSnapshot, useGuideRuntime } from '@/components/guide-runtime';
-import { sendGuideMessage, type GuideChatLanguage } from '@/lib/api';
+import { sendGuideMessage, type GuideChatLanguage, type GuideConversationTurn } from '@/lib/api';
 import type { GuideAction } from '@/components/guide-runtime/types';
 import { GuidePresence } from './GuidePresence';
 import { GUIDE_PRESENCE_LABELS } from './types';
@@ -75,7 +75,14 @@ function GuideConversationPanel({
     setChatEntries((current) => [...current.slice(-9), userEntry]);
 
     try {
-      const response = await sendGuideMessage(message, chatLanguage, caseId);
+      const conversationHistory = chatEntries
+        .slice(-8)
+        .filter((entry) => entry.role === 'you' || entry.status !== 'unavailable')
+        .map<GuideConversationTurn>((entry) => ({
+          role: entry.role === 'you' ? 'user' : 'assistant',
+          content: entry.text,
+        }));
+      const response = await sendGuideMessage(message, chatLanguage, caseId, conversationHistory);
       if (requestToken !== chatRequestSequenceRef.current) return;
       const guideEntry: GuideChatEntry = {
         id: `guide-chat-${++chatEntrySequenceRef.current}`,
