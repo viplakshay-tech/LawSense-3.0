@@ -14,53 +14,19 @@ function isLoopbackHost(hostname: string): boolean {
   return host === 'localhost' || host.endsWith('.localhost') || host === '127.0.0.1' || host === '::1';
 }
 
-export async function POST(request: NextRequest) {
-  const mode = getAccessMode();
-  if (mode === 'local-only') {
-    return NextResponse.json(
-      { status: 'unavailable', detail: 'Network use requires a configured LAWSENSE_ACCESS_PIN with a random passphrase of at least 16 characters on the server.' },
-      { status: 503, headers: { 'Cache-Control': 'no-store' } },
-    );
-  }
-  if (mode === 'misconfigured') {
-    return NextResponse.json(
-      { status: 'unavailable', detail: 'LAWSENSE_ACCESS_PIN must contain at least 16 characters. Use a generated random passphrase.' },
-      { status: 503, headers: { 'Cache-Control': 'no-store' } },
-    );
-  }
+type BoundedJsonResult =
+  | { ok: true; value: unknown }
+  | { ok: false; status: 400 | 413; detail: string };
 
-  const passphrase = getConfiguredAccessPassphrase();
-  if (!passphrase) {
+async function readBoundedJson(request: NextRequest): Promise<BoundedJsonResult> {
+  const parsed = await readBoundedJson(request);
+  if (!parsed.ok) {
     return NextResponse.json(
-      { status: 'unavailable', detail: 'Access passphrase is not configured.' },
-      { status: 503, headers: { 'Cache-Control': 'no-store' } },
+      { status: 'unavailable', detail: parsed.detail },
+      { status: parsed.status, headers: { 'Cache-Control': 'no-store' } },
     );
   }
-
-  if (!isLoopbackHost(request.nextUrl.hostname) && request.nextUrl.protocol !== 'https:') {
-    return NextResponse.json(
-      { status: 'unavailable', detail: 'Use HTTPS for network access so the passphrase is not sent over plain HTTP.' },
-      { status: 400, headers: { 'Cache-Control': 'no-store' } },
-    );
-  }
-
-  const declaredLength = Number(request.headers.get('content-length') ?? '0');
-  if (Number.isFinite(declaredLength) && declaredLength > 4096) {
-    return NextResponse.json(
-      { status: 'unavailable', detail: 'Unlock request is too large.' },
-      { status: 413, headers: { 'Cache-Control': 'no-store' } },
-    );
-  }
-
-  let payload: unknown;
-  try {
-    payload = await request.json();
-  } catch {
-    return NextResponse.json(
-      { status: 'unavailable', detail: 'Enter the access passphrase and try again.' },
-      { status: 400, headers: { 'Cache-Control': 'no-store' } },
-    );
-  }
+  const payload = parsed.value;
 
   if (
     typeof payload !== 'object'
