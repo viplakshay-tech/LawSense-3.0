@@ -11,6 +11,7 @@ import {
 const guidePresenceCss = await readFile(new URL('../../components/guide-presence/GuidePresence.css', import.meta.url), 'utf8');
 const avatarCss = await readFile(new URL('../../components/guide-presence/avatar/IllustratedAvatarRenderer.css', import.meta.url), 'utf8');
 const callCss = await readFile(new URL('../../app/case/[id]/voice/VoiceCaseClient.css', import.meta.url), 'utf8');
+const voiceClient = await readFile(new URL('../../app/case/[id]/voice/VoiceCaseClient.tsx', import.meta.url), 'utf8');
 
 test('voice milestones present the state reported by the call flow', () => {
   const started = guideVoiceSnapshotForEvent({ type: 'capture_started', draftId: 'd', captureId: 'c', provider: 'browser', language: 'english' }, 'IDLE', 'idle');
@@ -102,4 +103,9 @@ test('the call layout has a stacked narrow viewport treatment', () => {
   assert.match(callCss, /@media\s*\(max-width:\s*54rem\)/);
   assert.match(callCss, /@media\s*\(max-width:\s*35rem\)/);
   assert.match(callCss, /@media\s*\(prefers-reduced-motion:\s*reduce\)/);
+});
+
+
+test('voice conversation is remounted per case so prior dialogue cannot bleed into another case', () => {
+  assert.match(voiceClient, /<GuideConversation\s+key=\{caseData\.id\}/);
 });
