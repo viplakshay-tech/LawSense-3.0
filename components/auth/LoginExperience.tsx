@@ -152,7 +152,7 @@ export default function LoginExperience() {
               <p className="mt-2 text-xs leading-5 text-slate-500">Use at least 12 characters. Your password is stored as a one-way hash, not plain text.</p>
             </div>
             {error && <p role="alert" className="rounded-xl border border-rose-300/20 bg-rose-300/[0.06] px-3 py-2 text-sm leading-5 text-rose-200">{error}</p>}
-            <button type="submit" disabled={busy || screen === 'checking'} className="flex w-full items-center justify-center rounded-xl border border-cyan-200/20 bg-cyan-200/10 px-4 py-3 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-200/15 disabled:cursor-not-allowed disabled:opacity-60">
+            <button type="submit" disabled={busy} className="flex w-full items-center justify-center rounded-xl border border-cyan-200/20 bg-cyan-200/10 px-4 py-3 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-200/15 disabled:cursor-not-allowed disabled:opacity-60">
               {busy ? 'Please wait…' : screen === 'setup' ? 'Create account and secure cases' : 'Sign in securely'}
             </button>
           </form>
