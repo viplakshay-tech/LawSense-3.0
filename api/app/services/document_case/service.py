@@ -15,6 +15,7 @@ from uuid import uuid4
 
 from app.core.config import DATA_DIR
 from app.core.storage_security import ensure_private_directory
+from app.services.case_operation_lock import case_operation_serialized
 from app.db.database import get_case, save_case
 from app.engines.document_intelligence.models import (
     Classification,
@@ -73,6 +74,7 @@ def process_document(
     )
 
 
+@case_operation_serialized
 def upload_document_for_case(
     case_id: str,
     document_bytes: bytes,
