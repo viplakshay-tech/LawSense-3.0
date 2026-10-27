@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { Mic, MicOff, RotateCcw, Send } from 'lucide-react';
 import type { GuideVoiceEvent, VoiceLanguage } from '@/components/guide-runtime/voice-adapter/events';
 import type { RecognitionLanguage } from './VoiceCapture';
-import { sendGuideMessage } from '@/lib/api';
+import { sendGuideMessage, type GuideCaseContext } from '@/lib/api';
 import {
   requestNativeGuideAudio,
   subscribeNativeGuideAudio,
@@ -67,6 +67,7 @@ interface GuideConversationProps {
   language: RecognitionLanguage;
   openQuestions: readonly string[];
   hasDraft: boolean;
+  caseContext?: GuideCaseContext;
   disabled?: boolean;
   onUserTurn: (text: string, inputMethod: 'voice' | 'text') => void;
   onStateChange?: (presentation: GuideConversationPresentation) => void;
@@ -111,6 +112,7 @@ export default function GuideConversation({
   language,
   openQuestions,
   hasDraft,
+  caseContext,
   disabled = false,
   onUserTurn,
   onStateChange,
@@ -141,6 +143,7 @@ export default function GuideConversation({
   const currentCaptureIdRef = useRef('');
   const questionIndexRef = useRef(0);
   const questionsRef = useRef(openQuestions);
+  const caseContextRef = useRef(caseContext);
   const hasDraftRef = useRef(hasDraft);
   const draftIdRef = useRef(draftId);
   const languageRef = useRef(language);
@@ -156,6 +159,7 @@ export default function GuideConversation({
 
   useEffect(() => { disabledRef.current = disabled; }, [disabled]);
   useEffect(() => { questionsRef.current = openQuestions; }, [openQuestions]);
+  useEffect(() => { caseContextRef.current = caseContext; }, [caseContext]);
   useEffect(() => { hasDraftRef.current = hasDraft; }, [hasDraft]);
   useEffect(() => { draftIdRef.current = draftId; }, [draftId]);
   useEffect(() => { languageRef.current = language; }, [language]);
@@ -419,7 +423,11 @@ export default function GuideConversation({
     transition('processing', 'Preparing a response from the local LawSense Guide.');
     let responseText: string;
     try {
-      const result = await sendGuideMessage(statement, languageRef.current.toLowerCase() as 'english' | 'hindi' | 'hinglish');
+      const result = await sendGuideMessage(
+        statement,
+        languageRef.current.toLowerCase() as 'english' | 'hindi' | 'hinglish',
+        caseContextRef.current,
+      );
       responseText = result.reply;
     } catch {
       const localUnavailable = languageRef.current === 'Hindi'
