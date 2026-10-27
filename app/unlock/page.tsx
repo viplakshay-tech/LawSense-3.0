@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, type FormEvent } from 'react';
+import Link from 'next/link';
 import { LockKeyhole, ShieldCheck, ShieldAlert, LoaderCircle } from 'lucide-react';
 
 type AccessMode = 'local-only' | 'misconfigured' | 'passphrase';
@@ -28,10 +29,16 @@ export default function UnlockPage() {
   const [reason, setReason] = useState<string | null>(null);
 
   useEffect(() => {
-    const host = window.location.hostname.toLowerCase().replace(/^\[|\]$/g, '');
-    setIsLocalBrowser(host === 'localhost' || host.endsWith('.localhost') || host === '127.0.0.1' || host === '::1');
-    setReason(new URLSearchParams(window.location.search).get('reason'));
     const controller = new AbortController();
+    const host = window.location.hostname.toLowerCase().replace(/^\[|\]$/g, '');
+    const localBrowser = host === 'localhost' || host.endsWith('.localhost') || host === '127.0.0.1' || host === '::1';
+    const queryReason = new URLSearchParams(window.location.search).get('reason');
+    // Apply browser-only values after mount to keep server and first-client markup aligned.
+    queueMicrotask(() => {
+      if (controller.signal.aborted) return;
+      setIsLocalBrowser(localBrowser);
+      setReason(queryReason);
+    });
     void fetch('/access-control/status', {
       cache: 'no-store',
       signal: controller.signal,
@@ -163,9 +170,9 @@ export default function UnlockPage() {
 
           <div className="flex flex-wrap items-center gap-3 border-t border-white/[0.08] pt-4">
             {(sessionActive || (mode === 'local-only' && isLocalBrowser)) && (
-              <a href="/" className="inline-flex min-h-10 items-center rounded-lg px-3 text-sm font-medium text-slate-300 transition hover:bg-white/[0.05] hover:text-white">
+              <Link href="/" className="inline-flex min-h-10 items-center rounded-lg px-3 text-sm font-medium text-slate-300 transition hover:bg-white/[0.05] hover:text-white">
                 {sessionActive ? 'Return to workspace' : 'Continue on this device'}
-              </a>
+              </Link>
             )}
             {sessionActive && (
               <button type="button" disabled={working} onClick={() => void lockSession()} className="ml-auto inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/10 px-3 text-sm font-medium text-slate-300 hover:bg-white/[0.05] disabled:opacity-50">
