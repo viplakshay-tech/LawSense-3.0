@@ -87,13 +87,17 @@ def _normalise_host(value: str) -> str:
     return f"{host}:{port}" if port is not None else host
 
 
-def _allowed_hosts() -> frozenset[str]:
-    configured = {
-        _normalise_host(item)
+def _configured_hosts() -> frozenset[str]:
+    return frozenset(
+        normalized
         for item in os.getenv(_ALLOWED_HOSTS_ENV, "").split(",")
         if item.strip()
-    }
-    return frozenset(_DEFAULT_HOSTS | configured)
+        and (normalized := _normalise_host(item))
+    )
+
+
+def _allowed_hosts() -> frozenset[str]:
+    return frozenset(_DEFAULT_HOSTS | _configured_hosts())
 
 
 def _normalise_origin(value: str) -> str | None:
@@ -143,18 +147,21 @@ def _host_is_allowed(host_value: str) -> bool:
     return address.is_private and not address.is_loopback and not address.is_link_local
 
 
-def _allowed_origins() -> frozenset[str]:
-    configured = {
+def _configured_origins() -> frozenset[str]:
+    return frozenset(
         normalized
         for item in os.getenv(_ALLOWED_ORIGINS_ENV, "").split(",")
         if (normalized := _normalise_origin(item))
-    }
+    )
+
+
+def _allowed_origins() -> frozenset[str]:
     defaults = {
         normalized
         for item in _DEFAULT_ORIGINS
         if (normalized := _normalise_origin(item))
     }
-    return frozenset(defaults | configured)
+    return frozenset(defaults | _configured_origins())
 
 
 def _origin_is_allowed(origin: str) -> bool:
@@ -247,10 +254,12 @@ class LocalOnlyApiMiddleware:
             await response(scope, receive, send_no_store)
             return
 
-        if not _remote_access_enabled():
-            client = scope.get("client")
-            client_host = client[0] if client else ""
-            if not _is_loopback(client_host):
+        client = scope.get("client")
+        client_host = client[0] if client else ""
+        loopback_client = _is_loopback(client_host)
+
+        if not loopback_client:
+            if not _remote_access_enabled():
                 response = JSONResponse(
                     status_code=403,
                     content={
@@ -261,6 +270,43 @@ class LocalOnlyApiMiddleware:
                             "at the network layer. This setting does not add authentication."
                         )
                     },
+                    headers={"Cache-Control": "no-store"},
+                )
+                await response(scope, receive, send_no_store)
+                return
+
+            # Opting into remote peers must not silently retain permissive
+            # localhost/test defaults. Require explicit deployment allowlists.
+            configured_hosts = _configured_hosts()
+            configured_origins = _configured_origins()
+            if not configured_hosts or not configured_origins:
+                response = JSONResponse(
+                    status_code=403,
+                    content={
+                        "detail": (
+                            "Remote API access requires explicit "
+                            "LAWSENSE_ALLOWED_API_HOSTS and LAWSENSE_ALLOWED_API_ORIGINS "
+                            "values in addition to LAWSENSE_ALLOW_REMOTE_API=true."
+                        )
+                    },
+                    headers={"Cache-Control": "no-store"},
+                )
+                await response(scope, receive, send_no_store)
+                return
+
+            if _normalise_host(host_value) not in configured_hosts:
+                response = JSONResponse(
+                    status_code=403,
+                    content={"detail": "The remote API Host is not in LAWSENSE_ALLOWED_API_HOSTS."},
+                    headers={"Cache-Control": "no-store"},
+                )
+                await response(scope, receive, send_no_store)
+                return
+
+            if origin is not None and _normalise_origin(origin) not in configured_origins:
+                response = JSONResponse(
+                    status_code=403,
+                    content={"detail": "The remote browser Origin is not in LAWSENSE_ALLOWED_API_ORIGINS."},
                     headers={"Cache-Control": "no-store"},
                 )
                 await response(scope, receive, send_no_store)
