@@ -1180,6 +1180,11 @@ export async function healthCheck(): Promise<boolean> {
 
 export type GuideChatLanguage = 'english' | 'hindi' | 'hinglish';
 
+export interface GuideConversationTurn {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 export interface GuideChatResponse {
   reply: string;
   status: 'ok' | 'unavailable';
@@ -1191,16 +1196,29 @@ export async function sendGuideMessage(
   message: string,
   language: GuideChatLanguage,
   caseContext?: GuideCaseContext,
+  conversationHistory: GuideConversationTurn[] = [],
 ): Promise<GuideChatResponse> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 52_000);
   try {
+    let historyBudget = 8_000;
+    const boundedHistory: GuideConversationTurn[] = [];
+    for (const turn of conversationHistory.slice(-8).reverse()) {
+      if ((turn.role !== 'user' && turn.role !== 'assistant') || !turn.content.trim() || historyBudget <= 0) continue;
+      const content = turn.content.trim().slice(0, Math.min(2_000, historyBudget));
+      if (!content) continue;
+      boundedHistory.push({ role: turn.role, content });
+      historyBudget -= content.length;
+    }
+    boundedHistory.reverse();
+
     const response = await fetch(`${BASE_URL}/guide/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         message,
         language,
+        conversation_history: boundedHistory,
         ...(caseContext ? {
           case_context: {
             case_title: caseContext.caseTitle,
