@@ -20,7 +20,7 @@ import {
   type VoiceTranscriptResponse,
 } from '@/lib/api';
 import { useCaseState } from '../CaseStateProvider';
-import { guidePresenceStateFromSnapshot, useGuideRuntime } from '@/components/guide-runtime';
+import { guidePresenceStateFromSnapshot, useGuideRuntime, type GuideAction } from '@/components/guide-runtime';
 
 const LANGUAGES: RecognitionLanguage[] = ['English', 'Hindi', 'Hinglish'];
 
@@ -47,9 +47,39 @@ function describeLanguage(value: string | null | undefined): string {
   return value || 'Not detected';
 }
 
+function workspaceActionCopy(action: GuideAction): { title: string; detail: string } {
+  switch (action.type) {
+    case 'ASK_CLARIFICATION':
+      return { title: 'Clarify key facts', detail: 'Review open questions and missing details.' };
+    case 'SHOW_EVIDENCE':
+      return { title: 'Review evidence', detail: 'Open documents and evidence linked to this case.' };
+    case 'SHOW_LEGAL_GROUNDING':
+      return { title: 'Review legal grounding', detail: 'Inspect recorded legal sources and limitations.' };
+    case 'OPEN_JOURNEY':
+      return { title: 'Open legal journey', detail: 'See the next recorded case steps.' };
+    case 'SHOW_TWIN':
+      return { title: 'Open Legal Twin', detail: 'Explore connected facts, evidence and issues.' };
+    case 'OPEN_SAFETY':
+      return { title: 'Review safety resources', detail: 'Open the existing safety workspace.' };
+    case 'SPEAK_RESPONSE':
+      return { title: 'Hear case summary', detail: 'Play the current saved case summary.' };
+    case 'START_VOICE':
+      return { title: 'Start voice capture', detail: 'Return to the voice-capture workspace.' };
+    case 'NAVIGATE':
+      return {
+        title: action.payload.target === 'case' ? 'Open case overview' : `Open ${action.payload.target}`,
+        detail: 'Navigate to this workspace in LawSense.',
+      };
+    default: {
+      const exhaustiveAction: never = action;
+      return exhaustiveAction;
+    }
+  }
+}
+
 export default function VoiceCaseClient({ id }: { id: string }) {
   const { caseState: caseData, loading, error: caseError, revision, replaceCaseState, refreshCaseState } = useCaseState();
-  const { snapshot: guideRuntimeSnapshot, dispatch: dispatchCaseGuideEvent } = useGuideRuntime();
+  const { snapshot: guideRuntimeSnapshot, dispatch: dispatchCaseGuideEvent, runAction: runGuideAction, actionRunning: guideActionRunning } = useGuideRuntime();
   const [transcript, setTranscript] = useState('');
   const [inputMethod, setInputMethod] = useState<VoiceInputMethod>('text');
   const [language, setLanguage] = useState<RecognitionLanguage>('Hinglish');
@@ -408,6 +438,39 @@ export default function VoiceCaseClient({ id }: { id: string }) {
                     ? 'Preparing your transcript review. Nothing is added until you confirm.'
                     : 'Your microphone stays off until you choose to speak.'}
               </p>
+
+              {guideRuntimeSnapshot.availableActions.filter((action) => (
+                action.type !== 'START_VOICE'
+                && !(action.type === 'NAVIGATE' && action.payload.target === 'voice')
+              )).length > 0 && (
+                <section aria-labelledby="guide-workspace-actions-heading" className="mt-4 rounded-2xl border border-white/[0.1] bg-white/[0.025] p-4">
+                  <h2 id="guide-workspace-actions-heading" className="text-sm font-semibold text-slate-100">Continue with your Guide</h2>
+                  <p className="mt-1 text-xs leading-5 text-slate-400">Choose a supported action. The Guide will not submit forms, contact anyone, or change case facts just because you spoke.</p>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    {guideRuntimeSnapshot.availableActions
+                      .filter((action) => (
+                        action.type !== 'START_VOICE'
+                        && !(action.type === 'NAVIGATE' && action.payload.target === 'voice')
+                      ))
+                      .slice(0, 4)
+                      .map((action, index) => {
+                        const copy = workspaceActionCopy(action);
+                        return (
+                          <button
+                            key={action.type + '-' + index}
+                            type="button"
+                            disabled={guideActionRunning || working || committed}
+                            onClick={() => void runGuideAction(action)}
+                            className="flex min-h-16 flex-col items-start justify-center rounded-xl border border-white/[0.1] bg-[#0d141d] px-3.5 py-3 text-left transition hover:border-[#d9bd8c]/40 hover:bg-white/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e9bd7b] disabled:cursor-wait disabled:opacity-50"
+                          >
+                            <span className="text-sm font-semibold text-slate-100">{copy.title}</span>
+                            <span className="mt-1 text-xs leading-5 text-slate-400">{copy.detail}</span>
+                          </button>
+                        );
+                      })}
+                  </div>
+                </section>
+              )}
             </section>
 
             <section aria-labelledby="transcript-heading" className={"ls-guide-call__transcriptCard"}>
