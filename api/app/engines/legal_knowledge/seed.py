@@ -75,13 +75,12 @@ _SOURCES = (
         version=(
             "Act No. 02 of 2022; official Uttarakhand UDD copy listed 2025-12-29; "
             "commencement notification under section 1(3) not verified"
-    ,
-        retrieved_at=datetime(2026, 10, 27, 0, 0, tzinfo=timezone.utc)    ),
+        ),
         publication_date=date(2022, 1, 27),
         effective_date=None,
         jurisdiction_id=_UTTARAKHAND_JURISDICTION_ID,
-    ),
-    _SourceSeed(
+        retrieved_at=datetime(2026, 10, 27, 0, 0, tzinfo=timezone.utc),
+    ),    _SourceSeed(
         id="source-pib-model-tenancy-act-adoption-2021",
         title="Cabinet approves Model Tenancy Act for circulation to States/UTs for adoption",
         authority_id=_PIB_AUTHORITY_ID,
