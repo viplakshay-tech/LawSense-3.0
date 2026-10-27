@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -23,6 +24,7 @@ def _asgi_request(
     *,
     raw_body: bytes | None = None,
     content_type: str = "application/json",
+    client_host: str = "testclient",
 ) -> tuple[int, object]:
     body = (
         raw_body
@@ -61,7 +63,7 @@ def _asgi_request(
         "query_string": parsed.query.encode("ascii"),
         "root_path": "",
         "headers": [(b"host", b"testserver"), (b"content-type", content_type.encode("ascii"))],
-        "client": ("testclient", 123),
+        "client": (client_host, 123),
         "server": ("testserver", 80),
         "state": {},
     }
@@ -105,6 +107,31 @@ class ApiBoundaryIntegrationTests(unittest.TestCase):
         origins = cors_options["allow_origins"]
         self.assertIn("https://localhost", origins)
         self.assertNotIn("*", origins)
+
+    def test_remote_api_client_is_blocked_by_default(self) -> None:
+        with patch.dict(os.environ, {"LAWSENSE_ALLOW_REMOTE_API": "false"}):
+            status, body = _asgi_request(
+                "GET",
+                "/health",
+                client_host="192.168.1.50",
+            )
+        self.assertEqual(status, 403, body)
+        self.assertIn("local-machine requests only", body["detail"].lower())
+
+    def test_loopback_api_client_remains_available(self) -> None:
+        with patch.dict(os.environ, {"LAWSENSE_ALLOW_REMOTE_API": "false"}):
+            status, body = _asgi_request("GET", "/health", client_host="127.0.0.1")
+        self.assertEqual(status, 200, body)
+        self.assertEqual(body["service"], "lawsense-api")
+
+    def test_remote_api_access_requires_explicit_operator_opt_in(self) -> None:
+        with patch.dict(os.environ, {"LAWSENSE_ALLOW_REMOTE_API": "true"}):
+            status, body = _asgi_request(
+                "GET",
+                "/health",
+                client_host="192.168.1.50",
+            )
+        self.assertEqual(status, 200, body)
 
     def test_landlord_deposit_complete_analysis_and_reasoning_are_structured_and_fail_closed(self) -> None:
         case = self.post_case("My landlord did not return my ₹30,000 security deposit.")
