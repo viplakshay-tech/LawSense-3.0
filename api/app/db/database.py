@@ -5,11 +5,13 @@ from contextlib import contextmanager
 from typing import Optional
 
 from app.core.config import DB_PATH
+from app.core.storage_security import prepare_private_file
 from app.schemas.case_state import CaseState
 
 
 @contextmanager
 def get_connection() -> Iterator[sqlite3.Connection]:
+    prepare_private_file(DB_PATH)
     connection = sqlite3.connect(DB_PATH)
     connection.row_factory = sqlite3.Row
     try:
