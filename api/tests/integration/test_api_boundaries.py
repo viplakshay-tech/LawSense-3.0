@@ -262,7 +262,7 @@ class ApiBoundaryIntegrationTests(unittest.TestCase):
         self.assertEqual(body["service"], "lawsense-api")
         self.assertEqual(headers.get(b"cache-control"), b"no-store")
 
-    def test_remote_api_access_requires_explicit_operator_opt_in(self) -> None:
+    def test_remote_api_access_requires_explicit_host_and_origin_allowlists(self) -> None:
         headers: dict[bytes, bytes] = {}
         with patch.dict(os.environ, {"LAWSENSE_ALLOW_REMOTE_API": "true"}):
             status, body = _asgi_request(
@@ -271,8 +271,34 @@ class ApiBoundaryIntegrationTests(unittest.TestCase):
                 client_host="192.168.1.50",
                 response_headers=headers,
             )
-        self.assertEqual(status, 200, body)
+        self.assertEqual(status, 403, body)
+        self.assertIn("explicit", body["detail"].lower())
         self.assertEqual(headers.get(b"cache-control"), b"no-store")
+
+    def test_remote_api_requests_cannot_use_default_host_or_origin_allowlists(self) -> None:
+        environment = {
+            "LAWSENSE_ALLOW_REMOTE_API": "true",
+            "LAWSENSE_ALLOWED_API_HOSTS": "api.example.test",
+            "LAWSENSE_ALLOWED_API_ORIGINS": "https://portal.example.test",
+        }
+        with patch.dict(os.environ, environment):
+            default_host_status, default_host_body = _asgi_request(
+                "GET",
+                "/health",
+                client_host="192.168.1.50",
+                host_header="testserver",
+            )
+            default_origin_status, default_origin_body = _asgi_request(
+                "GET",
+                "/health",
+                client_host="192.168.1.50",
+                host_header="api.example.test",
+                origin_header="http://localhost:3000",
+            )
+        self.assertEqual(default_host_status, 403, default_host_body)
+        self.assertIn("LAWSENSE_ALLOWED_API_HOSTS", default_host_body["detail"])
+        self.assertEqual(default_origin_status, 403, default_origin_body)
+        self.assertIn("LAWSENSE_ALLOWED_API_ORIGINS", default_origin_body["detail"])
 
     def test_landlord_deposit_complete_analysis_and_reasoning_are_structured_and_fail_closed(self) -> None:
         case = self.post_case("My landlord did not return my ₹30,000 security deposit.")
