@@ -454,8 +454,8 @@ class ServiceIntegrationTests(unittest.TestCase):
                     "https://indiacode.gov.in/",
                     "https://www.indiacode.nic.in/",
                     "https://cdnbbsr.s3waas.gov.in/",
-                    "https://cdnbbsr.s3waas.gov.in/",
-                )))
+                    "https://udd.uk.gov.in/document/uttarakhand-tenancy-act-2021/",
+                )), f"Unexpected/non-canonical source URL: {record.source_url!r}")
                 self.assertEqual(record.authority_tier, "TIER_1_PRIMARY_OFFICIAL")
                 self.assertTrue(record.provenance)
                 self.assertEqual(record.jurisdiction, "jurisdiction-uttarakhand")
