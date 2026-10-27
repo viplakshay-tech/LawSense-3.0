@@ -19,6 +19,7 @@ from app.core.config import DATA_DIR
 from app.core.storage_security import ensure_private_directory
 from app.db.database import delete_case_records, get_case
 from app.services.privacy.deletion import delete_local_directory
+from app.services.case_operation_lock import case_operation_serialized
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,6 +33,7 @@ def _case_document_key(case_id: str) -> str:
     return hashlib.sha256(case_id.encode("utf-8")).hexdigest()[:32]
 
 
+@case_operation_serialized
 def delete_case_locally(case_id: str, *, data_dir: Path | None = None) -> CaseDeletionResult:
     """Delete one case, its SQL-backed derivatives, and its document folder.
 
