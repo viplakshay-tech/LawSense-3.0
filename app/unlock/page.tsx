@@ -151,7 +151,6 @@ export default function UnlockPage() {
               />
             </div>
             {error && <p role="alert" className="rounded-xl border border-rose-200/20 bg-rose-100/[0.05] p-3 text-sm leading-5 text-rose-100">{error}</p>}
-            {statusMessage && <p role="status" className="text-sm text-slate-300">{statusMessage}</p>}
             <button
               type="submit"
               disabled={working || mode !== 'passphrase' || passphrase.length < 16}
