@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { AlertTriangle, CircleHelp, FileText, LoaderCircle, RefreshCw, Scale, ShieldAlert, X } from 'lucide-react';
+import { useCaseState } from '@/app/case/[id]/CaseStateProvider';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -32,15 +33,24 @@ function stringList(value: unknown): string[] {
     : [];
 }
 
+function verifiedResource(value: JsonRecord): boolean {
+  const status = textValue(value.verification_status ?? value.verificationStatus).toLowerCase();
+  const phone = textValue(value.phone);
+  const official = value.official === true || status === 'verified_official';
+  return official && /^\\+?[0-9 ()-]{3,24}$/.test(phone);
+}
+
 function humanize(value: string): string {
   return value.replace(/[_-]+/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
+  const { caseState } = useCaseState();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<JsonRecord | null>(null);
+  const [resources, setResources] = useState<JsonRecord[]>([]);
   const [legalKnowledgeStatus, setLegalKnowledgeStatus] = useState('');
 
   const loadAdvisory = useCallback(async () => {
@@ -62,6 +72,35 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
       }
       setResult(body.result);
       setLegalKnowledgeStatus(textValue(body.legalKnowledgeStatus));
+      setResources([]);
+
+      // Resource lookup is local and read-only with respect to people/external
+      // services. Only run it when the saved safety analysis flags a context.
+      const safetyContext = caseState?.analysis?.safetyContext;
+      if (safetyContext && safetyContext.context !== 'none') {
+        try {
+          const supportResponse = await fetch(
+            '/api/cases/' + encodeURIComponent(caseId) + '/safety-support',
+            {
+              method: 'POST',
+              cache: 'no-store',
+              headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+              body: '{}',
+            },
+          );
+          if (supportResponse.ok) {
+            const supportBody: unknown = await supportResponse.json().catch(() => null);
+            const assessment = isRecord(supportBody) && isRecord(supportBody.assessment)
+              ? supportBody.assessment
+              : null;
+            const candidates = assessment ? rows(assessment.resources) : [];
+            setResources(candidates.filter(verifiedResource).slice(0, 5));
+          }
+        } catch {
+          // A helpline lookup failure must not hide the legal reasoning already loaded.
+          setResources([]);
+        }
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'The case advisory could not be loaded.');
     } finally {
@@ -115,7 +154,7 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
         onClick={openDialog}
         aria-haspopup="dialog"
         aria-label="Open Legal Advisory based on information recorded so far"
-        className="fixed bottom-[calc(5.3rem+env(safe-area-inset-bottom))] left-3 z-[65] inline-flex min-h-11 items-center gap-2 rounded-full border border-[#d9bd8c]/35 bg-[#111923]/[0.97] px-4 text-xs font-semibold text-[#f2dfb9] shadow-[0_12px_36px_rgba(0,0,0,0.3)] backdrop-blur-xl transition hover:border-[#d9bd8c]/60 hover:bg-[#1b2633] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e9bd7b] motion-reduce:transition-none lg:bottom-5 lg:left-5"
+        className="fixed bottom-[calc(5.3rem+env(safe-area-inset-bottom))] left-3 z-[65] lg:left-[18rem] inline-flex min-h-11 items-center gap-2 rounded-full border border-[#d9bd8c]/35 bg-[#111923]/[0.97] px-4 text-xs font-semibold text-[#f2dfb9] shadow-[0_12px_36px_rgba(0,0,0,0.3)] backdrop-blur-xl transition hover:border-[#d9bd8c]/60 hover:bg-[#1b2633] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e9bd7b] motion-reduce:transition-none lg:bottom-5 lg:left-5"
       >
         <Scale aria-hidden="true" className="h-4 w-4" />
         <span>Legal Advisory</span>
@@ -271,6 +310,44 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
                           </li>
                         ))}
                       </ul>
+                    </section>
+                  )}
+
+                  {resources.length > 0 && (
+                    <section className="rounded-2xl border border-rose-200/15 bg-rose-100/[0.035] p-4 sm:p-5">
+                      <div className="flex items-center gap-2">
+                        <ShieldAlert aria-hidden="true" className="h-4 w-4 text-rose-200" />
+                        <h3 className="text-sm font-semibold">Relevant official support resources</h3>
+                      </div>
+                      <p className="mt-1 text-xs leading-5 text-slate-400">
+                        Suggested because the current case safety assessment flagged a concern. The app does not contact anyone for you. Check that the number and coverage fit your location and situation.
+                      </p>
+                      <div className="mt-3 space-y-3">
+                        {resources.map((item, index) => {
+                          const name = firstText(item, ['name'], 'Official support service');
+                          const phone = textValue(item.phone);
+                          const source = textValue(item.source_url ?? item.sourceUrl);
+                          const url = textValue(item.url);
+                          const safeSource = source.startsWith('https://') ? source : '';
+                          const safeUrl = url.startsWith('https://') ? url : '';
+                          const description = firstText(item, ['availability_note', 'availabilityNote', 'description'], '');
+                          const verifiedOn = textValue(item.verified_on ?? item.verifiedOn);
+                          return (
+                            <article key={textValue(item.resource_id ?? item.resourceId, name + '-' + index)} className="rounded-xl border border-white/[0.07] bg-black/10 p-3">
+                              <p className="text-sm font-semibold text-slate-100">{name}</p>
+                              <a href={'tel:' + phone.replace(/[^+0-9]/g, '')} className="mt-1 inline-flex min-h-10 items-center rounded-lg border border-rose-100/20 px-3 text-base font-semibold text-rose-100 hover:bg-rose-100/[0.06] focus-visible:outline focus-visible:outline-2 focus-visible:outline-rose-200">
+                                Call {phone}
+                              </a>
+                              {description && <p className="mt-2 text-sm leading-6 text-slate-300">{description}</p>}
+                              <div className="mt-2 flex flex-wrap gap-3 text-xs">
+                                {safeUrl && <a href={safeUrl} target="_blank" rel="noreferrer" className="underline decoration-white/30 underline-offset-4 text-slate-300">Service information</a>}
+                                {safeSource && <a href={safeSource} target="_blank" rel="noreferrer" className="underline decoration-white/30 underline-offset-4 text-slate-300">Official source</a>}
+                                {verifiedOn && <span className="text-slate-500">Catalog checked: {verifiedOn}</span>}
+                              </div>
+                            </article>
+                          );
+                        })}
+                      </div>
                     </section>
                   )}
 
