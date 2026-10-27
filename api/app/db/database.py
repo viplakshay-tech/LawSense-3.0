@@ -1,4 +1,5 @@
 import json
+import os
 import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -8,9 +9,32 @@ from app.core.config import DB_PATH
 from app.schemas.case_state import CaseState
 
 
+def _restrict_database_file_permissions() -> None:
+    """Limit SQLite files to the current OS account on POSIX systems.
+
+    The parent data directory is private as well, which protects newly created
+    WAL/SHM files between this check and their eventual cleanup. Windows uses
+    inherited NTFS ACLs and is intentionally not modified here.
+    """
+    if os.name == "nt":
+        return
+    database_path = DB_PATH
+    if database_path.exists():
+        database_path.chmod(0o600)
+    for suffix in ("-wal", "-shm", "-journal"):
+        sidecar = database_path.with_name(database_path.name + suffix)
+        if sidecar.exists():
+            sidecar.chmod(0o600)
+
+
 @contextmanager
 def get_connection() -> Iterator[sqlite3.Connection]:
     connection = sqlite3.connect(DB_PATH)
+    try:
+        _restrict_database_file_permissions()
+    except Exception:
+        connection.close()
+        raise
     connection.row_factory = sqlite3.Row
     try:
         yield connection
