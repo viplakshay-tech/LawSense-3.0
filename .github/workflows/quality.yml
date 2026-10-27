@@ -45,6 +45,8 @@ jobs:
         run: npm run test:session-restoration
       - name: Test access session security helpers
         run: npm run test:access-session
+      - name: Test access-control route handlers
+        run: npm run test:access-routes
       - name: Build production frontend
         env:
           NEXT_TELEMETRY_DISABLED: '1'
