@@ -7,12 +7,14 @@ confirmed by the user are promoted into CaseState facts.
 from __future__ import annotations
 
 import hashlib
+import os
 import re
 from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
 from app.core.config import DATA_DIR
+from app.core.storage_security import ensure_private_directory
 from app.db.database import get_case, save_case
 from app.engines.document_intelligence.models import (
     Classification,
@@ -377,7 +379,12 @@ def _case_document_by_id(case_state: CaseState, document_id: str) -> CaseDocumen
 
 
 def _document_storage_root(data_dir: Path | None = None) -> Path:
-    return ((data_dir or DATA_DIR) / "documents").resolve()
+    candidate = (data_dir or DATA_DIR) / "documents"
+    if candidate.is_symlink():
+        raise ValueError("The local document store must not be a symbolic link.")
+    root = candidate.resolve()
+    ensure_private_directory(root)
+    return root
 
 
 def _document_storage_path(
@@ -389,8 +396,7 @@ def _document_storage_path(
 ) -> Path:
     root = _document_storage_root(data_dir)
     case_key = hashlib.sha256(case_id.encode("utf-8")).hexdigest()[:32]
-    directory = root / case_key
-    directory.mkdir(parents=True, exist_ok=True)
+    directory = ensure_private_directory(root / case_key)
     path = directory / f"{document_id}{extension}"
     if not path.resolve().is_relative_to(root):
         raise ValueError("Resolved document path escaped the local document store.")
@@ -411,11 +417,21 @@ def _stored_document_path(
 
 
 def _store_document_bytes(path: Path, document_bytes: bytes) -> None:
+    descriptor: int | None = None
+    created = False
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0)
     try:
-        with path.open("xb") as stream:
+        descriptor = os.open(path, flags, 0o600)
+        created = True
+        with os.fdopen(descriptor, "wb") as stream:
+            descriptor = None
             stream.write(document_bytes)
     except Exception:
-        path.unlink(missing_ok=True)
+        if descriptor is not None:
+            os.close(descriptor)
+        # Never remove a pre-existing file when exclusive creation fails.
+        if created:
+            path.unlink(missing_ok=True)
         raise
 
 
