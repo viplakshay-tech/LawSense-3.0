@@ -454,6 +454,7 @@ class ServiceIntegrationTests(unittest.TestCase):
                     "https://indiacode.gov.in/",
                     "https://www.indiacode.nic.in/",
                     "https://cdnbbsr.s3waas.gov.in/",
+                    "https://cdnbbsr.s3waas.gov.in/",
                 )))
                 self.assertEqual(record.authority_tier, "TIER_1_PRIMARY_OFFICIAL")
                 self.assertTrue(record.provenance)
