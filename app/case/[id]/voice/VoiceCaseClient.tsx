@@ -14,6 +14,7 @@ import GuideConversation from '@/components/voice/GuideConversation';
 import type { GuideConversationPresentation } from '@/components/voice/conversation';
 import {
   addVoiceStatement,
+  buildGuideCaseContext,
   previewVoiceTranscript,
   type CaseState,
   type VoiceTranscriptResponse,
@@ -83,6 +84,7 @@ export default function VoiceCaseClient({ id }: { id: string }) {
         speechState: guideRuntimeSnapshot.speechState,
       }
     : voiceSnapshot;
+  const guideCaseContext = useMemo(() => caseData ? buildGuideCaseContext(caseData) : undefined, [caseData]);
   const safetyContext = caseData?.analysis?.safetyContext;
   const callPresenceState = safetyContext?.context === 'urgent_safety_context'
     ? 'IMMEDIATE_DANGER'
@@ -386,6 +388,7 @@ export default function VoiceCaseClient({ id }: { id: string }) {
                 language={language}
                 openQuestions={caseData.unknowns}
                 hasDraft={Boolean(transcript.trim())}
+                caseContext={guideCaseContext}
                 disabled={working || captureBusy || committed}
                 onUserTurn={receiveConversationTurn}
                 onStateChange={setConversationPresentation}
