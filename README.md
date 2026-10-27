@@ -476,6 +476,7 @@ LawSense can handle sensitive personal and safety-related information. Use synth
 - **Safety first:** in immediate danger, contact appropriate local emergency services or trusted support. Do not rely on this application as the sole source of help.
 - **Local-first is not automatically secure:** production use needs a dedicated review of authentication, authorization, encryption, storage, backups, retention, deletion, dependency security and incident response.
 - **Local API boundary:** FastAPI accepts loopback clients only by default, and POSIX installs restrict the local database/document/export files to owner-only permissions where supported. This is exposure reduction—not encryption or per-case/user authorization. Windows file protection still relies on Windows ACLs and device security. Do not expose the API to an untrusted network.
+- **Case deletion:** the Privacy & Control page supports explicit permanent deletion of the canonical case, SQL-backed drafts/package snapshots, and the app-managed uploaded-document folder. A hash-only tombstone is retained to stop stale requests from restoring the case. Cleanup errors are surfaced; deletion does not guarantee forensic erasure and cannot remove external exports/backups.
 - **Protect secrets:** never commit `.env` files, credentials, private keys, live databases, real case documents or personal identifying information.
 - **Review extracted facts:** automated extraction may be incomplete or wrong. A candidate finding should not silently become a confirmed fact.
 
