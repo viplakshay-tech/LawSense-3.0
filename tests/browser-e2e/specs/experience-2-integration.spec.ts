@@ -272,7 +272,17 @@ test('the Guide restores keyboard focus and the real Twin graph remains usable a
       })
       .sort((a, b) => Math.max(b.right - window.innerWidth, -b.left) - Math.max(a.right - window.innerWidth, -a.left))
       .slice(0, 12)
-      .map(({ element: _element, ...item }) => item);
+      .map((item) => ({
+        tag: item.tag,
+        id: item.id,
+        className: item.className,
+        left: item.left,
+        right: item.right,
+        width: item.width,
+        overflowX: item.overflowX,
+        scrollWidth: item.scrollWidth,
+        clientWidth: item.clientWidth,
+      }));
   });
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
