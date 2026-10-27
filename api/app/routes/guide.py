@@ -23,6 +23,13 @@ class VerifiedMaterial(BaseModel):
     text: str = Field(min_length=1, max_length=10_000)
 
 
+class GuideConversationTurn(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=2_000)
+
+
 class GuideChatRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
@@ -33,12 +40,20 @@ class GuideChatRequest(BaseModel):
     # independently authenticated by this endpoint and must never be treated
     # as authoritative legal source material.
     verified_material: list[VerifiedMaterial] = Field(default_factory=list, max_length=10)
+    conversation_history: list[GuideConversationTurn] = Field(default_factory=list, max_length=8)
 
     @model_validator(mode="after")
     def check_material_size(self) -> "GuideChatRequest":
         total_chars = sum(len(item.title) + len(item.text) for item in self.verified_material)
         if total_chars > 20_000:
             raise ValueError("verified_material must contain no more than 20,000 characters in total")
+        return self
+
+    @model_validator(mode="after")
+    def check_conversation_history_size(self) -> "GuideChatRequest":
+        total_chars = sum(len(turn.content) for turn in self.conversation_history)
+        if total_chars > 8_000:
+            raise ValueError("conversation_history must contain no more than 8,000 characters in total")
         return self
 
 
@@ -110,5 +125,6 @@ def guide_chat(payload: GuideChatRequest) -> GuideChatResponse:
         language=payload.language,
         verified_material=[item.model_dump() for item in payload.verified_material],
         case_context=case_context,
+        conversation_history=[turn.model_dump() for turn in payload.conversation_history],
     )
     return GuideChatResponse(reply=result.reply, status=result.status, model=result.model)
