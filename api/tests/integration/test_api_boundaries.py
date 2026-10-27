@@ -167,6 +167,23 @@ class ApiBoundaryIntegrationTests(unittest.TestCase):
         self.assertEqual(status, 403, body)
         self.assertIn("Host header", body["detail"])
 
+    def test_malformed_host_authorities_cannot_normalize_to_trusted_hosts(self) -> None:
+        # A malformed Host must not become an allowlisted hostname after URL parsing.
+        with patch.dict(os.environ, {"LAWSENSE_ALLOW_REMOTE_API": "true"}):
+            for malformed_host in (
+                "attacker.example@localhost",
+                "localhost:8000/path",
+                "localhost?unexpected=query",
+            ):
+                status, body = _asgi_request(
+                    "GET",
+                    "/health",
+                    client_host="192.168.1.50",
+                    host_header=malformed_host,
+                )
+                self.assertEqual(status, 403, (malformed_host, body))
+                self.assertIn("Host header", body["detail"])
+
     def test_untrusted_browser_origin_is_rejected(self) -> None:
         with patch.dict(os.environ, {"LAWSENSE_ALLOW_REMOTE_API": "false"}):
             status, body = _asgi_request(
