@@ -4,11 +4,13 @@ import asyncio
 import json
 import unittest
 from io import BytesIO
+from types import SimpleNamespace
 from urllib.error import HTTPError, URLError
 from urllib.request import ProxyHandler
 from unittest.mock import patch
 
 from app.main import app
+from app.routes import guide as guide_route
 from app.services import local_assistant
 
 
@@ -101,7 +103,8 @@ class GuideRouteTests(unittest.TestCase):
             self.assertIs(sent["think"], False)
             self.assertIs(sent["stream"], False)
             self.assertEqual(sent["messages"][1]["content"].splitlines()[0], "Requested reply language: hinglish")
-            self.assertIn("Supplied material", sent["messages"][1]["content"])
+            self.assertIn("Caller-supplied excerpts", sent["messages"][1]["content"])
+            self.assertIn("not independently authenticated", sent["messages"][1]["content"])
             self.assertIn("Never decide whether a law applies", sent["messages"][0]["content"])
             return _Response({"message": {
                 "content": "Simple explanation. <think>hidden reasoning</think> Follow-up?",
@@ -124,6 +127,60 @@ class GuideRouteTests(unittest.TestCase):
             "model": "test-local-model",
         })
         mocked_builder.assert_called_once()
+
+    def test_case_chat_uses_saved_case_context_and_preserves_fact_status(self) -> None:
+        saved_case = SimpleNamespace(
+            id="case-demo",
+            initialStatement="My landlord has not returned my deposit.",
+            facts=[
+                SimpleNamespace(
+                    key="deposit_amount",
+                    value="₹30,000",
+                    status="user_reported",
+                ),
+            ],
+            unknowns=["When did the tenancy end?"],
+            assumptions=["The rental agreement may be relevant."],
+            conflicts=["The stated move-out dates differ."],
+        )
+        captured: dict[str, object] = {}
+
+        def local_reply(**kwargs):
+            captured.update(kwargs)
+            return local_assistant.AssistantResult(
+                reply="I understand the recorded deposit issue. When did the tenancy end?",
+                status="ok",
+                model="test-local-model",
+            )
+
+        request_payload = {**self.payload, "case_id": "case-demo"}
+        with (
+            patch.object(guide_route, "get_case_state", return_value=saved_case) as case_lookup,
+            patch.object(guide_route, "chat_with_local_model", side_effect=local_reply),
+        ):
+            status, response = _asgi_request(request_payload)
+
+        self.assertEqual(status, 200, response)
+        self.assertEqual(response["status"], "ok")
+        case_lookup.assert_called_once_with("case-demo")
+        context = captured["case_context"]
+        self.assertIsInstance(context, list)
+        rendered_context = repr(context)
+        self.assertIn("My landlord has not returned my deposit.", rendered_context)
+        self.assertIn("user_reported", rendered_context)
+        self.assertIn("When did the tenancy end?", rendered_context)
+        self.assertIn("The stated move-out dates differ.", rendered_context)
+        self.assertNotIn("legal_conclusion", rendered_context)
+
+    def test_unknown_case_id_does_not_call_local_model(self) -> None:
+        with (
+            patch.object(guide_route, "get_case_state", return_value=None),
+            patch.object(guide_route, "chat_with_local_model") as local_model,
+        ):
+            status, response = _asgi_request({**self.payload, "case_id": "missing-case"})
+
+        self.assertEqual(status, 404, response)
+        local_model.assert_not_called()
 
     def test_defaults_are_loopback_and_use_the_configured_qwen_model_name(self) -> None:
         with patch.dict("os.environ", {}, clear=True):
