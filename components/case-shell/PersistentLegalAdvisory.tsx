@@ -41,6 +41,33 @@ function verifiedResource(value: JsonRecord): boolean {
   return official && /^\+?[0-9 ()-]{3,24}$/.test(phone);
 }
 
+function recordedHttpsUrl(reference: JsonRecord): string | null {
+  const values = [
+    reference.url,
+    reference.sourceUrl,
+    reference.source_url,
+    reference.locator,
+    reference.sourcePath,
+    reference.source_path,
+  ];
+  for (const value of values) {
+    if (typeof value !== 'string') continue;
+    for (const candidate of value.split(/\s+\|\s+/)) {
+      const trimmed = candidate.trim();
+      if (!trimmed.toLowerCase().startsWith('https://')) continue;
+      try {
+        const parsed = new URL(trimmed);
+        if (parsed.protocol === 'https:' && parsed.hostname && !parsed.username && !parsed.password) {
+          return parsed.href;
+        }
+      } catch {
+        // A malformed catalog locator is metadata, not a link to open.
+      }
+    }
+  }
+  return null;
+}
+
 function humanize(value: string): string {
   return value.replace(/[_-]+/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
@@ -304,6 +331,37 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
                           <article key={textValue(item.id, 'statement-' + index)} className="rounded-xl border border-white/[0.07] p-3">
                             <p className="text-sm font-medium leading-6 text-slate-100">{textValue(item.recordTitle, 'Legal record')}</p>
                             <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-300">{textValue(item.text, 'No statement text was provided.')}</p>
+                            {rows(item.sourceReferences).length > 0 && (
+                              <div className="mt-3 rounded-lg border border-white/[0.06] bg-black/10 p-3">
+                                <p className="text-[10px] font-semibold uppercase tracking-[0.13em] text-slate-400">Recorded source references</p>
+                                <div className="mt-2 space-y-2">
+                                  {rows(item.sourceReferences).slice(0, 5).map((reference, referenceIndex) => {
+                                    const sourceUrl = recordedHttpsUrl(reference);
+                                    const referenceStatus = textValue(reference.status, 'status not recorded');
+                                    const sourceType = humanize(textValue(reference.sourceType, 'source reference'));
+                                    const sourceId = textValue(reference.sourceId);
+                                    const sourcePath = firstText(reference, ['sourcePath', 'source_path', 'locator'], '');
+                                    const pageNumber = reference.pageNumber;
+                                    const details = textValue(reference.details);
+                                    return (
+                                      <div key={textValue(reference.sourceId, 'source-ref-' + referenceIndex) + '-' + referenceIndex} className="border-t border-white/[0.06] pt-2 first:border-t-0 first:pt-0">
+                                        <p className="text-xs font-medium text-slate-200">{sourceType} · {humanize(referenceStatus)}</p>
+                                        {sourcePath && !sourceUrl && <p className="mt-0.5 break-words text-xs leading-5 text-slate-400">{sourcePath}</p>}
+                                        {typeof pageNumber === 'number' && <p className="mt-0.5 text-xs text-slate-400">Page {pageNumber}</p>}
+                                        {details && <p className="mt-0.5 break-words text-xs leading-5 text-slate-500">{details}</p>}
+                                        {sourceId && <p className="mt-0.5 break-all text-[10px] text-slate-500">Reference ID: {sourceId}</p>}
+                                        {sourceUrl && (
+                                          <a href={sourceUrl} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex min-h-9 items-center rounded-lg border border-[#d9bd8c]/20 px-2.5 text-xs font-semibold text-[#f2dfb9] underline decoration-[#d9bd8c]/30 underline-offset-4 hover:bg-[#d9bd8c]/[0.06] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e9bd7b]">
+                                            Open recorded HTTPS source
+                                          </a>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                                <p className="mt-3 text-[11px] leading-5 text-slate-500">These URLs and statuses are recorded provenance, not a live check. Confirm the portal, current version, jurisdiction and applicability before relying on a source.</p>
+                              </div>
+                            )}
                             <p className="mt-2 text-xs leading-5 text-amber-100/70">Candidate legal context only. Confirm the source, current version, jurisdiction and applicability before relying on it.</p>
                           </article>
                         ))}
