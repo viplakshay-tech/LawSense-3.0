@@ -98,7 +98,7 @@ async def restrict_direct_api_network_access(request: Request, call_next):
             headers={"Cache-Control": "no-store"},
         )
     response = await call_next(request)
-    response.headers.setdefault("Cache-Control", "no-store")
+    response.headers["Cache-Control"] = "no-store"
     return response
 
 
