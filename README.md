@@ -390,7 +390,7 @@ In a dedicated CMD window:
 ```cmd
 cd /d C:\LawSense\LawSense-3.0\api
 set "PYTHONPATH=C:\LawSense\LawSense-3.0\api"
-.venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+.venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
 Backend docs should be available at http://127.0.0.1:8000/docs.
@@ -402,19 +402,24 @@ In a second CMD window:
 ```cmd
 cd /d C:\LawSense\LawSense-3.0
 set "NEXT_PUBLIC_API_URL=http://127.0.0.1:8000"
-npm run dev -- --hostname 0.0.0.0
+npm run dev -- --hostname 127.0.0.1
 ```
 
 The frontend should be available at http://localhost:3000. `next.config.ts` uses `NEXT_PUBLIC_API_URL` as the API rewrite origin. Restart the frontend after changing environment variables.
 
-### 5. Open on a phone over a local hotspot
+### 5. Optional phone testing over a local hotspot
 
-1. Connect the PC to the phone's hotspot.
-2. Run `ipconfig` on the PC and identify the IPv4 address of the active adapter.
-3. Keep both servers running and open `http://<PC-IPv4>:3000` on the phone.
-4. Allow inbound connections to port 3000 on the appropriate Windows network profile if needed. Some managed Wi-Fi/hotspot networks block device-to-device connections.
+The default commands above bind to loopback and are intentionally not reachable from a phone. For a temporary phone test:
 
-This is a development-only HTTP setup. Do not expose the development server or the backend port to the public internet.
+1. Use a private, isolated phone hotspot—not shared/public Wi-Fi.
+2. Keep the API bound to `127.0.0.1:8000`; the Next.js server calls it through the same computer.
+3. Stop the frontend and restart it with `npm run dev -- --hostname 0.0.0.0`.
+4. Run `ipconfig`, identify the PC's hotspot IPv4 address, and open `http://<PC-IPv4>:3000` on the phone.
+5. If necessary, allow inbound port 3000 only on the appropriate **Private** Windows network profile. Close the network-accessible frontend when the test is over.
+
+**Critical privacy limitation:** this prototype currently has no user sign-in or case-ownership authorization. A person who can reach the network-exposed Next.js app may be able to read or change case data through its same-origin API proxy. CORS, an unguessable case ID, a trusted Wi-Fi name, and binding the Python API to loopback do not solve that frontend exposure.
+
+Until application access control is implemented and tested, use **synthetic/fictional case data only** for phone-over-network tests. Do not use real legal narratives, identity details, evidence, or documents; do not expose this development server on a shared network or the public internet.
 
 ## Android development
 
