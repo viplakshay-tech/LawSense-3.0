@@ -63,7 +63,8 @@ class AuthoritativeLegalKnowledgeSeedTests(unittest.TestCase):
                     or hostname == "egazette.gov.in"
                     or hostname == "egazette.nic.in"
                     or hostname == "pib.gov.in"
-                    or hostname.endswith(".pib.gov.in"),
+                    or hostname.endswith(".pib.gov.in")
+                    or hostname == "cdnbbsr.s3waas.gov.in",
                     item.source_url,
                 )
 
@@ -160,7 +161,7 @@ class AuthoritativeLegalKnowledgeSeedTests(unittest.TestCase):
         housing_source = self.store.get("source-indiacode-uttarakhand-tenancy-act-2021")
         self.assertEqual(
             housing_source.source_url,
-            "https://indiacode.gov.in/handle/123456789/613822",
+            "https://cdnbbsr.s3waas.gov.in/s38208974663db80265e9bfe7b222dcb18/uploads/2025/12/202512292052328583.pdf",
         )
         self.assertIsNone(housing_source.effective_from)
         self.assertIn("commencement notification", housing_source.version)
@@ -168,7 +169,7 @@ class AuthoritativeLegalKnowledgeSeedTests(unittest.TestCase):
     def test_migrated_india_code_links_match_verified_act_records(self) -> None:
         expected_urls = {
             "source-indiacode-uttarakhand-tenancy-act-2021":
-                "https://indiacode.gov.in/handle/123456789/613822",
+                "https://cdnbbsr.s3waas.gov.in/s38208974663db80265e9bfe7b222dcb18/uploads/2025/12/202512292052328583.pdf",
             "source-india-code-consumer-protection-act-2019":
                 "https://www.indiacode.nic.in/indiacode/handle/123456789/16103?view_type=browse",
             "source-india-code-code-on-wages-2019":
@@ -223,7 +224,7 @@ class AuthoritativeLegalKnowledgeSeedTests(unittest.TestCase):
         tenancy = sources["uttarakhand-tenancy-act-2021"]
         self.assertEqual(
             tenancy["officialUrl"],
-            "https://indiacode.gov.in/handle/123456789/613822",
+            "https://cdnbbsr.s3waas.gov.in/s38208974663db80265e9bfe7b222dcb18/uploads/2025/12/202512292052328583.pdf",
         )
         self.assertEqual(tenancy["verificationDate"], "2026-10-09")
         self.assertIn("commencement notification under section 1(3) not verified", tenancy["version"])
