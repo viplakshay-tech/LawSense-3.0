@@ -66,7 +66,7 @@ def _asgi_request(payload: dict[str, object]) -> tuple[int, object]:
         "query_string": b"",
         "root_path": "",
         "headers": [(b"host", b"testserver"), (b"content-type", b"application/json")],
-        "client": ("testclient", 123),
+        "client": ("127.0.0.1", 123),
         "server": ("testserver", 80),
         "state": {},
     }
