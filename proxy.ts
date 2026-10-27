@@ -37,7 +37,7 @@ export function proxy(request: NextRequest) {
     if (localHost) return NextResponse.next();
     if (isApiRequest) {
       return unavailable(
-        'Network access is disabled. Configure LAWSENSE_ACCESS_PIN with a random passphrase of at least 16 characters before using LawSense over a network.',
+        'This instance is intended for loopback-only use; network use requires a configured LAWSENSE_ACCESS_PIN with a random passphrase of at least 16 characters before using LawSense over a network.',
         503,
       );
     }
