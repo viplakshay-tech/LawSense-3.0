@@ -238,7 +238,56 @@ test('the Guide restores keyboard focus and the real Twin graph remains usable a
   const graph = page.getByRole('region', { name: 'Living Legal Twin CaseState projection' });
   await expect(graph).toBeVisible();
   await expect(graph.locator('svg').first()).toBeVisible();
-  await expect(page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).resolves.toBe(true);
+  const horizontalOverflow = await page.evaluate(() => {
+    if (document.documentElement.scrollWidth <= window.innerWidth) return [];
+    const clippingOverflow = new Set(['auto', 'scroll', 'hidden', 'clip']);
+    const elements = Array.from(document.querySelectorAll<HTMLElement>('body *'));
+    return elements
+      .map((element) => {
+        const rect = element.getBoundingClientRect();
+        const style = window.getComputedStyle(element);
+        return {
+          element,
+          tag: element.tagName.toLowerCase(),
+          id: element.id || null,
+          className: typeof element.className === 'string' ? element.className.slice(0, 180) : null,
+          left: Math.round(rect.left),
+          right: Math.round(rect.right),
+          width: Math.round(rect.width),
+          overflowX: style.overflowX,
+          scrollWidth: element.scrollWidth,
+          clientWidth: element.clientWidth,
+        };
+      })
+      .filter((item) => {
+        if (item.width <= 0 || (item.left >= -1 && item.right <= window.innerWidth + 1)) return false;
+        // Exclude descendants intentionally scrolled/clipped by an ancestor.
+        // Keep the overflowing ancestor itself as a candidate.
+        let parent = item.element.parentElement;
+        while (parent && parent !== document.documentElement) {
+          if (clippingOverflow.has(window.getComputedStyle(parent).overflowX)) return false;
+          parent = parent.parentElement;
+        }
+        return true;
+      })
+      .sort((a, b) => Math.max(b.right - window.innerWidth, -b.left) - Math.max(a.right - window.innerWidth, -a.left))
+      .slice(0, 12)
+      .map((item) => ({
+        tag: item.tag,
+        id: item.id,
+        className: item.className,
+        left: item.left,
+        right: item.right,
+        width: item.width,
+        overflowX: item.overflowX,
+        scrollWidth: item.scrollWidth,
+        clientWidth: item.clientWidth,
+      }));
+  });
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+    `Unexpected horizontal page overflow at 390px: ${JSON.stringify(horizontalOverflow)}`,
+  ).toBe(true);
 });
 
 test('a case update marks a saved draft stale and blocks old fact reuse until source refresh', async ({ page }) => {

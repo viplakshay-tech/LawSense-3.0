@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { CaseDeletionControl } from './CaseDeletionControl';
 import { ArrowLeft, Check, CircleHelp, FileCheck2, LockKeyhole, ShieldAlert } from 'lucide-react';
 
 export const instant = false;
@@ -76,6 +77,8 @@ export default async function PrivacyControlPage({
         </dl>
       </section>
 
+      <CaseDeletionControl caseId={id} />
+
       <section className="rounded-2xl border border-white/[0.08] bg-[#10161f] p-5 sm:p-6" aria-labelledby="production-heading">
         <h2 id="production-heading" className="text-sm font-semibold uppercase tracking-[0.13em] text-slate-200">Before production deployment</h2>
         <p className="mt-2 text-xs leading-5 text-slate-400">A production service would need, at minimum:</p>
@@ -85,7 +88,7 @@ export default async function PrivacyControlPage({
           <li className="rounded-lg border border-white/[0.06] px-3 py-2.5">Retention and deletion controls</li>
           <li className="rounded-lg border border-white/[0.06] px-3 py-2.5">Additional security hardening and assessment</li>
         </ul>
-        <p className="mt-3 flex items-start gap-2 text-[10px] leading-4 text-slate-500"><CircleHelp aria-hidden="true" className="mt-0.5 h-3 w-3 shrink-0" />This demo does not provide user-facing case deletion controls or a production retention policy.</p>
+        <p className="mt-3 flex items-start gap-2 text-[10px] leading-4 text-slate-500"><CircleHelp aria-hidden="true" className="mt-0.5 h-3 w-3 shrink-0" />The local deletion control removes app-managed case records and attempts to remove uploaded files. It does not remove exports, OS/device backups, or copied files and does not guarantee forensic erasure. A production retention policy and independent security assessment are still required.</p>
       </section>
     </main>
   );
