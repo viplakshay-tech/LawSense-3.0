@@ -158,6 +158,24 @@ class AuthenticationTests(unittest.TestCase):
             remaining = connection.execute("SELECT owner_user_id FROM cases WHERE id = ?", (case_id,)).fetchone()
         self.assertEqual(remaining["owner_user_id"], row["owner_user_id"])
 
+    def test_logout_revokes_the_session(self) -> None:
+        cookie = self.create_first_user()
+        status, _headers, current_user = _asgi_request(
+            "GET", "/auth/me", cookie=cookie, origin="http://localhost:3000"
+        )
+        self.assertEqual(status, 200, current_user)
+
+        status, _headers, body = _asgi_request(
+            "POST", "/auth/logout", cookie=cookie, origin="http://localhost:3000"
+        )
+        self.assertEqual(status, 200, body)
+        self.assertTrue(body["loggedOut"])
+
+        status, _headers, body = _asgi_request(
+            "GET", "/auth/me", cookie=cookie, origin="http://localhost:3000"
+        )
+        self.assertEqual(status, 401, body)
+
     def test_initial_account_can_only_be_created_once(self) -> None:
         self.create_first_user()
         status, _headers, body = _asgi_request("POST", "/auth/register", {"username": "second.local", "password": "Another-test-password-73"}, origin="http://localhost:3000")
