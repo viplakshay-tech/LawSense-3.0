@@ -1,7 +1,7 @@
 import json
+import logging
 import os
 import sqlite3
-import logging
 from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Optional
@@ -77,6 +77,11 @@ def _secure_local_storage_permissions() -> None:
         return
 
     try:
+        # Avoid chmod following a deliberately substituted database symlink.
+        # The storage path must be a regular file in a real data directory.
+        if DB_PATH.parent.is_symlink() or DB_PATH.is_symlink():
+            raise OSError("database path or parent is a symbolic link")
+
         # Restrict the directory first so SQLite sidecar/journal files inherit
         # a private directory boundary as well as the database file mode.
         DB_PATH.parent.chmod(0o700)
