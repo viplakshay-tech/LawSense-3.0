@@ -50,8 +50,21 @@ def write_local_export(path: str | Path, value: Any, *, overwrite: bool = False)
     target.parent.mkdir(parents=True, exist_ok=True)
     serialized = to_export_json(value)
     if not overwrite:
-        with target.open("x", encoding="utf-8", newline="\n") as stream:
-            stream.write(serialized)
+        descriptor: int | None = None
+        created = False
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0)
+        try:
+            descriptor = os.open(target, flags, 0o600)
+            created = True
+            with os.fdopen(descriptor, "w", encoding="utf-8", newline="\\n") as stream:
+                descriptor = None
+                stream.write(serialized)
+        except Exception:
+            if descriptor is not None:
+                os.close(descriptor)
+            if created:
+                target.unlink(missing_ok=True)
+            raise
         return target
 
     temporary_path: str | None = None
