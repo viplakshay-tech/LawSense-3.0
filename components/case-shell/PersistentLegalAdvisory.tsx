@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { AlertTriangle, CircleHelp, FileText, LoaderCircle, RefreshCw, Scale, ShieldAlert, X } from 'lucide-react';
 import { useCaseState } from '@/app/case/[id]/CaseStateProvider';
+import { OPEN_LEGAL_ADVISORY_EVENT } from './legal-advisory-events';
 import type { CaseState } from '@/lib/api';
 
 type JsonRecord = Record<string, unknown>;
@@ -120,6 +121,12 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
   const [result, setResult] = useState<JsonRecord | null>(null);
   const [resources, setResources] = useState<JsonRecord[]>([]);
   const [legalKnowledgeStatus, setLegalKnowledgeStatus] = useState('');
+
+  useEffect(() => {
+    const openFromGuide = () => setOpen(true);
+    window.addEventListener(OPEN_LEGAL_ADVISORY_EVENT, openFromGuide);
+    return () => window.removeEventListener(OPEN_LEGAL_ADVISORY_EVENT, openFromGuide);
+  }, []);
 
   const loadAdvisory = useCallback(async () => {
     setLoading(true);
