@@ -206,7 +206,8 @@ test('Guide opens Legal Advisory when there is no single source record to focus'
   assert.equal(opened, 1);
   assert.match(guideRuntimeProvider, /recordIds\.length === 1[\s\S]*?openLegalGrounding[\s\S]*?: \{ type: 'openLegalAdvisory' \}/);
   assert.match(persistentLegalAdvisory, /addEventListener\(OPEN_LEGAL_ADVISORY_EVENT, openFromGuide\)/);
-  assert.match(persistentLegalAdvisory, /setOpen\(true\);\s*void loadAdvisory\(\);/);
+  assert.match(persistentLegalAdvisory, /const openFromGuide = \(\) => \{\s*setOpen\(true\);\s*\};/);
+  assert.match(persistentLegalAdvisory, /if \(!open\) return;\s*const frame = window\.requestAnimationFrame\(\(\) => \{\s*void loadAdvisory\(\);/);
 });
 
 
@@ -226,6 +227,13 @@ test('voice conversation preserves an unavailable local assistant response statu
 test('Legal Advisory distinguishes catalog record status from source verification and freshness', () => {
   assert.match(persistentLegalAdvisorySource, /sourceVerificationStatus/);
   assert.match(persistentLegalAdvisorySource, /sourceFreshnessStatus/);
+  assert.match(persistentLegalAdvisorySource, /sourceFreshnessCheckedAt/);
+  assert.match(persistentLegalAdvisorySource, /sourceFreshnessEvidence/);
+  assert.match(persistentLegalAdvisorySource, /Freshness review recorded/);
+  assert.match(persistentLegalAdvisorySource, /Review evidence:/);
+  assert.match(persistentLegalAdvisorySource, /timeZoneName: 'short'/);
+  assert.match(persistentLegalAdvisorySource, /year: 'numeric'/);
+  assert.doesNotMatch(persistentLegalAdvisorySource, /dateStyle:/);
   assert.match(persistentLegalAdvisorySource, /sourceApplicabilityStatus/);
   assert.match(persistentLegalAdvisorySource, /jurisdictionMatchStatus/);
   assert.match(persistentLegalAdvisorySource, /Source verification and freshness/);
