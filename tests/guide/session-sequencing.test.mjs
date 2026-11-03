@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import { readFile } from 'node:fs/promises';
 
 import {
+  appendGuideSessionTurn,
   beginGuideSessionRequest,
   clearGuideSession,
   finishGuideSessionRequest,
@@ -51,11 +52,12 @@ test('Guide API forwards shared session cancellation to its fetch request', asyn
 test('switching cases cancels the old request without deleting its conversation', () => {
   const oldCaseId = 'guide-case-switch-old-case';
   clearGuideSession(oldCaseId);
+  appendGuideSessionTurn(oldCaseId, { role: 'user', content: 'Keep this turn.', inputMode: 'text' });
   const request = beginGuideSessionRequest(oldCaseId);
 
   invalidateGuideSessionRequest(oldCaseId);
 
   assert.equal(request.signal.aborted, true);
   assert.equal(isGuideSessionRequestCurrent(oldCaseId, request), false);
-  assert.deepEqual(getGuideSessionSnapshot(oldCaseId).turns, []);
+  assert.equal(getGuideSessionSnapshot(oldCaseId).turns[0]?.content, 'Keep this turn.');
 });
