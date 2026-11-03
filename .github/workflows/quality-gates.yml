@@ -43,6 +43,9 @@ jobs:
       - name: Test Guide voice/presentation
         run: npm run test:guide
 
+      - name: Test Legal Advisory live refresh
+        run: npm run test:advisory
+
       - name: Test case session restoration
         run: npm run test:session-restoration
 
