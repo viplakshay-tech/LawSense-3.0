@@ -95,6 +95,7 @@ def validate_governed_source(source: GovernedLegalSource) -> None:
         "reference",
         "version",
         "verification_evidence",
+        "freshness_evidence",
     ):
         _optional_text(getattr(source, field_name), field_name)
     _validate_url(source.source_url)
@@ -106,6 +107,7 @@ def validate_governed_source(source: GovernedLegalSource) -> None:
         ):
             raise SourceGovernanceValidationError(f"{field_name} must be a date.")
     _validate_aware_datetime(source.retrieved_at, "retrieved_at")
+    _validate_aware_datetime(source.freshness_checked_at, "freshness_checked_at")
 
     if not isinstance(source.verification_status, SourceVerificationStatus):
         raise SourceGovernanceValidationError(
@@ -119,6 +121,20 @@ def validate_governed_source(source: GovernedLegalSource) -> None:
         raise SourceGovernanceValidationError(
             "applicability_status must be a SourceApplicabilityStatus value."
         )
+
+    if source.freshness_status is not SourceFreshnessStatus.UNKNOWN:
+        if source.freshness_checked_at is None or not source.freshness_evidence:
+            raise SourceGovernanceValidationError(
+                "A reviewed freshness status requires freshness_checked_at and freshness_evidence."
+            )
+        if source.retrieved_at is None:
+            raise SourceGovernanceValidationError(
+                "A reviewed freshness status requires a retrieved source snapshot."
+            )
+        if source.freshness_checked_at < source.retrieved_at:
+            raise SourceGovernanceValidationError(
+                "freshness_checked_at cannot precede the source snapshot retrieval time."
+            )
 
     if source.verification_status is SourceVerificationStatus.VERIFIED:
         missing = source.missing_verification_metadata
