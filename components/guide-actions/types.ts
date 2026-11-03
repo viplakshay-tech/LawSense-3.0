@@ -15,7 +15,7 @@ export type GuideActionCommand =
   | { type: 'navigate'; route: GuideRoute }
   | { type: 'openEvidence'; evidenceId?: string }
   | { type: 'openDocument'; documentId: string }
-  | { type: 'highlightEvidence'; findingId: string }
+  | { type: 'highlightEvidence'; findingId: string; documentId?: string }
   | { type: 'openLegalGrounding'; recordId: string }
   | { type: 'openJourney' }
   | { type: 'openTwin' }
@@ -49,7 +49,7 @@ export interface GuideActionAdapter {
   navigate?: (route: GuideRoute) => GuideActionHandlerOutcome | Promise<GuideActionHandlerOutcome>;
   openEvidence?: (evidenceId?: string) => GuideActionHandlerOutcome | Promise<GuideActionHandlerOutcome>;
   openDocument?: (documentId: string) => GuideActionHandlerOutcome | Promise<GuideActionHandlerOutcome>;
-  highlightEvidence?: (findingId: string) => GuideActionHandlerOutcome | Promise<GuideActionHandlerOutcome>;
+  highlightEvidence?: (findingId: string, documentId?: string) => GuideActionHandlerOutcome | Promise<GuideActionHandlerOutcome>;
   openLegalGrounding?: (recordId: string) => GuideActionHandlerOutcome | Promise<GuideActionHandlerOutcome>;
   openJourney?: GuideActionHandler;
   openTwin?: GuideActionHandler;
