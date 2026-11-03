@@ -22,12 +22,16 @@ export interface GuideConversationPresentation {
 }
 
 /** Resolve a model proposal only against actions currently exposed by the Guide Runtime. */
+type GuideWorkspaceAction = Exclude<GuideAction, { type: 'SPEAK_RESPONSE' }>;
+
 export function resolveGuideActionProposal(
   proposedAction: GuideActionName | null | undefined,
   availableActions: readonly GuideAction[],
-): GuideAction | undefined {
+): GuideWorkspaceAction | undefined {
   if (!proposedAction) return undefined;
-  return availableActions.find((action) => action.type === proposedAction);
+  return availableActions.find(
+    (action): action is GuideWorkspaceAction => action.type === proposedAction,
+  );
 }
 
 export interface GuideSpeechVoice {
