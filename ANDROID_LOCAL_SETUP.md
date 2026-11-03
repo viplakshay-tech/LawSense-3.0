@@ -24,7 +24,7 @@ The Android build requires Node.js 22 or later, a Java JDK supported by the gene
 
 Install it with `adb install -r android\app\build\outputs\apk\debug\app-debug.apk`, or copy the APK to the phone and open it after allowing installation from that file source. The debug APK is for personal testing and is not a Play Store release.
 
-A downloadable APK is also built by the **Android APK** GitHub Actions workflow. Open the successful workflow run, download the `lawsense-android-debug-apk` artifact, extract it, and open `app-debug.apk` on the phone. This installs over Wi-Fi/file transfer or a browser download; ADB and a USB cable are not required. Android may ask you to allow installation from the file source. The phone and computer must still share the same trusted Wi-Fi network, and the computer must keep the LawSense web/API services running.
+A downloadable APK is also built by the **LawSense quality gates** GitHub Actions workflow. Open the successful workflow run, download the `lawsense-android-debug-apk` artifact, extract it, and open `app-debug.apk` on the phone. This installs over Wi-Fi/file transfer or a browser download; ADB and a USB cable are not required. Android may ask you to allow installation from the file source. The phone and computer must still share the same trusted Wi-Fi network, and the computer must keep the LawSense web/API services running.
 
 ## Limitations
 
