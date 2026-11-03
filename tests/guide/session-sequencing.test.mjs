@@ -43,10 +43,12 @@ test('clearing the Guide session invalidates its current pending request', () =>
 
 test('Guide API forwards shared session cancellation to its fetch request', async () => {
   const apiSource = await readFile(new URL('../../lib/api.ts', import.meta.url), 'utf8');
+  const sessionSource = await readFile(new URL('../../lib/guide-session.ts', import.meta.url), 'utf8');
   assert.match(apiSource, /sessionSignal\?: AbortSignal/);
   assert.match(apiSource, /sessionSignal\?\.addEventListener\('abort', abortFromSession/);
   assert.match(apiSource, /signal: controller\.signal/);
   assert.match(apiSource, /sessionSignal\?\.removeEventListener\('abort', abortFromSession\)/);
+  assert.match(sessionSource, /invalidateGuideSessionRequest\(previousCaseId\)/);
 });
 
 test('switching cases cancels the old request without deleting its conversation', () => {
