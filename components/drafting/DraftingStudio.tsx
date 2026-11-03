@@ -67,7 +67,7 @@ function hasVerifiedLegalSource(caseState: CaseState, label: string, url: string
   const normalizedLabel = label.trim().toLocaleLowerCase();
   const normalizedUrl = safeSourceUrl(url);
   return Boolean(caseState.analysis?.legalKnowledge.records.some((record) => {
-    if (record.status !== 'verified' || (record.sourceVerificationStatus && record.sourceVerificationStatus !== 'verified')) return false;
+    if (record.status !== 'verified' || record.sourceVerificationStatus !== 'verified') return false;
     const recordUrl = safeSourceUrl(record.sourceUrl || record.provenance.find((item) => item.sourceUrl)?.sourceUrl);
     const normalizedReference = (record.reference ?? '').trim().toLocaleLowerCase();
     return Boolean(

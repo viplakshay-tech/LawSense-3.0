@@ -309,6 +309,35 @@ class DocumentCompilerTests(unittest.TestCase):
                 field_values={"legal_text": "A provision applies."},
             )
 
+    def test_legal_wording_rejects_missing_source_verification_status(self) -> None:
+        case_state = make_case()
+        case_state.analysis = CaseAnalysis(
+            safetyContext=SafetyContextSummary(context="none", confidence="high", urgency="none"),
+            legalKnowledge=LegalKnowledgeSummary(status="records_found", records=[LegalKnowledgeRecordSummary(
+                id="legal-source-unreviewed",
+                title="Catalogued Act source",
+                type="legal_document",
+                status="verified",
+                reference="Act No. 12 of 2025, section 4",
+                sourceUrl="https://example.gov/act",
+            )]),
+            journey=JourneySummary(
+                id="journey-1",
+                caseId=case_state.id,
+                currentSituation="Recorded dispute",
+                jurisdictionStatus="known",
+                legalKnowledgeStatus="available",
+            ),
+        )
+
+        with self.assertRaisesRegex(ValueError, "verified legal source"):
+            create_document_draft(
+                case_state,
+                "complaint-draft",
+                field_values={"legal_text": "A provision applies."},
+                legal_source_ids={"legal_text": "legal-source-unreviewed"},
+            )
+
     def test_legal_wording_keeps_verified_source_provenance(self) -> None:
         case_state = make_case()
         case_state.analysis = CaseAnalysis(

@@ -288,9 +288,7 @@ def _legal_source(case_state: CaseState, source_id: str) -> DocumentProvenance:
         raise ValueError(f"Legal source {source_id!r} is not recorded in this case.")
 
     source_verification_status = getattr(record, "source_verification_status", None)
-    if record.status != "verified" or (
-        source_verification_status is not None and source_verification_status != "verified"
-    ):
+    if record.status != "verified" or source_verification_status != "verified":
         raise ValueError("Legal wording requires a verified legal source recorded in this case.")
 
     source_url = record.source_url or next(
