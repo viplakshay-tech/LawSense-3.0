@@ -6,7 +6,11 @@ import { usePathname, useRouter } from 'next/navigation';
 import { Activity, ArrowLeft, ChevronDown, ChevronUp, CircleHelp, Loader2, MessageCircle, Mic2, Radio, Send, ShieldAlert, Trash2, Volume2, VolumeX } from 'lucide-react';
 import { guidePresenceStateFromSnapshot, useGuideRuntime } from '@/components/guide-runtime';
 import { sendGuideMessage, type GuideActionName, type GuideChatLanguage } from '@/lib/api';
-import { useGuideSession } from '@/lib/guide-session';
+import {
+  getGuideSessionGeneration,
+  isGuideSessionGenerationCurrent,
+  useGuideSession,
+} from '@/lib/guide-session';
 import type { GuideAction } from '@/components/guide-runtime/types';
 import { GuidePresence } from './GuidePresence';
 import { GUIDE_PRESENCE_LABELS } from './types';
@@ -57,7 +61,15 @@ export function GuideConversationPanel({
   const languageId = useId();
   const messageId = useId();
   const { snapshot, dispatch, runAction, actionRunning } = useGuideRuntime();
-  const { turns, language: chatLanguage, history, appendTurn, setLanguage: setChatLanguage, clear: clearSession } = useGuideSession(caseId ?? '');
+  const {
+    turns,
+    language: chatLanguage,
+    history,
+    generation: sessionGeneration,
+    appendTurn,
+    setLanguage: setChatLanguage,
+    clear: clearSession,
+  } = useGuideSession(caseId ?? '');
   const chatEntries: GuideChatEntry[] = turns.map((turn) => ({
     id: turn.id,
     role: turn.role === 'user' ? 'you' : 'guide',
@@ -70,6 +82,16 @@ export function GuideConversationPanel({
   const [chatError, setChatError] = useState<string | null>(null);
   const chatRequestSequenceRef = useRef(0);
   const chatInFlightRef = useRef(false);
+  const observedSessionGenerationRef = useRef(sessionGeneration);
+
+  useEffect(() => {
+    if (observedSessionGenerationRef.current === sessionGeneration) return;
+    observedSessionGenerationRef.current = sessionGeneration;
+    chatRequestSequenceRef.current += 1;
+    chatInFlightRef.current = false;
+    setChatSending(false);
+    setChatError(null);
+  }, [sessionGeneration]);
 
   async function handleChatSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -78,6 +100,7 @@ export function GuideConversationPanel({
 
     chatInFlightRef.current = true;
     const requestToken = ++chatRequestSequenceRef.current;
+    const requestGeneration = getGuideSessionGeneration(caseId);
     setChatDraft('');
     setChatSending(true);
     setChatError(null);
@@ -101,7 +124,10 @@ export function GuideConversationPanel({
         history,
         availableActions,
       );
-      if (requestToken !== chatRequestSequenceRef.current) return;
+      if (
+        requestToken !== chatRequestSequenceRef.current
+        || !isGuideSessionGenerationCurrent(caseId, requestGeneration)
+      ) return;
 
       if (response.status === 'ok') {
         dispatch({
@@ -124,7 +150,10 @@ export function GuideConversationPanel({
         ...(proposedAction && response.proposed_action ? { proposedAction: response.proposed_action } : {}),
       });
     } catch {
-      if (requestToken === chatRequestSequenceRef.current) {
+      if (
+        requestToken === chatRequestSequenceRef.current
+        && isGuideSessionGenerationCurrent(caseId, requestGeneration)
+      ) {
         dispatch({
           type: 'GUIDE_ERROR',
           message: 'The local Guide service could not be reached. No cloud fallback was used.',
