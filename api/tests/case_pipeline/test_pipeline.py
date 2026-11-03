@@ -532,6 +532,12 @@ class CasePipelineTests(unittest.TestCase):
                 self.assertIn(provision_id, records)
                 self.assertTrue(records[provision_id].provenance)
                 self.assertIsNotNone(records[provision_id].source_url)
+                self.assertEqual(result.legal_reasoning.legal_knowledge_status, "insufficient_or_blocked")
+                self.assertIn("SOURCE_FRESHNESS_NOT_CURRENT", result.legal_reasoning.reason_codes)
+                self.assertTrue(any(
+                    item.subject == "current_legal_source_use"
+                    for item in result.legal_reasoning.blocked_conclusions
+                ))
 
     def test_matching_local_legal_record_is_retrieved_with_its_original_text_and_provenance(self) -> None:
         authority = Authority(id="authority-consumer", title="Fixture authority", status=KnowledgeStatus.VERIFIED)
@@ -616,6 +622,8 @@ class CasePipelineTests(unittest.TestCase):
         self.assertEqual(statement.text, provision_text)
         self.assertTrue(any(ref.source_id == source.id for ref in statement.source_references))
         self.assertIn("JURISDICTION_UNKNOWN", statement.reason_codes)
+        self.assertIn("SOURCE_VERIFICATION_NOT_CONFIRMED", statement.reason_codes)
+        self.assertIn("SOURCE_FRESHNESS_NOT_CURRENT", statement.reason_codes)
 
     def test_analysis_timeline_preserves_report_status_and_timeline_provenance(self) -> None:
         _, result = self._run_fixture("threatening_messages")

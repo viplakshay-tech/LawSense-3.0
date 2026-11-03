@@ -69,6 +69,9 @@ REASON_CODE_MESSAGES: dict[str, str] = {
     "CASE_STATE_REVIEWED": "The canonical CaseState records were reviewed.",
     "USER_OBJECTIVE_RECORDED": "The user's stated objective is retained as user-reported context.",
     "LEGAL_STATEMENT_LINK_MISSING": "No supplied provision-to-issue relationship supports an issue-specific legal statement.",
+    "SOURCE_GOVERNANCE_UNAVAILABLE": "No source-governance assessment is available for this candidate source.",
+    "SOURCE_VERIFICATION_NOT_CONFIRMED": "The source identity has not been verified against its original publication.",
+    "SOURCE_FRESHNESS_NOT_CURRENT": "The current version and freshness of this source have not been established.",
 }
 
 
