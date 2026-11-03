@@ -383,21 +383,29 @@ test('a failed case API request is visible and retry recovers from the real API'
   await page.unroute('**/api/**');
   let failNextCaseRead = false;
   let failedCaseReadPath: string | null = null;
+  let resolveFailedCaseRead!: () => void;
+  const failedCaseRead = new Promise<void>((resolve) => {
+    resolveFailedCaseRead = resolve;
+  });
   await page.route('**/api/**', async (route: Route) => {
     const request = route.request();
     const requestUrl = new URL(request.url());
     const isCaseRead = request.method() === 'GET'
-      && /^\/api\/cases\/[^/]+$/.test(requestUrl.pathname);
+      && /^\\/api\\/cases\\/[^/]+$/.test(requestUrl.pathname);
     if (failNextCaseRead && isCaseRead) {
       failNextCaseRead = false;
       failedCaseReadPath = requestUrl.pathname;
-      await route.abort('failed');
+      try {
+        await route.abort('failed');
+      } finally {
+        resolveFailedCaseRead();
+      }
       return;
     }
 
     const target = new URL(request.url());
     target.port = '8001';
-    target.pathname = target.pathname.replace(/^\/api(?=\/|$)/, '');
+    target.pathname = target.pathname.replace(/^\\/api(?=\\/|$)/, '');
     const response = await route.fetch({ url: target.toString() });
     await route.fulfill({ response });
   });
@@ -416,13 +424,10 @@ test('a failed case API request is visible and retry recovers from the real API'
 
   // Force a fresh workspace restore, then fail exactly its case read.
   failNextCaseRead = true;
-  const failedReadRequest = page.waitForEvent('requestfailed', (request) => {
-    const requestUrl = new URL(request.url());
-    return request.method() === 'GET' && requestUrl.pathname === `/api/cases/${caseId}`;
-  });
   await page.reload();
-  // Wait for the abort to finish, not merely for the request to be observed.
-  await failedReadRequest;
+  // Resolve directly from the interception after route.abort() completes. This
+  // avoids depending on the browser's requestfailed event timing.
+  await failedCaseRead;
   await expect.poll(() => failedCaseReadPath).toBe(`/api/cases/${caseId}`);
   await expect(page.getByRole('heading', { name: 'This case could not be reopened' })).toBeVisible();
   await expect(page.getByText('Failed to fetch')).toBeVisible();
