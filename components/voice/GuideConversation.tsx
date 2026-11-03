@@ -5,7 +5,13 @@ import { Mic, MicOff, RotateCcw, Send } from 'lucide-react';
 import type { GuideVoiceEvent, VoiceLanguage } from '@/components/guide-runtime/voice-adapter/events';
 import type { RecognitionLanguage } from './VoiceCapture';
 import { sendGuideMessage, type GuideActionName } from '@/lib/api';
-import { getGuideConversationHistory, useGuideSession, type GuideSessionTurn } from '@/lib/guide-session';
+import {
+  getGuideConversationHistory,
+  getGuideSessionGeneration,
+  isGuideSessionGenerationCurrent,
+  useGuideSession,
+  type GuideSessionTurn,
+} from '@/lib/guide-session';
 import type { GuideAction } from '@/components/guide-runtime/types';
 import {
   requestNativeGuideAudio,
@@ -408,6 +414,7 @@ export default function GuideConversation({
     const statement = text.trim();
     if (!statement) return;
 
+    const sessionGeneration = getGuideSessionGeneration(caseId);
     const previousHistory = getGuideConversationHistory(caseId);
     appendUserTurn(statement, inputMethod);
 
@@ -433,6 +440,7 @@ export default function GuideConversation({
         allowedActions,
       );
       responseText = result.reply;
+      responseStatus = result.status;
       proposedAction = result.status === 'ok' ? result.proposed_action ?? undefined : undefined;
     } catch {
       responseStatus = 'unavailable';
@@ -444,7 +452,7 @@ export default function GuideConversation({
       responseText = `${localUnavailable}${createGuideConversationResponse(statement, question, languageRef.current)}`;
       proposedAction = undefined;
     }
-    if (!mountedRef.current) return;
+    if (!mountedRef.current || !isGuideSessionGenerationCurrent(caseId, sessionGeneration)) return;
     const responseId = createId('response');
     appendTurn({ id: responseId, role: 'assistant', content: responseText, inputMode: inputMethod, status: responseStatus, ...(proposedAction ? { proposedAction } : {}), audio: 'queued' });
     const response = { id: responseId, text: responseText };

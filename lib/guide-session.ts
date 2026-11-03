@@ -16,11 +16,13 @@ export interface GuideSessionTurn {
 export interface GuideSessionSnapshot {
   turns: GuideSessionTurn[];
   language: GuideChatLanguage;
+  generation: number;
 }
 
 const EMPTY_SNAPSHOT: GuideSessionSnapshot = Object.freeze({
   turns: [],
   language: 'english',
+  generation: 0,
 });
 
 const MAX_VISIBLE_TURNS = 20;
@@ -54,7 +56,13 @@ function readSession(caseId: string): GuideSessionSnapshot {
         const parsed = JSON.parse(raw) as Partial<GuideSessionSnapshot>;
         const turns = Array.isArray(parsed.turns) ? parsed.turns.filter(isTurn).slice(-MAX_VISIBLE_TURNS) : [];
         const language = parsed.language === 'hindi' || parsed.language === 'hinglish' ? parsed.language : 'english';
-        snapshot = { turns, language };
+        snapshot = {
+          turns,
+          language,
+          generation: Number.isSafeInteger(parsed.generation) && (parsed.generation ?? 0) >= 0
+            ? parsed.generation as number
+            : 0,
+        };
       }
     } catch {
       // Storage is optional. The in-memory session remains usable if it is unavailable.
@@ -92,6 +100,15 @@ export function getGuideSessionSnapshot(caseId: string): GuideSessionSnapshot {
   return readSession(caseId);
 }
 
+/** A clear increments this token so pending work from either input mode cannot repopulate the session. */
+export function getGuideSessionGeneration(caseId: string): number {
+  return readSession(caseId).generation;
+}
+
+export function isGuideSessionGenerationCurrent(caseId: string, generation: number): boolean {
+  return Number.isSafeInteger(generation) && getGuideSessionGeneration(caseId) === generation;
+}
+
 export function appendGuideSessionTurn(caseId: string, turn: GuideSessionTurn): void {
   const current = readSession(caseId);
   publish(caseId, { ...current, turns: [...current.turns, turn].slice(-MAX_VISIBLE_TURNS) });
@@ -117,7 +134,12 @@ export function setGuideSessionLanguage(caseId: string, language: GuideChatLangu
 }
 
 export function clearGuideSession(caseId: string): void {
-  publish(caseId, { turns: [], language: 'english' });
+  const current = readSession(caseId);
+  publish(caseId, {
+    turns: [],
+    language: 'english',
+    generation: current.generation + 1,
+  });
 }
 
 export function getGuideConversationHistory(caseId: string): GuideConversationTurn[] {

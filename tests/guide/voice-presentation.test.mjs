@@ -17,6 +17,8 @@ const callCss = await readFile(new URL('../../app/case/[id]/voice/VoiceCaseClien
 const voicePage = await readFile(new URL('../../app/case/[id]/voice/page.tsx', import.meta.url), 'utf8');
 const guideRuntimeProvider = await readFile(new URL('../../components/guide-runtime/GuideRuntimeProvider.tsx', import.meta.url), 'utf8');
 const legalSourceCandidates = await readFile(new URL('../../components/LegalSourceCandidates.tsx', import.meta.url), 'utf8');
+const guideSessionSource = await readFile(new URL('../../lib/guide-session.ts', import.meta.url), 'utf8');
+const voiceConversationSource = await readFile(new URL('../../components/voice/GuideConversation.tsx', import.meta.url), 'utf8');
 const persistentLegalAdvisory = await readFile(new URL('../../components/case-shell/PersistentLegalAdvisory.tsx', import.meta.url), 'utf8');
 
 test('voice milestones present the state reported by the call flow', () => {
@@ -202,4 +204,17 @@ test('Guide opens Legal Advisory when there is no single source record to focus'
   assert.match(guideRuntimeProvider, /recordIds\.length === 1[\s\S]*?openLegalGrounding[\s\S]*?: \{ type: 'openLegalAdvisory' \}/);
   assert.match(persistentLegalAdvisory, /addEventListener\(OPEN_LEGAL_ADVISORY_EVENT, openFromGuide\)/);
   assert.match(persistentLegalAdvisory, /setOpen\(true\);\s*void loadAdvisory\(\);/);
+});
+
+
+test('clearing the shared Guide session invalidates pending voice replies across routes', () => {
+  assert.match(guideSessionSource, /generation:\s*current\.generation\s*\+\s*1/);
+  assert.match(guideSessionSource, /export function getGuideSessionGeneration/);
+  assert.match(guideSessionSource, /export function isGuideSessionGenerationCurrent/);
+  assert.match(voiceConversationSource, /const sessionGeneration = getGuideSessionGeneration\(caseId\)/);
+  assert.match(voiceConversationSource, /!isGuideSessionGenerationCurrent\(caseId, sessionGeneration\)/);
+});
+
+test('voice conversation preserves an unavailable local assistant response status', () => {
+  assert.match(voiceConversationSource, /responseStatus = result\.status/);
 });
