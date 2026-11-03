@@ -216,11 +216,12 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
   }, [open]);
 
   const sourceReviewRecords = rows(caseState?.analysis?.legalKnowledge?.records).filter((record) =>
-    ['legal_provision', 'legal_rule', 'legal_procedure'].includes(textValue(record.type).toLowerCase()),
+    ['legal_document', 'legal_provision', 'legal_rule', 'legal_procedure'].includes(textValue(record.type).toLowerCase()),
   );
   const sourceGovernanceNeedsAttention = sourceReviewRecords.some((record) =>
     textValue(record.sourceVerificationStatus, 'unverified') !== 'verified'
     || textValue(record.sourceFreshnessStatus, 'unknown') !== 'current'
+    || textValue(record.sourceApplicabilityStatus, 'applicability_not_established') !== 'potentially_relevant'
     || textValue(record.jurisdictionMatchStatus, 'unknown') !== 'matched',
   );
   const statements = rows(result?.groundedLegalStatements);
@@ -240,6 +241,9 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
     || sourceGovernanceNeedsAttention
     || legalKnowledgeStatus === 'unavailable'
     || legalKnowledgeStatus === 'insufficient_or_blocked';
+  const legalMaterialStatusLabel = sourceGovernanceNeedsAttention
+    ? 'Candidate records present · source review incomplete'
+    : humanize(legalKnowledgeStatus || textValue(result?.legalKnowledgeStatus, 'not established'));
   const advisoryStatus = statements.length === 0
     ? 'No reliable case-specific legal grounding yet'
     : needsAttention
@@ -356,7 +360,7 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
                     <dl className="mt-3 grid gap-3 sm:grid-cols-2">
                       <div className="rounded-xl bg-white/[0.035] p-3">
                         <dt className="text-xs text-slate-400">Legal material</dt>
-                        <dd className="mt-1 text-sm font-medium text-slate-100">{humanize(legalKnowledgeStatus || textValue(result.legalKnowledgeStatus, 'not established'))}</dd>
+                        <dd className="mt-1 text-sm font-medium text-slate-100">{legalMaterialStatusLabel}</dd>
                       </div>
                       <div className="rounded-xl bg-white/[0.035] p-3">
                         <dt className="text-xs text-slate-400">Jurisdiction status</dt>
