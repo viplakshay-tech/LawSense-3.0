@@ -16,6 +16,7 @@ from app.engines.legal_knowledge import (
 )
 from app.engines.legal_sources import (
     LegalSourceRegistry,
+    SourceFreshnessStatus,
     RegistrySourceVersion,
     SourceRegistryError,
     SourceRegistryValidationError,
@@ -69,6 +70,9 @@ def make_version(
     resource_identifier: str | None = None,
     jurisdiction: str | None = None,
     authority_tier: SourceAuthorityTier | None = None,
+    freshness_status: SourceFreshnessStatus = SourceFreshnessStatus.UNKNOWN,
+    freshness_checked_at: datetime | None = None,
+    freshness_evidence: str | None = None,
 ) -> RegistrySourceVersion:
     return RegistrySourceVersion(
         id=version_id,
@@ -96,6 +100,9 @@ def make_version(
         publication_date=date(2025, 12, 15),
         publisher_name="Fixture publisher",
         authority_tier=authority_tier or source.authority_tier,
+        freshness_status=freshness_status,
+        freshness_checked_at=freshness_checked_at,
+        freshness_evidence=freshness_evidence,
     )
 
 
@@ -149,6 +156,9 @@ class LegalSourceRegistryTests(unittest.TestCase):
         self.assertEqual(entry.version, "fixture-version-1")
         self.assertEqual(entry.retrieved_at, RETRIEVED_AT)
         self.assertEqual(entry.verification_status, KnowledgeStatus.VERIFIED)
+        self.assertEqual(entry.freshness_status, SourceFreshnessStatus.UNKNOWN)
+        self.assertIsNone(entry.freshness_checked_at)
+        self.assertIsNone(entry.freshness_evidence)
         self.assertEqual(entry.authority_tier, SourceAuthorityTier.TIER_1_PRIMARY_OFFICIAL)
         self.assertEqual(entry.provenance, self.version.provenance)
         self.assertEqual(entry.current_version.resource_identifier, None)
@@ -387,6 +397,41 @@ class LegalSourceRegistryTests(unittest.TestCase):
         )
         with self.assertRaises(SourceRegistryValidationError):
             validate_registry_version(bad)
+
+    def test_retrieval_timestamp_does_not_infer_current_freshness(self) -> None:
+        version = make_version(self.source)
+        validate_registry_version(version)
+
+        self.assertEqual(version.freshness_status, SourceFreshnessStatus.UNKNOWN)
+        self.assertIsNone(version.freshness_checked_at)
+        self.assertIsNone(version.freshness_evidence)
+
+    def test_current_freshness_requires_explicit_review_evidence_and_time(self) -> None:
+        with self.assertRaisesRegex(SourceRegistryValidationError, "freshness_checked_at and freshness_evidence"):
+            validate_registry_version(make_version(
+                self.source,
+                freshness_status=SourceFreshnessStatus.CURRENT,
+            ))
+
+        checked_at = datetime(2026, 10, 9, 12, 0, tzinfo=timezone.utc)
+        current = make_version(
+            self.source,
+            freshness_status=SourceFreshnessStatus.CURRENT,
+            freshness_checked_at=checked_at,
+            freshness_evidence="Compared the current official publication and Gazette amendments through 2026-10-09.",
+        )
+        validate_registry_version(current)
+        self.assertEqual(current.freshness_status, SourceFreshnessStatus.CURRENT)
+        self.assertEqual(current.freshness_checked_at, checked_at)
+
+    def test_freshness_review_cannot_predate_the_retrieved_snapshot(self) -> None:
+        with self.assertRaisesRegex(SourceRegistryValidationError, "cannot precede"):
+            validate_registry_version(make_version(
+                self.source,
+                freshness_status=SourceFreshnessStatus.CURRENT,
+                freshness_checked_at=RETRIEVED_AT.replace(day=7),
+                freshness_evidence="Reviewed an earlier source copy.",
+            ))
 
     def test_verified_provenance_must_preserve_snapshot_retrieval_time(self) -> None:
         bad = replace(
