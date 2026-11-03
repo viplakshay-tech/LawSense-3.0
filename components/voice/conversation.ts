@@ -1,3 +1,6 @@
+import type { GuideAction } from '@/components/guide-runtime/types';
+import type { GuideActionName } from '@/lib/api';
+
 export type GuideConversationLanguage = 'English' | 'Hindi' | 'Hinglish';
 export type GuideConversationStatus =
   | 'idle'
@@ -16,6 +19,19 @@ export interface GuideConversationPresentation {
   visualState: 'IDLE' | 'LISTENING' | 'THINKING' | 'SPEAKING' | 'CLARIFYING' | 'ACTION_REQUIRED';
   speechState: 'idle' | 'speaking' | 'paused';
   detail: string;
+}
+
+/** Resolve a model proposal only against actions currently exposed by the Guide Runtime. */
+type GuideWorkspaceAction = Exclude<GuideAction, { type: 'SPEAK_RESPONSE' }>;
+
+export function resolveGuideActionProposal(
+  proposedAction: GuideActionName | null | undefined,
+  availableActions: readonly GuideAction[],
+): GuideWorkspaceAction | undefined {
+  if (!proposedAction) return undefined;
+  return availableActions.find(
+    (action): action is GuideWorkspaceAction => action.type === proposedAction,
+  );
 }
 
 export interface GuideSpeechVoice {
