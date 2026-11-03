@@ -65,7 +65,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   return (
     <>
       {children}
-      <div className="fixed bottom-3 right-3 z-[90] flex max-w-[calc(100vw-1.5rem)] items-center gap-2 rounded-full border border-white/10 bg-[#0a0f19]/95 px-3 py-2 text-xs text-slate-300 shadow-xl backdrop-blur">
+      <div className="fixed right-3 top-3 z-[70] flex max-w-[calc(100vw-1.5rem)] items-center gap-2 rounded-full border border-white/10 bg-[#0a0f19]/95 px-3 py-2 text-xs text-slate-300 shadow-xl backdrop-blur">
         <span className="max-w-[42vw] truncate" title={user.username}>
           Signed in as <strong className="font-medium text-slate-100">{user.username}</strong>
         </span>

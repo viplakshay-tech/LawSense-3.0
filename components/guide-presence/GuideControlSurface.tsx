@@ -225,14 +225,13 @@ export function GuideControlSurface() {
     setExpanded(false);
     if (!restoreFocus) return;
     const frame = window.requestAnimationFrame(() => {
-      if (toggleRef.current) {
-        toggleRef.current.focus({ preventScroll: true });
+      const heading = document.querySelector<HTMLElement>('main h1, main h2');
+      if (heading) {
+        if (!heading.hasAttribute('tabindex')) heading.tabIndex = -1;
+        heading.focus({ preventScroll: true });
         return;
       }
-      const heading = document.querySelector<HTMLElement>('main h1, main h2');
-      if (!heading) return;
-      if (!heading.hasAttribute('tabindex')) heading.tabIndex = -1;
-      heading.focus({ preventScroll: true });
+      toggleRef.current?.focus({ preventScroll: true });
     });
     return () => window.cancelAnimationFrame(frame);
   }, [pathname]);

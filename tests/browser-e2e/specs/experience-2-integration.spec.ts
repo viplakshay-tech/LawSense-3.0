@@ -231,7 +231,7 @@ test('the Guide restores keyboard focus and the real Twin graph remains usable a
   await mobileNavigation.getByRole('link', { name: 'Law', exact: true }).click();
   await expect(page).toHaveURL(`/case/${caseId}/guide`);
   await expect(expandGuide).toHaveAttribute('aria-expanded', 'false');
-  await expect(expandGuide).toBeFocused();
+  await expect(page.locator('main h1, main h2').first()).toBeFocused();
 
   await mobileNavigation.getByRole('link', { name: 'Legal Twin' }).click();
   await expect(page).toHaveURL(`/case/${caseId}/twin`);
