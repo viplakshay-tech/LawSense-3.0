@@ -21,6 +21,7 @@ import {
 import { useCaseState } from '../CaseStateProvider';
 import { guidePresenceStateFromSnapshot, useGuideRuntime } from '@/components/guide-runtime';
 import { useGuideSession } from '@/lib/guide-session';
+import type { GuideChatLanguage } from '@/lib/api';
 
 const LANGUAGES: RecognitionLanguage[] = ['English', 'Hindi', 'Hinglish'];
 
@@ -116,7 +117,7 @@ export default function VoiceCaseClient({ id }: { id: string }) {
 
   const setLanguage = useCallback((nextLanguage: RecognitionLanguage) => {
     setLanguageState(nextLanguage);
-    setSessionLanguage(nextLanguage.toLocaleLowerCase() as VoiceLanguage);
+    setSessionLanguage(nextLanguage.toLocaleLowerCase() as GuideChatLanguage);
   }, [setSessionLanguage]);
 
   const emitVoiceEvent = useCallback((event: GuideVoiceEvent) => {
