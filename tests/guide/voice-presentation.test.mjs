@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
 import { validateGuideActionCommand } from '../../components/guide-actions/validation.ts';
+import { createGuideActionBridge } from '../../components/guide-actions/bridge.ts';
 import { guideVoiceSnapshotForEvent } from '../../components/guide-runtime/voice-adapter/visual-state.ts';
 import {
   createGuideConversationResponse,
@@ -155,4 +156,21 @@ test('Guide Twin commands accept bounded identifiers and valid timestamps only',
   assert.equal(validateGuideActionCommand({ type: 'selectTwinNode', nodeId: 'x'.repeat(513) }).ok, false);
   assert.equal(validateGuideActionCommand({ type: 'selectTimeline', timestamp: 'not-a-date' }).ok, false);
   assert.equal(validateGuideActionCommand({ type: 'selectTimeline', timestamp: Number.NaN }).ok, false);
+});
+
+
+test('Guide bridge forwards the finding and case document IDs to its validated adapter', async () => {
+  const calls = [];
+  const bridge = createGuideActionBridge({
+    highlightEvidence: (findingId, documentId) => calls.push({ findingId, documentId }),
+  });
+  const result = await bridge.dispatchUntrusted({
+    type: 'highlightEvidence',
+    findingId: 'finding-1',
+    documentId: 'document-1',
+    ignored: true,
+  });
+
+  assert.equal(result.status, 'success');
+  assert.deepEqual(calls, [{ findingId: 'finding-1', documentId: 'document-1' }]);
 });
