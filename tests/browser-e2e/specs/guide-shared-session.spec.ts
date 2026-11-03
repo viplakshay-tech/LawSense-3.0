@@ -59,3 +59,42 @@ test('Guide text and voice modes share the same case-scoped conversation across 
   await expect(restoredConversation).toContainText('Help me understand what information is missing.');
   await expect(restoredConversation).toContainText('When was the first salary payment due?');
 });
+
+
+test('dedicated Guide workspace has an inline text conversation that continues in voice mode', async ({ page }) => {
+  await page.route('**/api/**', async (route) => {
+    if (new URL(route.request().url()).pathname === '/api/guide/chat') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          reply: 'I can help clarify the timeline. When was the first salary payment due?',
+          status: 'ok',
+          model: 'test-local-model',
+        }),
+      });
+      return;
+    }
+    const response = await fetchFromIsolatedApi(route);
+    await route.fulfill({ response });
+  });
+
+  const caseId = await enterCase(page);
+  await page.goto(`/case/${caseId}/guide`);
+  await expect(page.getByRole('heading', { name: 'Legal guide' })).toBeVisible();
+
+  const messageBox = page.getByLabel('Message your Guide');
+  await messageBox.fill('Help me identify the next missing detail.');
+  await page.getByRole('button', { name: 'Send to local Guide' }).click();
+
+  const guideConversation = page.getByRole('log', { name: 'Guide conversation' });
+  await expect(guideConversation).toContainText('Help me identify the next missing detail.');
+  await expect(guideConversation).toContainText('When was the first salary payment due?');
+
+  await page.getByRole('button', { name: 'Voice' }).click();
+  await expect(page).toHaveURL(new RegExp(`/case/${caseId}/voice#voice-transcript$`));
+
+  const voiceConversation = page.getByRole('log', { name: 'Voice conversation transcript' });
+  await expect(voiceConversation).toContainText('Help me identify the next missing detail.');
+  await expect(voiceConversation).toContainText('When was the first salary payment due?');
+});
