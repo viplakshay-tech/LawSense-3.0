@@ -122,12 +122,6 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
   const [resources, setResources] = useState<JsonRecord[]>([]);
   const [legalKnowledgeStatus, setLegalKnowledgeStatus] = useState('');
 
-  useEffect(() => {
-    const openFromGuide = () => setOpen(true);
-    window.addEventListener(OPEN_LEGAL_ADVISORY_EVENT, openFromGuide);
-    return () => window.removeEventListener(OPEN_LEGAL_ADVISORY_EVENT, openFromGuide);
-  }, []);
-
   const loadAdvisory = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -182,6 +176,15 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
       setLoading(false);
     }
   }, [caseId, caseState]);
+
+  useEffect(() => {
+    const openFromGuide = () => {
+      setOpen(true);
+      void loadAdvisory();
+    };
+    window.addEventListener(OPEN_LEGAL_ADVISORY_EVENT, openFromGuide);
+    return () => window.removeEventListener(OPEN_LEGAL_ADVISORY_EVENT, openFromGuide);
+  }, [loadAdvisory]);
 
   useEffect(() => {
     if (!open) return;
