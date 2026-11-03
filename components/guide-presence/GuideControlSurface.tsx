@@ -60,16 +60,6 @@ function GuideConversationPanel({
     status: turn.status,
     ...(turn.proposedAction ? { proposedAction: snapshot.availableActions.find((action) => action.type === turn.proposedAction) } : {}),
   }));
-  const { turns, language: chatLanguage, history, appendTurn, setLanguage: setChatLanguage, clear: clearSession } = useGuideSession(caseId ?? '');
-  const chatEntries: GuideChatEntry[] = turns.map((turn) => ({
-    id: turn.id,
-    role: turn.role === 'user' ? 'you' : 'guide',
-    text: turn.content,
-    status: turn.status,
-    ...(turn.proposedAction ? {
-      proposedAction: snapshot.availableActions.find((action) => action.type === turn.proposedAction),
-    } : {}),
-  }));
   const [chatDraft, setChatDraft] = useState('');
   const [chatSending, setChatSending] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
