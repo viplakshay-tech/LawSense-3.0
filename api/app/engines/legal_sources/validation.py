@@ -75,7 +75,29 @@ def validate_registry_version(version: RegistrySourceVersion) -> None:
     _optional_text(version.canonical_reference, "canonical_reference")
     _optional_text(version.resource_identifier, "resource_identifier")
     _optional_text(version.publisher_name, "publisher_name")
+    _optional_text(version.freshness_evidence, "freshness_evidence")
     _validate_url(version.source_url, "source_url")
+    if not isinstance(version.freshness_status, SourceFreshnessStatus):
+        raise SourceRegistryValidationError("freshness_status must be a SourceFreshnessStatus value.")
+    if version.freshness_checked_at is not None and (
+        not isinstance(version.freshness_checked_at, datetime)
+        or version.freshness_checked_at.tzinfo is None
+        or version.freshness_checked_at.utcoffset() is None
+    ):
+        raise SourceRegistryValidationError("freshness_checked_at must be timezone-aware.")
+    if version.freshness_status is not SourceFreshnessStatus.UNKNOWN:
+        if version.freshness_checked_at is None or not version.freshness_evidence:
+            raise SourceRegistryValidationError(
+                "A reviewed freshness status requires freshness_checked_at and freshness_evidence."
+            )
+        if version.retrieved_at is None:
+            raise SourceRegistryValidationError(
+                "A reviewed freshness status requires a retrieved source snapshot."
+            )
+        if version.freshness_checked_at < version.retrieved_at:
+            raise SourceRegistryValidationError(
+                "freshness_checked_at cannot precede the source snapshot retrieval time."
+            )
 
     if version.publication_date is not None and (
         not isinstance(version.publication_date, date)
