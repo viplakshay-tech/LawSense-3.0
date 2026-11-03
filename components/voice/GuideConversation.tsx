@@ -4,7 +4,8 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { Mic, MicOff, RotateCcw, Send } from 'lucide-react';
 import type { GuideVoiceEvent, VoiceLanguage } from '@/components/guide-runtime/voice-adapter/events';
 import type { RecognitionLanguage } from './VoiceCapture';
-import { sendGuideMessage, type GuideConversationTurn } from '@/lib/api';
+import { sendGuideMessage, type GuideActionName, type GuideConversationTurn } from '@/lib/api';
+import type { GuideAction } from '@/components/guide-runtime/types';
 import {
   requestNativeGuideAudio,
   subscribeNativeGuideAudio,
@@ -14,6 +15,7 @@ import {
   createGuideConversationResponse,
   guideConversationPresentation,
   selectGuideSpeechVoice,
+  resolveGuideActionProposal,
   type GuideConversationPresentation,
   type GuideConversationStatus,
 } from './conversation';
@@ -60,6 +62,7 @@ type ConversationTurn = {
   text: string;
   source?: 'voice' | 'text';
   audio?: 'queued' | 'speaking' | 'spoken' | 'unavailable' | 'failed';
+  proposedAction?: GuideActionName;
 };
 
 interface GuideConversationProps {
@@ -68,6 +71,9 @@ interface GuideConversationProps {
   language: RecognitionLanguage;
   openQuestions: readonly string[];
   hasDraft: boolean;
+  availableActions: readonly GuideAction[];
+  onRunAction: (action: GuideAction) => void;
+  actionRunning?: boolean;
   disabled?: boolean;
   onUserTurn: (text: string, inputMethod: 'voice' | 'text') => void;
   onStateChange?: (presentation: GuideConversationPresentation) => void;
@@ -113,6 +119,9 @@ export default function GuideConversation({
   language,
   openQuestions,
   hasDraft,
+  availableActions,
+  onRunAction,
+  actionRunning = false,
   disabled = false,
   onUserTurn,
   onStateChange,
@@ -425,14 +434,21 @@ export default function GuideConversation({
     questionIndexRef.current += 1;
     transition('processing', 'Preparing a response from the local LawSense Guide.');
     let responseText: string;
+    let proposedAction: GuideActionName | undefined;
+    const allowedActions = availableActions.reduce<GuideActionName[]>((items, action) => {
+      if (action.type !== 'SPEAK_RESPONSE') items.push(action.type);
+      return items;
+    }, []);
     try {
       const result = await sendGuideMessage(
         statement,
         languageRef.current.toLowerCase() as 'english' | 'hindi' | 'hinglish',
         caseId,
         previousHistory,
+        allowedActions,
       );
       responseText = result.reply;
+      proposedAction = result.status === 'ok' ? result.proposed_action ?? undefined : undefined;
     } catch {
       const localUnavailable = languageRef.current === 'Hindi'
         ? 'स्थानीय Guide सेवा अभी उपलब्ध नहीं है। '
@@ -440,6 +456,7 @@ export default function GuideConversation({
           ? 'Local Guide service abhi available nahi hai. '
           : 'The local Guide service is unavailable right now. ';
       responseText = `${localUnavailable}${createGuideConversationResponse(statement, question, languageRef.current)}`;
+      proposedAction = undefined;
     }
     if (!mountedRef.current) return;
     const assistantTurn: GuideConversationTurn = { role: 'assistant', content: responseText };
@@ -448,7 +465,7 @@ export default function GuideConversation({
     const response = { id: responseId, text: responseText };
     lastResponseRef.current = response;
     setLastResponse(response);
-    addTurn({ id: responseId, speaker: 'guide', text: responseText, audio: 'queued' });
+    addTurn({ id: responseId, speaker: 'guide', text: responseText, audio: 'queued', ...(proposedAction ? { proposedAction } : {}) });
 
     const finishTurn = () => {
       utteranceRef.current = null;
@@ -841,17 +858,39 @@ export default function GuideConversation({
       <div className="ls-guide-call__conversationLog" role="log" aria-label="Voice conversation transcript" aria-live="polite" aria-relevant="additions text">
         {turns.length === 0 ? (
           <p className="ls-guide-call__conversationEmpty">Your messages and Guide replies will appear here.</p>
-        ) : turns.map((turn) => (
-          <article className="ls-guide-call__conversationTurn" key={turn.id} data-speaker={turn.speaker}>
-            <p className="ls-guide-call__turnSpeaker">{turn.speaker === 'you' ? (turn.source === 'voice' ? 'You · recognized speech' : 'You · typed') : 'LawSense Guide'}</p>
-            <p className="ls-guide-call__turnText">{turn.text}</p>
-            {turn.speaker === 'guide' && (
-              <p className="ls-guide-call__turnAudio" role="status">
-                {turn.audio === 'spoken' ? 'Spoken aloud' : turn.audio === 'speaking' ? 'Speaking now' : turn.audio === 'queued' ? 'Preparing spoken reply' : turn.audio === 'failed' ? 'Could not play aloud · text remains available' : turn.audio === 'unavailable' ? 'Speech output unavailable · text remains available' : ''}
-              </p>
-            )}
-          </article>
-        ))}
+        ) : turns.map((turn) => {
+          const proposedAction = turn.proposedAction
+            ? resolveGuideActionProposal(turn.proposedAction, availableActions)
+            : undefined;
+          return (
+            <article className="ls-guide-call__conversationTurn" key={turn.id} data-speaker={turn.speaker}>
+              <p className="ls-guide-call__turnSpeaker">{turn.speaker === 'you' ? (turn.source === 'voice' ? 'You · recognized speech' : 'You · typed') : 'LawSense Guide'}</p>
+              <p className="ls-guide-call__turnText">{turn.text}</p>
+              {turn.speaker === 'guide' && (
+                <p className="ls-guide-call__turnAudio" role="status">
+                  {turn.audio === 'spoken' ? 'Spoken aloud' : turn.audio === 'speaking' ? 'Speaking now' : turn.audio === 'queued' ? 'Preparing spoken reply' : turn.audio === 'failed' ? 'Could not play aloud · text remains available' : turn.audio === 'unavailable' ? 'Speech output unavailable · text remains available' : ''}
+                </p>
+              )}
+              {proposedAction && (
+                <button
+                  type="button"
+                  className="ls-guide-call__proposedActionButton"
+                  disabled={actionRunning}
+                  onClick={() => onRunAction(proposedAction)}
+                >
+                  Open {proposedAction.type === 'SHOW_EVIDENCE' ? 'Evidence Map'
+                    : proposedAction.type === 'SHOW_LEGAL_GROUNDING' ? 'legal grounding'
+                      : proposedAction.type === 'OPEN_JOURNEY' ? 'journey'
+                        : proposedAction.type === 'SHOW_TWIN' ? 'Living Twin'
+                          : proposedAction.type === 'START_VOICE' ? 'voice capture'
+                            : proposedAction.type === 'OPEN_SAFETY' ? 'safety options'
+                              : proposedAction.type === 'ASK_CLARIFICATION' ? 'clarification'
+                                : `${proposedAction.payload.target} workspace`}
+                </button>
+              )}
+            </article>
+          );
+        })}
         {interimTranscript && (
           <p className="ls-guide-call__interimTranscript" aria-live="polite">Hearing: {interimTranscript}</p>
         )}
