@@ -17,12 +17,19 @@ export interface GuideSessionSnapshot {
   turns: GuideSessionTurn[];
   language: GuideChatLanguage;
   generation: number;
+  requestSequence: number;
+}
+
+export interface GuideSessionRequestToken {
+  generation: number;
+  sequence: number;
 }
 
 const EMPTY_SNAPSHOT: GuideSessionSnapshot = Object.freeze({
   turns: [],
   language: 'english',
   generation: 0,
+  requestSequence: 0,
 });
 
 const MAX_VISIBLE_TURNS = 20;
@@ -61,6 +68,9 @@ function readSession(caseId: string): GuideSessionSnapshot {
           language,
           generation: Number.isSafeInteger(parsed.generation) && (parsed.generation ?? 0) >= 0
             ? parsed.generation as number
+            : 0,
+          requestSequence: Number.isSafeInteger(parsed.requestSequence) && (parsed.requestSequence ?? 0) >= 0
+            ? parsed.requestSequence as number
             : 0,
         };
       }
@@ -109,6 +119,31 @@ export function isGuideSessionGenerationCurrent(caseId: string, generation: numb
   return Number.isSafeInteger(generation) && getGuideSessionGeneration(caseId) === generation;
 }
 
+/**
+ * Start a shared logical turn. A newer request from either text or voice
+ * supersedes every older pending response for this case session.
+ */
+export function beginGuideSessionRequest(caseId: string): GuideSessionRequestToken {
+  const current = readSession(caseId);
+  if (!caseId) return { generation: current.generation, sequence: current.requestSequence };
+  const wraps = current.requestSequence >= Number.MAX_SAFE_INTEGER;
+  const generation = wraps ? current.generation + 1 : current.generation;
+  const sequence = wraps ? 1 : current.requestSequence + 1;
+  publish(caseId, { ...current, generation, requestSequence: sequence });
+  return { generation, sequence };
+}
+
+export function isGuideSessionRequestCurrent(
+  caseId: string,
+  request: GuideSessionRequestToken,
+): boolean {
+  const current = readSession(caseId);
+  return Number.isSafeInteger(request.generation)
+    && Number.isSafeInteger(request.sequence)
+    && current.generation === request.generation
+    && current.requestSequence === request.sequence;
+}
+
 export function appendGuideSessionTurn(caseId: string, turn: GuideSessionTurn): void {
   const current = readSession(caseId);
   publish(caseId, { ...current, turns: [...current.turns, turn].slice(-MAX_VISIBLE_TURNS) });
@@ -139,6 +174,7 @@ export function clearGuideSession(caseId: string): void {
     turns: [],
     language: 'english',
     generation: current.generation + 1,
+    requestSequence: current.requestSequence + 1,
   });
 }
 
