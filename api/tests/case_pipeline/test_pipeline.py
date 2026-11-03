@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import unittest
 from dataclasses import replace
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 from app.engines.legal_knowledge import (
@@ -20,6 +20,7 @@ from app.engines.legal_knowledge import (
     SourceReference,
 )
 from app.engines.legal_reasoning import reason_about_case
+from app.engines.legal_sources import RegistrySourceVersion, SourceFreshnessStatus, SourceType
 from app.engines.legal_twin.models import InformationStatus
 from app.engines.document_review import review_document
 from app.schemas.case_state import CaseFact, EvidenceItem, EvidenceProvenance, Jurisdiction
@@ -559,7 +560,10 @@ class CasePipelineTests(unittest.TestCase):
             id="source-consumer",
             title="Fixture source",
             authority=authority.id,
+            jurisdiction=jurisdiction.id,
             authority_tier=SourceAuthorityTier.TIER_1_PRIMARY_OFFICIAL,
+            source_url="https://sources.example.invalid/consumer-act",
+            status=KnowledgeStatus.VERIFIED,
         )
         document = LegalDocument(
             id="document-consumer",
@@ -608,8 +612,35 @@ class CasePipelineTests(unittest.TestCase):
                 retrieval_time=RETRIEVED_AT,
             ),),
         )
+        source_version = RegistrySourceVersion(
+            id="source-consumer-v1",
+            title="Fixture Consumer Protection Act",
+            source=source.id,
+            authority=authority.id,
+            jurisdiction=jurisdiction.id,
+            source_url="https://sources.example.invalid/consumer-act",
+            version="fixture-v1",
+            effective_from=date(2020, 7, 24),
+            retrieved_at=RETRIEVED_AT,
+            status=KnowledgeStatus.VERIFIED,
+            provenance=(SourceReference(
+                source_id=source.id,
+                retrieval_time=RETRIEVED_AT,
+                document_id=document.id,
+                page_section_reference="official source snapshot",
+                source_url="https://sources.example.invalid/consumer-act",
+            ),),
+            source_type=SourceType.LEGISLATION,
+            canonical_reference="Fixture Consumer Protection Act, 2019",
+            publication_date=date(2019, 8, 9),
+            publisher_name="Fixture publisher",
+            authority_tier=SourceAuthorityTier.TIER_1_PRIMARY_OFFICIAL,
+            freshness_status=SourceFreshnessStatus.CURRENT,
+            freshness_checked_at=datetime(2026, 10, 9, 12, 0, tzinfo=timezone.utc),
+            freshness_evidence="Compared the current official publication and Gazette amendments through 2026-10-09.",
+        )
         repository = InMemoryLegalKnowledgeStore()
-        repository.add_many((authority, jurisdiction, source, document, provision))
+        repository.add_many((authority, jurisdiction, source, source_version, document, provision))
         repository.add_relationship(relation)
 
         result = run_case_pipeline(
@@ -622,8 +653,10 @@ class CasePipelineTests(unittest.TestCase):
         self.assertEqual(statement.text, provision_text)
         self.assertTrue(any(ref.source_id == source.id for ref in statement.source_references))
         self.assertIn("JURISDICTION_UNKNOWN", statement.reason_codes)
-        self.assertIn("SOURCE_VERIFICATION_NOT_CONFIRMED", statement.reason_codes)
-        self.assertIn("SOURCE_FRESHNESS_NOT_CURRENT", statement.reason_codes)
+        governed = next(item for item in result.legal_knowledge.governed_sources if item.source_id == source.id)
+        self.assertEqual(governed.freshness_status, SourceFreshnessStatus.CURRENT)
+        self.assertNotIn("SOURCE_VERIFICATION_NOT_CONFIRMED", statement.reason_codes)
+        self.assertNotIn("SOURCE_FRESHNESS_NOT_CURRENT", statement.reason_codes)
 
     def test_analysis_timeline_preserves_report_status_and_timeline_provenance(self) -> None:
         _, result = self._run_fixture("threatening_messages")

@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from enum import StrEnum
 
+from app.engines.legal_sources.governance_models import SourceFreshnessStatus
 from app.engines.legal_knowledge.models import (
     Authority,
     Jurisdiction,
@@ -48,6 +49,9 @@ class RegistrySourceVersion(SourceVersion):
     publication_date: date | None = None
     publisher_name: str | None = None
     authority_tier: SourceAuthorityTier | None = None
+    freshness_status: SourceFreshnessStatus = SourceFreshnessStatus.UNKNOWN
+    freshness_checked_at: datetime | None = None
+    freshness_evidence: str | None = None
 
     @property
     def effective_date(self) -> date | None:
@@ -151,6 +155,18 @@ class SourceRegistryEntry:
     @property
     def verification_status(self) -> KnowledgeStatus:
         return self.current_version.verification_status
+
+    @property
+    def freshness_status(self) -> SourceFreshnessStatus:
+        return self.current_version.freshness_status
+
+    @property
+    def freshness_checked_at(self) -> datetime | None:
+        return self.current_version.freshness_checked_at
+
+    @property
+    def freshness_evidence(self) -> str | None:
+        return self.current_version.freshness_evidence
 
     @property
     def authority_tier(self) -> SourceAuthorityTier | None:

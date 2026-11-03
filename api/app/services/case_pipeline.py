@@ -1214,8 +1214,9 @@ def _govern_sources(
 
     Verification is carried forward only when both the registered source and
     its explicit source-registry snapshot are verified and source provenance
-    is present. Freshness and case-specific applicability remain unknown until
-    separately reviewed.
+    is present. Freshness is carried forward only from an explicit, evidenced
+    registry review; retrieval time alone never establishes currentness.
+    Case-specific applicability remains unknown until separately reviewed.
     """
     getter = getattr(repository, "get", None)
     items = tuple(getattr(repository, "items", ()))
@@ -1289,7 +1290,9 @@ def _govern_sources(
                 else SourceVerificationStatus.UNVERIFIED
             ),
             verification_evidence=evidence,
-            freshness_status=SourceFreshnessStatus.UNKNOWN,
+            freshness_status=(
+                version.freshness_status if version else SourceFreshnessStatus.UNKNOWN
+            ),
             applicability_status=SourceApplicabilityStatus.APPLICABILITY_NOT_ESTABLISHED,
         ))
     registry = SourceGovernanceRegistry()

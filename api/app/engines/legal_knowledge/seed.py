@@ -24,7 +24,7 @@ from app.engines.legal_knowledge.models import (
     SourceReference,
 )
 from app.engines.legal_knowledge.store import InMemoryLegalKnowledgeStore
-from app.engines.legal_sources import LegalSourceRegistry, RegistrySourceVersion, SourceType
+from app.engines.legal_sources import LegalSourceRegistry, RegistrySourceVersion, SourceFreshnessStatus, SourceType
 
 
 _VERIFIED_AT = datetime(2026, 10, 7, 21, 1, 55, tzinfo=timezone.utc)
@@ -51,6 +51,9 @@ class _SourceSeed:
     source_type: SourceType = SourceType.LEGISLATION
     jurisdiction_id: str = _INDIA_JURISDICTION_ID
     retrieved_at: datetime | None = None
+    freshness_status: SourceFreshnessStatus = SourceFreshnessStatus.UNKNOWN
+    freshness_checked_at: datetime | None = None
+    freshness_evidence: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -474,6 +477,9 @@ def build_authoritative_legal_knowledge_seed() -> InMemoryLegalKnowledgeStore:
                 publication_date=spec.publication_date,
                 publisher_name=spec.publisher_name,
                 authority_tier=spec.authority_tier,
+                freshness_status=spec.freshness_status,
+                freshness_checked_at=spec.freshness_checked_at,
+                freshness_evidence=spec.freshness_evidence,
             ),
         )
 

@@ -28,6 +28,7 @@ A positive answer to one question does not answer the others.
 - The Uttarakhand Tenancy Act record expressly does not establish commencement under section 1(3). Its security-deposit summary must not be presented as operative law until the relevant State Gazette commencement notification and current status are checked.
 - The Code on Wages commencement record relies on the cited Gazette notification. Any later amendment, stay, replacement, or subsequent notification still requires a date-specific check.
 - The catalog's `verificationDate` is a recorded project review date, not proof that the URL was checked during the current request.
+- Registry snapshots may record an explicit freshness status, review timestamp and evidence. `current` or `stale` requires both a timezone-aware review timestamp and non-empty evidence; retrieval time alone leaves freshness `unknown`.
 - A missing commencement date must remain unknown; do not infer it from an enactment date, upload date, or third-party API result.
 
 ## 4. Advisory-use gate
