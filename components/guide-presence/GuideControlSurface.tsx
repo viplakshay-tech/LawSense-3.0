@@ -8,6 +8,7 @@ import { guidePresenceStateFromSnapshot, useGuideRuntime } from '@/components/gu
 import { sendGuideMessage, type GuideActionName, type GuideChatLanguage } from '@/lib/api';
 import {
   beginGuideSessionRequest,
+  finishGuideSessionRequest,
   isGuideSessionRequestCurrent,
   useGuideSession,
 } from '@/lib/guide-session';
@@ -133,6 +134,7 @@ export function GuideConversationPanel({
         caseId,
         history,
         availableActions,
+        sessionRequest.signal,
       );
       if (
         requestToken !== chatRequestSequenceRef.current
@@ -171,6 +173,7 @@ export function GuideConversationPanel({
         setChatError('The local Guide service could not be reached. No cloud fallback was used. Try again or use the existing case actions.');
       }
     } finally {
+      finishGuideSessionRequest(caseId, sessionRequest);
       if (requestToken === chatRequestSequenceRef.current) {
         if (activeSessionRequestRef.current === sessionRequest.sequence) {
           activeSessionRequestRef.current = null;
