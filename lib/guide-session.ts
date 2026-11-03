@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
 import type { GuideActionName, GuideChatLanguage, GuideConversationTurn } from './api';
 
 export interface GuideSessionTurn {
@@ -161,6 +161,20 @@ export function finishGuideSessionRequest(
   }
 }
 
+/** Invalidate a pending request without clearing the previous case's conversation. */
+export function invalidateGuideSessionRequest(caseId: string): void {
+  if (!caseId) return;
+  const current = readSession(caseId);
+  pendingRequests.get(caseId)?.abort();
+  pendingRequests.delete(caseId);
+  publish(caseId, {
+    ...current,
+    requestSequence: current.requestSequence >= Number.MAX_SAFE_INTEGER
+      ? 0
+      : current.requestSequence + 1,
+  });
+}
+
 export function appendGuideSessionTurn(caseId: string, turn: GuideSessionTurn): void {
   const current = readSession(caseId);
   publish(caseId, { ...current, turns: [...current.turns, turn].slice(-MAX_VISIBLE_TURNS) });
@@ -210,6 +224,15 @@ export function getGuideConversationHistory(caseId: string): GuideConversationTu
 }
 
 export function useGuideSession(caseId: string) {
+  const previousCaseIdRef = useRef(caseId);
+  useEffect(() => {
+    const previousCaseId = previousCaseIdRef.current;
+    if (previousCaseId && previousCaseId !== caseId) {
+      invalidateGuideSessionRequest(previousCaseId);
+    }
+    previousCaseIdRef.current = caseId;
+  }, [caseId]);
+
   const snapshot = useSyncExternalStore(
     useCallback((listener) => subscribe(caseId, listener), [caseId]),
     useCallback(() => readSession(caseId), [caseId]),
