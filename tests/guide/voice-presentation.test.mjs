@@ -16,6 +16,7 @@ const avatarCss = await readFile(new URL('../../components/guide-presence/avatar
 const callCss = await readFile(new URL('../../app/case/[id]/voice/VoiceCaseClient.css', import.meta.url), 'utf8');
 const voicePage = await readFile(new URL('../../app/case/[id]/voice/page.tsx', import.meta.url), 'utf8');
 const guideRuntimeProvider = await readFile(new URL('../../components/guide-runtime/GuideRuntimeProvider.tsx', import.meta.url), 'utf8');
+const guideWorkspaceSource = await readFile(new URL('../../app/case/[id]/guide/GuideClient.tsx', import.meta.url), 'utf8');
 const legalSourceCandidates = await readFile(new URL('../../components/LegalSourceCandidates.tsx', import.meta.url), 'utf8');
 const persistentLegalAdvisorySource = await readFile(new URL('../../components/case-shell/PersistentLegalAdvisory.tsx', import.meta.url), 'utf8');
 const guideSessionSource = await readFile(new URL('../../lib/guide-session.ts', import.meta.url), 'utf8');
@@ -205,18 +206,19 @@ test('Guide opens Legal Advisory when there is no single source record to focus'
   assert.equal(opened, 1);
   assert.match(guideRuntimeProvider, /recordIds\.length === 1[\s\S]*?openLegalGrounding[\s\S]*?: \{ type: 'openLegalAdvisory' \}/);
   assert.match(persistentLegalAdvisory, /addEventListener\(OPEN_LEGAL_ADVISORY_EVENT, openFromGuide\)/);
-  assert.match(persistentLegalAdvisory, /setOpen\(true\);\s*void loadAdvisory\(\);/);
+  assert.match(persistentLegalAdvisory, /const openFromGuide = \(\) => \{\s*setOpen\(true\);\s*\};/);
+  assert.match(persistentLegalAdvisory, /if \(!open\) return;\s*const frame = window\.requestAnimationFrame\(\(\) => \{\s*void loadAdvisory\(\);/);
 });
 
 
 test('clearing the shared Guide session invalidates pending voice replies across routes', () => {
+  assert.match(guideSessionSource, /generation:\s*current\.generation\s*\+\s*1/);
   assert.match(guideSessionSource, /requestSequence/);
   assert.match(guideSessionSource, /export function beginGuideSessionRequest/);
   assert.match(guideSessionSource, /export function isGuideSessionRequestCurrent/);
   assert.match(voiceConversationSource, /beginGuideSessionRequest\(caseId\)/);
   assert.match(voiceConversationSource, /isGuideSessionRequestCurrent\(caseId, sessionRequest\)/);
   assert.match(voiceConversationSource, /sessionRequest\.signal/);
-  assert.match(guideControlSurfaceSource, /sessionRequest\.signal/);
 });
 
 test('voice conversation preserves an unavailable local assistant response status', () => {
@@ -227,6 +229,13 @@ test('voice conversation preserves an unavailable local assistant response statu
 test('Legal Advisory distinguishes catalog record status from source verification and freshness', () => {
   assert.match(persistentLegalAdvisorySource, /sourceVerificationStatus/);
   assert.match(persistentLegalAdvisorySource, /sourceFreshnessStatus/);
+  assert.match(persistentLegalAdvisorySource, /sourceFreshnessCheckedAt/);
+  assert.match(persistentLegalAdvisorySource, /sourceFreshnessEvidence/);
+  assert.match(persistentLegalAdvisorySource, /Freshness review recorded/);
+  assert.match(persistentLegalAdvisorySource, /Review evidence:/);
+  assert.match(persistentLegalAdvisorySource, /timeZoneName: 'short'/);
+  assert.match(persistentLegalAdvisorySource, /year: 'numeric'/);
+  assert.doesNotMatch(persistentLegalAdvisorySource, /dateStyle:/);
   assert.match(persistentLegalAdvisorySource, /sourceApplicabilityStatus/);
   assert.match(persistentLegalAdvisorySource, /jurisdictionMatchStatus/);
   assert.match(persistentLegalAdvisorySource, /Source verification and freshness/);
@@ -242,4 +251,11 @@ test('clearing the shared case session invalidates pending text Guide replies ac
   assert.match(guideControlSurfaceSource, /beginGuideSessionRequest\(caseId\)/);
   assert.match(guideControlSurfaceSource, /isGuideSessionRequestCurrent\(caseId, sessionRequest\)/);
   assert.match(guideControlSurfaceSource, /activeSessionRequestRef\.current === sessionRequestSequence/);
+  assert.match(guideControlSurfaceSource, /sessionRequest\.signal/);
+});
+
+test('Guide workspace always exposes Legal Advisory based on information so far', () => {
+  assert.match(guideWorkspaceSource, /Legal Advisory/);
+  assert.match(guideWorkspaceSource, /Decision based on information so far/);
+  assert.match(guideWorkspaceSource, /window\.dispatchEvent\(new Event\(OPEN_LEGAL_ADVISORY_EVENT\)\)/);
 });
