@@ -170,8 +170,9 @@ def record_retrieval(
     """Return source metadata with explicit retrieval facts applied.
 
     Retrieval may update the retrieval timestamp and an adapter-supplied
-    locator. Verification, freshness, and applicability assessments are kept
-    exactly as they were; retrieval alone cannot change any of them.
+    locator. It never promotes verification, freshness, or applicability.
+    If the new snapshot is later than the freshness review, that review is
+    invalidated and freshness returns to unknown.
     """
 
     validate_governed_source(source)
@@ -191,11 +192,25 @@ def record_retrieval(
         raise SourceGovernanceValidationError("Retrieved material payload must be bytes.")
     _validate_url(material.source_url)
     _optional_text(material.reference, "reference")
+    freshness_review_is_older = (
+        source.freshness_checked_at is not None
+        and material.retrieved_at > source.freshness_checked_at
+    )
+    freshness_updates = (
+        {
+            "freshness_status": SourceFreshnessStatus.UNKNOWN,
+            "freshness_checked_at": None,
+            "freshness_evidence": None,
+        }
+        if freshness_review_is_older
+        else {}
+    )
     return replace(
         source,
         retrieved_at=material.retrieved_at,
         source_url=material.source_url or source.source_url,
         reference=material.reference or source.reference,
+        **freshness_updates,
     )
 
 
