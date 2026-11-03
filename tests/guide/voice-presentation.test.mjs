@@ -16,11 +16,11 @@ const avatarCss = await readFile(new URL('../../components/guide-presence/avatar
 const callCss = await readFile(new URL('../../app/case/[id]/voice/VoiceCaseClient.css', import.meta.url), 'utf8');
 const voicePage = await readFile(new URL('../../app/case/[id]/voice/page.tsx', import.meta.url), 'utf8');
 const guideRuntimeProvider = await readFile(new URL('../../components/guide-runtime/GuideRuntimeProvider.tsx', import.meta.url), 'utf8');
-const guideWorkspaceSource = await readFile(new URL('../../app/case/[id]/guide/GuideClient.tsx', import.meta.url), 'utf8');
 const legalSourceCandidates = await readFile(new URL('../../components/LegalSourceCandidates.tsx', import.meta.url), 'utf8');
 const persistentLegalAdvisorySource = await readFile(new URL('../../components/case-shell/PersistentLegalAdvisory.tsx', import.meta.url), 'utf8');
 const guideSessionSource = await readFile(new URL('../../lib/guide-session.ts', import.meta.url), 'utf8');
 const voiceConversationSource = await readFile(new URL('../../components/voice/GuideConversation.tsx', import.meta.url), 'utf8');
+const guideControlSurfaceSource = await readFile(new URL('../../components/guide-presence/GuideControlSurface.tsx', import.meta.url), 'utf8');
 const persistentLegalAdvisory = await readFile(new URL('../../components/case-shell/PersistentLegalAdvisory.tsx', import.meta.url), 'utf8');
 
 test('voice milestones present the state reported by the call flow', () => {
@@ -233,6 +233,13 @@ test('Legal Advisory distinguishes catalog record status from source verificatio
   assert.match(persistentLegalAdvisorySource, /Candidate records present · source review incomplete/);
   assert.match(persistentLegalAdvisorySource, /legal_document/);
   assert.match(persistentLegalAdvisorySource, /sourceApplicabilityStatus, 'applicability_not_established'\) !== 'potentially_relevant'/);
+});
+
+test('clearing the shared case session invalidates pending text Guide replies across routes', () => {
+  assert.match(guideControlSurfaceSource, /generation: sessionGeneration/);
+  assert.match(guideControlSurfaceSource, /getGuideSessionGeneration\(caseId\)/);
+  assert.match(guideControlSurfaceSource, /isGuideSessionGenerationCurrent\(caseId, requestGeneration\)/);
+  assert.match(guideControlSurfaceSource, /observedSessionGenerationRef\.current === sessionGeneration/);
 });
 
 test('Guide workspace always exposes Legal Advisory based on information so far', () => {
