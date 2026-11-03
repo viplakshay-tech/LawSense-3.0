@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { AlertTriangle, CircleHelp, FileText, LoaderCircle, RefreshCw, Scale, ShieldAlert, X } from 'lucide-react';
 import { useCaseState } from '@/app/case/[id]/CaseStateProvider';
@@ -120,10 +120,15 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
   const [result, setResult] = useState<JsonRecord | null>(null);
   const [resources, setResources] = useState<JsonRecord[]>([]);
   const [legalKnowledgeStatus, setLegalKnowledgeStatus] = useState('');
+  const loadRequestIdRef = useRef(0);
 
   const loadAdvisory = useCallback(async () => {
+    const requestId = ++loadRequestIdRef.current;
     setLoading(true);
     setError(null);
+    setResult(null);
+    setResources([]);
+    setLegalKnowledgeStatus('');
     try {
       const response = await fetch('/api/cases/' + encodeURIComponent(caseId) + '/legal-reasoning', {
         method: 'GET',
@@ -131,6 +136,7 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
         headers: { Accept: 'application/json' },
       });
       const body: unknown = await response.json().catch(() => null);
+      if (requestId !== loadRequestIdRef.current) return;
       if (!response.ok) {
         const message = isRecord(body) ? textValue(body.detail) : '';
         throw new Error(message || 'The case advisory could not be loaded.');
@@ -138,9 +144,9 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
       if (!isRecord(body) || !isRecord(body.result)) {
         throw new Error('The analysis service returned an unexpected response.');
       }
+      if (requestId !== loadRequestIdRef.current) return;
       setResult(body.result);
       setLegalKnowledgeStatus(textValue(body.legalKnowledgeStatus));
-      setResources([]);
 
       // Use the existing local registry for general legal aid and issue-relevant
       // helplines. Its jurisdiction rules decide which resources are eligible.
@@ -158,6 +164,7 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
           );
           if (supportResponse.ok) {
             const supportBody: unknown = await supportResponse.json().catch(() => null);
+            if (requestId !== loadRequestIdRef.current) return;
             const assessment = isRecord(supportBody) && isRecord(supportBody.assessment)
               ? supportBody.assessment
               : null;
@@ -170,11 +177,21 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
         }
       }
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'The case advisory could not be loaded.');
+      if (requestId === loadRequestIdRef.current) {
+        setError(cause instanceof Error ? cause.message : 'The case advisory could not be loaded.');
+      }
     } finally {
-      setLoading(false);
+      if (requestId === loadRequestIdRef.current) setLoading(false);
     }
   }, [caseId, caseState]);
+
+  useEffect(() => {
+    if (!open) return;
+    void loadAdvisory();
+    return () => {
+      loadRequestIdRef.current += 1;
+    };
+  }, [open, loadAdvisory]);
 
   useEffect(() => {
     if (!open) return;
@@ -216,7 +233,6 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
 
   function openDialog() {
     setOpen(true);
-    void loadAdvisory();
   }
 
   return (
