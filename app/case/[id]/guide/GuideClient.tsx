@@ -19,6 +19,7 @@ import {
   Volume2,
   VolumeX,
 } from 'lucide-react';
+import { OPEN_LEGAL_ADVISORY_EVENT } from '@/components/case-shell/legal-advisory-events';
 import { type CaseState, type JourneySummary } from '@/lib/api';
 import { useCaseState } from '../CaseStateProvider';
 import { guidePresenceStateFromSnapshot, guideStateLabel, useGuideRuntime } from '@/components/guide-runtime';
@@ -407,6 +408,16 @@ export default function GuidePage({ id }: { id: string }) {
                   <span>Text chat</span>
                   <small>Continue in this workspace</small>
                 </Link>
+                <button
+                  type="button"
+                  className={`${"ls-guide-room__controlButton"} ${"ls-guide-room__controlSecondary"}`}
+                  onClick={() => window.dispatchEvent(new Event(OPEN_LEGAL_ADVISORY_EVENT))}
+                  aria-label="Open Legal Advisory based on information so far"
+                >
+                  <Scale aria-hidden="true" />
+                  <span>Legal Advisory</span>
+                  <small>Decision based on information so far</small>
+                </button>
                 <Link href={`${base}#upload-heading`} className={"ls-guide-room__controlButton"}>
                   <FileText aria-hidden="true" />
                   <span>Upload</span>
