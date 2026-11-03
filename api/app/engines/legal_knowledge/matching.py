@@ -495,11 +495,12 @@ def _procedure_guidance(
         procedure_items.append({
             "id": procedure.id,
             "title": procedure.title,
-            "steps": list(procedure.steps),
+            "steps": list(procedure.steps) if verified else [],
             "jurisdiction": procedure.jurisdiction,
             "verification_status": "verified" if verified else "unverified",
             "freshness_status": governed.freshness_status.value if governed else "unknown",
             "source_url": procedure.source_url,
+            "guidance_status": "verified_current" if verified else "not_established_as_current",
         })
         if authority is not None:
             authority_items.append({
