@@ -19,6 +19,7 @@ function actionLabel(action: GuideAction): string {
     case 'SHOW_TWIN': return 'Open Living Twin';
     case 'OPEN_SAFETY': return 'Review safety';
     case 'START_VOICE': return 'Open voice capture';
+    case 'OPEN_DRAFTING': return 'Open document drafting';
     case 'SPEAK_RESPONSE': return 'Speak status';
     case 'NAVIGATE': return action.payload.target === 'case'
       ? 'Case overview'
