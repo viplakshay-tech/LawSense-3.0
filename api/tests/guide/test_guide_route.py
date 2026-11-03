@@ -186,6 +186,7 @@ class GuideRouteTests(unittest.TestCase):
             **self.payload,
             "case_id": "case-demo",
             "conversation_history": conversation_history,
+            "available_actions": ["ASK_CLARIFICATION"],
         }
         with (
             patch.object(guide_route, "get_case_state", return_value=saved_case) as case_lookup,
@@ -197,6 +198,7 @@ class GuideRouteTests(unittest.TestCase):
         self.assertEqual(response["status"], "ok")
         case_lookup.assert_called_once_with("case-demo")
         self.assertEqual(captured["conversation_history"], conversation_history)
+        self.assertEqual(captured["available_actions"], ["ASK_CLARIFICATION"])
         context = captured["case_context"]
         self.assertIsInstance(context, list)
         rendered_context = repr(context)
@@ -205,6 +207,64 @@ class GuideRouteTests(unittest.TestCase):
         self.assertIn("When did the tenancy end?", rendered_context)
         self.assertIn("The stated move-out dates differ.", rendered_context)
         self.assertNotIn("legal_conclusion", rendered_context)
+
+    def test_guide_returns_only_a_proposed_action_from_the_current_allowlist(self) -> None:
+        def opener(request, *, timeout):
+            sent = json.loads(request.data.decode("utf-8"))
+            self.assertEqual(sent["format"], "json")
+            prompt = sent["messages"][1]["content"]
+            self.assertIn("SHOW_EVIDENCE", prompt)
+            self.assertNotIn("OPEN_JOURNEY", prompt)
+            return _Response({"message": {
+                "content": json.dumps({
+                    "reply": "I can open the evidence workspace.",
+                    "proposed_action": "SHOW_EVIDENCE",
+                })
+            }})
+
+        with self._proxy_free_opener_patch(opener):
+            status, response = _asgi_request({
+                **self.payload,
+                "available_actions": ["SHOW_EVIDENCE"],
+            })
+
+        self.assertEqual(status, 200, response)
+        self.assertEqual(response["proposed_action"], "SHOW_EVIDENCE")
+        self.assertEqual(response["reply"], "I can open the evidence workspace.")
+
+    def test_model_cannot_propose_an_action_missing_from_the_current_allowlist(self) -> None:
+        def opener(request, *, timeout):
+            return _Response({"message": {
+                "content": json.dumps({
+                    "reply": "I can explain the current record.",
+                    "proposed_action": "OPEN_JOURNEY",
+                })
+            }})
+
+        with patch.dict("os.environ", {"OLLAMA_MODEL": "test-local-model"}, clear=False):
+            with self._proxy_free_opener_patch(opener):
+                status, response = _asgi_request({
+                    **self.payload,
+                    "available_actions": ["SHOW_EVIDENCE"],
+                })
+
+        self.assertEqual(status, 200, response)
+        self.assertEqual(response, {
+            "reply": "I can explain the current record.",
+            "status": "ok",
+            "model": "test-local-model",
+        })
+        self.assertNotIn("proposed_action", response)
+
+    def test_unknown_action_is_rejected_before_the_local_model_is_called(self) -> None:
+        with patch.object(guide_route, "chat_with_local_model") as local_model:
+            status, _response = _asgi_request({
+                **self.payload,
+                "available_actions": ["DELETE_CASE"],
+            })
+
+        self.assertEqual(status, 422)
+        local_model.assert_not_called()
 
     def test_unknown_case_id_does_not_call_local_model(self) -> None:
         with (

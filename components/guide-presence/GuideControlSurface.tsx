@@ -5,7 +5,7 @@ import type { FormEvent, KeyboardEvent } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Activity, ArrowLeft, ChevronDown, ChevronUp, CircleHelp, Loader2, MessageCircle, Mic2, Radio, Send, ShieldAlert, Trash2, Volume2, VolumeX } from 'lucide-react';
 import { guidePresenceStateFromSnapshot, useGuideRuntime } from '@/components/guide-runtime';
-import { sendGuideMessage, type GuideChatLanguage, type GuideConversationTurn } from '@/lib/api';
+import { sendGuideMessage, type GuideActionName, type GuideChatLanguage, type GuideConversationTurn } from '@/lib/api';
 import type { GuideAction } from '@/components/guide-runtime/types';
 import { GuidePresence } from './GuidePresence';
 import { GUIDE_PRESENCE_LABELS } from './types';
@@ -39,6 +39,7 @@ type GuideChatEntry = {
   role: 'you' | 'guide';
   text: string;
   status?: 'ok' | 'unavailable';
+  proposedAction?: GuideAction;
 };
 
 function GuideConversationPanel({
@@ -48,6 +49,7 @@ function GuideConversationPanel({
   caseId: string | null;
   onOpenVoice: () => void;
 }) {
+  const { snapshot, dispatch, runAction, actionRunning } = useGuideRuntime();
   const [chatEntries, setChatEntries] = useState<GuideChatEntry[]>([]);
   const [chatDraft, setChatDraft] = useState('');
   const [chatLanguage, setChatLanguage] = useState<GuideChatLanguage>('english');
@@ -73,6 +75,8 @@ function GuideConversationPanel({
       text: message,
     };
     setChatEntries((current) => [...current.slice(-9), userEntry]);
+    dispatch({ type: 'GUIDE_USER_INPUT_STARTED' });
+    dispatch({ type: 'GUIDE_PROCESSING_STARTED' });
 
     try {
       const conversationHistory = chatEntries
@@ -82,17 +86,44 @@ function GuideConversationPanel({
           role: entry.role === 'you' ? 'user' : 'assistant',
           content: entry.text,
         }));
-      const response = await sendGuideMessage(message, chatLanguage, caseId, conversationHistory);
+      const availableActions = snapshot.availableActions
+        .filter((action) => action.type !== 'SPEAK_RESPONSE')
+        .map((action) => action.type as GuideActionName);
+      const response = await sendGuideMessage(
+        message,
+        chatLanguage,
+        caseId,
+        conversationHistory,
+        availableActions,
+      );
       if (requestToken !== chatRequestSequenceRef.current) return;
+
+      if (response.status === 'ok') {
+        dispatch({
+          type: 'GUIDE_RESPONSE_READY',
+          response: { id: `guide-chat-response-${requestToken}`, text: response.reply },
+        });
+      } else {
+        dispatch({ type: 'GUIDE_RESET' });
+      }
+
+      const proposedAction = response.proposed_action
+        ? snapshot.availableActions.find((action) => action.type === response.proposed_action)
+        : undefined;
       const guideEntry: GuideChatEntry = {
         id: `guide-chat-${++chatEntrySequenceRef.current}`,
         role: 'guide',
         text: response.reply,
         status: response.status,
+        ...(proposedAction ? { proposedAction } : {}),
       };
       setChatEntries((current) => [...current.slice(-9), guideEntry]);
     } catch {
       if (requestToken === chatRequestSequenceRef.current) {
+        dispatch({
+          type: 'GUIDE_ERROR',
+          message: 'The local Guide service could not be reached. No cloud fallback was used.',
+        });
         setChatError('The local Guide service could not be reached. No cloud fallback was used. Try again or use the existing case actions.');
       }
     } finally {
@@ -105,6 +136,7 @@ function GuideConversationPanel({
 
   function clearChat() {
     chatRequestSequenceRef.current += 1;
+    dispatch({ type: 'GUIDE_RESET' });
     chatInFlightRef.current = false;
     setChatEntries([]);
     setChatDraft('');
@@ -143,6 +175,19 @@ function GuideConversationPanel({
                     <article key={entry.id} className={`rounded-xl border p-2.5 ${entry.role === 'you' ? 'ml-5 border-white/[0.08] bg-white/[0.04]' : 'mr-2 border-[#e9bd7b]/15 bg-[#e9bd7b]/[0.04]'}`}>
                       <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-500">{entry.role === 'you' ? 'You' : 'Guide'}{entry.status === 'unavailable' ? ' · local assistant unavailable' : ''}</p>
                       <p className="mt-1 whitespace-pre-wrap text-[11px] leading-[1.6] text-slate-200">{entry.text}</p>
+                      {entry.proposedAction && snapshot.availableActions.some((action) =>
+                        action.type === entry.proposedAction?.type
+                        && JSON.stringify(action.payload) === JSON.stringify(entry.proposedAction?.payload)
+                      ) && (
+                        <button
+                          type="button"
+                          disabled={actionRunning}
+                          onClick={() => void runAction(entry.proposedAction as GuideAction)}
+                          className="mt-2 inline-flex min-h-9 items-center gap-2 rounded-lg border border-[#e9bd7b]/30 bg-[#e9bd7b]/[0.08] px-3 text-[10px] font-semibold text-[#f2d4a3] transition hover:bg-[#e9bd7b]/[0.14] disabled:cursor-wait disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e9bd7b] motion-reduce:transition-none"
+                        >
+                          Open {actionLabel(entry.proposedAction)}
+                        </button>
+                      )}
                     </article>
                   ))}
                   {chatSending && (
