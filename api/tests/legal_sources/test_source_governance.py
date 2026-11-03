@@ -62,8 +62,36 @@ class SourceGovernanceTests(unittest.TestCase):
         self.assertEqual(source.verification_status, SourceVerificationStatus.UNVERIFIED)
         self.assertEqual(source.freshness_status, SourceFreshnessStatus.UNKNOWN)
 
+    def test_current_freshness_requires_explicit_timestamp_and_evidence(self) -> None:
+        checked_at = datetime(2026, 10, 9, 12, 0, tzinfo=timezone.utc)
+        current = make_verified_source(
+            freshness_status=SourceFreshnessStatus.CURRENT,
+            freshness_checked_at=checked_at,
+            freshness_evidence="Compared the current official publication and Gazette amendments.",
+        )
+        validate_governed_source(current)
+        registry = SourceGovernanceRegistry((current,))
+        self.assertEqual(registry.get(current.source_id).freshness_checked_at, checked_at)
+
+        with self.assertRaisesRegex(SourceGovernanceValidationError, "freshness_checked_at and freshness_evidence"):
+            validate_governed_source(
+                make_verified_source(freshness_status=SourceFreshnessStatus.CURRENT)
+            )
+
+    def test_freshness_review_must_follow_the_retrieved_snapshot(self) -> None:
+        with self.assertRaisesRegex(SourceGovernanceValidationError, "cannot precede"):
+            validate_governed_source(make_verified_source(
+                freshness_status=SourceFreshnessStatus.CURRENT,
+                freshness_checked_at=RETRIEVED_AT.replace(day=7),
+                freshness_evidence="Reviewed an earlier copy.",
+            ))
+
     def test_stale_is_independent_of_verification(self) -> None:
-        source = make_verified_source(freshness_status=SourceFreshnessStatus.STALE)
+        source = make_verified_source(
+            freshness_status=SourceFreshnessStatus.STALE,
+            freshness_checked_at=datetime(2026, 10, 9, 12, 0, tzinfo=timezone.utc),
+            freshness_evidence="Compared the official publication and identified a superseding amendment.",
+        )
 
         validate_governed_source(source)
 
@@ -134,6 +162,27 @@ class SourceGovernanceTests(unittest.TestCase):
             potentially_relevant.applicability_status,
             SourceApplicabilityStatus.POTENTIALLY_RELEVANT,
         )
+
+    def test_new_retrieval_invalidates_an_older_freshness_review(self) -> None:
+        checked_at = datetime(2026, 10, 9, 12, 0, tzinfo=timezone.utc)
+        source = make_verified_source(
+            freshness_status=SourceFreshnessStatus.CURRENT,
+            freshness_checked_at=checked_at,
+            freshness_evidence="Reviewed official publication through 2026-10-09.",
+        )
+        retrieved = record_retrieval(
+            source,
+            RetrievedSourceMaterial(
+                source_id=source.source_id,
+                retrieved_at=datetime(2026, 10, 10, 12, 0, tzinfo=timezone.utc),
+                payload=b"newer source snapshot",
+            ),
+        )
+
+        self.assertEqual(retrieved.verification_status, SourceVerificationStatus.VERIFIED)
+        self.assertEqual(retrieved.freshness_status, SourceFreshnessStatus.UNKNOWN)
+        self.assertIsNone(retrieved.freshness_checked_at)
+        self.assertIsNone(retrieved.freshness_evidence)
 
     def test_duplicate_source_ids_are_rejected_atomically(self) -> None:
         existing = GovernedLegalSource(source_id="duplicate")

@@ -95,6 +95,7 @@ def validate_governed_source(source: GovernedLegalSource) -> None:
         "reference",
         "version",
         "verification_evidence",
+        "freshness_evidence",
     ):
         _optional_text(getattr(source, field_name), field_name)
     _validate_url(source.source_url)
@@ -106,6 +107,7 @@ def validate_governed_source(source: GovernedLegalSource) -> None:
         ):
             raise SourceGovernanceValidationError(f"{field_name} must be a date.")
     _validate_aware_datetime(source.retrieved_at, "retrieved_at")
+    _validate_aware_datetime(source.freshness_checked_at, "freshness_checked_at")
 
     if not isinstance(source.verification_status, SourceVerificationStatus):
         raise SourceGovernanceValidationError(
@@ -119,6 +121,20 @@ def validate_governed_source(source: GovernedLegalSource) -> None:
         raise SourceGovernanceValidationError(
             "applicability_status must be a SourceApplicabilityStatus value."
         )
+
+    if source.freshness_status is not SourceFreshnessStatus.UNKNOWN:
+        if source.freshness_checked_at is None or not source.freshness_evidence:
+            raise SourceGovernanceValidationError(
+                "A reviewed freshness status requires freshness_checked_at and freshness_evidence."
+            )
+        if source.retrieved_at is None:
+            raise SourceGovernanceValidationError(
+                "A reviewed freshness status requires a retrieved source snapshot."
+            )
+        if source.freshness_checked_at < source.retrieved_at:
+            raise SourceGovernanceValidationError(
+                "freshness_checked_at cannot precede the source snapshot retrieval time."
+            )
 
     if source.verification_status is SourceVerificationStatus.VERIFIED:
         missing = source.missing_verification_metadata
@@ -154,8 +170,9 @@ def record_retrieval(
     """Return source metadata with explicit retrieval facts applied.
 
     Retrieval may update the retrieval timestamp and an adapter-supplied
-    locator. Verification, freshness, and applicability assessments are kept
-    exactly as they were; retrieval alone cannot change any of them.
+    locator. It never promotes verification, freshness, or applicability.
+    If the new snapshot is later than the freshness review, that review is
+    invalidated and freshness returns to unknown.
     """
 
     validate_governed_source(source)
@@ -175,11 +192,25 @@ def record_retrieval(
         raise SourceGovernanceValidationError("Retrieved material payload must be bytes.")
     _validate_url(material.source_url)
     _optional_text(material.reference, "reference")
+    freshness_review_is_older = (
+        source.freshness_checked_at is not None
+        and material.retrieved_at > source.freshness_checked_at
+    )
+    freshness_updates = (
+        {
+            "freshness_status": SourceFreshnessStatus.UNKNOWN,
+            "freshness_checked_at": None,
+            "freshness_evidence": None,
+        }
+        if freshness_review_is_older
+        else {}
+    )
     return replace(
         source,
         retrieved_at=material.retrieved_at,
         source_url=material.source_url or source.source_url,
         reference=material.reference or source.reference,
+        **freshness_updates,
     )
 
 

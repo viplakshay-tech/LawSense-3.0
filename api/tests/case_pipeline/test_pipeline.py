@@ -655,6 +655,12 @@ class CasePipelineTests(unittest.TestCase):
         self.assertIn("JURISDICTION_UNKNOWN", statement.reason_codes)
         governed = next(item for item in result.legal_knowledge.governed_sources if item.source_id == source.id)
         self.assertEqual(governed.freshness_status, SourceFreshnessStatus.CURRENT)
+        self.assertEqual(governed.freshness_checked_at, datetime(2026, 10, 9, 12, 0, tzinfo=timezone.utc))
+        self.assertIn("Compared the current official publication", governed.freshness_evidence or "")
+        summary = next(item for item in result.case_analysis.legal_knowledge.records if item.id == provision.id)
+        self.assertEqual(summary.source_freshness_status, SourceFreshnessStatus.CURRENT.value)
+        self.assertEqual(summary.source_freshness_checked_at, governed.freshness_checked_at.isoformat())
+        self.assertIn("Compared the current official publication", summary.source_freshness_evidence or "")
         self.assertNotIn("SOURCE_VERIFICATION_NOT_CONFIRMED", statement.reason_codes)
         self.assertNotIn("SOURCE_FRESHNESS_NOT_CURRENT", statement.reason_codes)
 

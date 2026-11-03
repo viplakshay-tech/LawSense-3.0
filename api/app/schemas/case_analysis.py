@@ -146,6 +146,8 @@ class LegalKnowledgeRecordSummary(AnalysisModel):
     provenance: list[LegalKnowledgeProvenance] = Field(default_factory=list)
     source_verification_status: str | None = None
     source_freshness_status: str | None = None
+    source_freshness_checked_at: str | None = None
+    source_freshness_evidence: str | None = None
     source_applicability_status: str | None = None
     jurisdiction_label: str | None = None
     jurisdiction_match_status: Literal[
