@@ -185,7 +185,7 @@ The existing Python domain engines remain the canonical implementation unless a 
 
 ### Phase 4 — standalone Android
 
-- Execute the Android feasibility gates in `docs/ANDROID_STANDALONE_FEASIBILITY.md` before converting the UI or promising offline capability.
+- Complete and review the Android runtime, document-rendering and on-device storage feasibility plan before converting the UI or promising offline capability. The current `ANDROID_LOCAL_SETUP.md` describes the computer-hosted development shell, not standalone operation.
 - Keep women’s-safety routes unchanged and run their regression tests.
 
 **Pass condition:** one installed APK works after the development computer is powered off, with the phone offline, and the API is not reachable from the LAN.
