@@ -174,7 +174,9 @@ export function clearGuideSession(caseId: string): void {
     turns: [],
     language: 'english',
     generation: current.generation + 1,
-    requestSequence: current.requestSequence + 1,
+    requestSequence: current.requestSequence >= Number.MAX_SAFE_INTEGER
+      ? 0
+      : current.requestSequence + 1,
   });
 }
 
