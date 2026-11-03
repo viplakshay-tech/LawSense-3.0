@@ -87,7 +87,11 @@ class SourceGovernanceTests(unittest.TestCase):
             ))
 
     def test_stale_is_independent_of_verification(self) -> None:
-        source = make_verified_source(freshness_status=SourceFreshnessStatus.STALE)
+        source = make_verified_source(
+            freshness_status=SourceFreshnessStatus.STALE,
+            freshness_checked_at=datetime(2026, 10, 9, 12, 0, tzinfo=timezone.utc),
+            freshness_evidence="Compared the official publication and identified a superseding amendment.",
+        )
 
         validate_governed_source(source)
 
