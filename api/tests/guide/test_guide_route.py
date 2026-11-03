@@ -277,6 +277,28 @@ class GuideRouteTests(unittest.TestCase):
         })
         self.assertNotIn("proposed_action", response)
 
+    def test_guide_can_propose_legal_advisory_when_explicitly_allowlisted(self) -> None:
+        def opener(request, *, timeout):
+            sent = json.loads(request.data.decode("utf-8"))
+            prompt = sent["messages"][1]["content"]
+            self.assertIn("OPEN_LEGAL_ADVISORY", prompt)
+            self.assertIn("open the current case Legal Advisory", prompt)
+            return _Response({"message": {
+                "content": json.dumps({
+                    "reply": "I can open the source-aware Legal Advisory for this case.",
+                    "proposed_action": "OPEN_LEGAL_ADVISORY",
+                })
+            }})
+
+        with self._proxy_free_opener_patch(opener):
+            status, response = _asgi_request({
+                **self.payload,
+                "available_actions": ["OPEN_LEGAL_ADVISORY"],
+            })
+
+        self.assertEqual(status, 200, response)
+        self.assertEqual(response["proposed_action"], "OPEN_LEGAL_ADVISORY")
+
     def test_unknown_action_is_rejected_before_the_local_model_is_called(self) -> None:
         with patch.object(guide_route, "chat_with_local_model") as local_model:
             status, _response = _asgi_request({
