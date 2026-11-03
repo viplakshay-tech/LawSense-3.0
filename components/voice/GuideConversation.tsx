@@ -175,7 +175,7 @@ export default function GuideConversation({
 
   const updateGuideAudio = useCallback((turnId: string, audio: NonNullable<GuideSessionTurn['audio']>) => {
     updateTurn(turnId, { audio });
-  }, []);
+  }, [updateTurn]);
 
   const updateTranscriptDraft = useCallback((transcript: string) => {
     transcriptDraftRef.current = transcript;
