@@ -53,4 +53,9 @@ test('Guide text and voice modes share the same case-scoped conversation across 
   await expect(voiceConversation).toContainText('Help me understand what information is missing.');
   await expect(voiceConversation).toContainText('When was the first salary payment due?');
   await expect(page.getByLabel('Type a message instead')).toBeEnabled();
+
+  await page.reload();
+  const restoredConversation = page.getByRole('log', { name: 'Voice conversation transcript' });
+  await expect(restoredConversation).toContainText('Help me understand what information is missing.');
+  await expect(restoredConversation).toContainText('When was the first salary payment due?');
 });
