@@ -231,4 +231,5 @@ test('Legal Advisory distinguishes catalog record status from source verificatio
   assert.match(persistentLegalAdvisorySource, /sourceGovernanceNeedsAttention/);
   assert.match(persistentLegalAdvisorySource, /Candidate records present · source review incomplete/);
   assert.match(persistentLegalAdvisorySource, /legal_document/);
+  assert.match(persistentLegalAdvisorySource, /sourceApplicabilityStatus, 'applicability_not_established'\) !== 'potentially_relevant'/);
 });
