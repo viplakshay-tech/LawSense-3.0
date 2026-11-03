@@ -54,7 +54,7 @@ export default function VoiceCaseClient({ id }: { id: string }) {
   const { language: sessionLanguage, setLanguage: setSessionLanguage } = useGuideSession(id);
   const [transcript, setTranscript] = useState('');
   const [inputMethod, setInputMethod] = useState<VoiceInputMethod>('text');
-  const [language, setLanguageState] = useState<RecognitionLanguage>('Hinglish');
+  const language: RecognitionLanguage = sessionLanguage === 'hindi' ? 'Hindi' : sessionLanguage === 'english' ? 'English' : 'Hinglish';
   const [draftId, setDraftId] = useState(() => createId('draft'));
   const [preview, setPreview] = useState<VoiceTranscriptResponse | null>(null);
   const [requestWorking, setRequestWorking] = useState(false);
@@ -111,12 +111,7 @@ export default function VoiceCaseClient({ id }: { id: string }) {
   const callBusy = voiceCallActive || conversationPresentation?.status === 'requesting_permission';
   const visibleError = error;
 
-  useEffect(() => {
-    setLanguageState(sessionLanguage === 'hindi' ? 'Hindi' : sessionLanguage === 'english' ? 'English' : 'Hinglish');
-  }, [sessionLanguage]);
-
   const setLanguage = useCallback((nextLanguage: RecognitionLanguage) => {
-    setLanguageState(nextLanguage);
     setSessionLanguage(nextLanguage.toLocaleLowerCase() as GuideChatLanguage);
   }, [setSessionLanguage]);
 
