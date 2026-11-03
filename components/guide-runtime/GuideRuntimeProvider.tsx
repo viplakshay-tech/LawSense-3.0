@@ -118,6 +118,7 @@ function actionLabel(action: GuideAction): string {
     case 'ASK_CLARIFICATION': return 'Clarification';
     case 'SHOW_EVIDENCE': return 'Evidence Map';
     case 'SHOW_LEGAL_GROUNDING': return 'Legal grounding';
+    case 'OPEN_LEGAL_ADVISORY': return 'Legal Advisory';
     case 'OPEN_JOURNEY': return 'Journey';
     case 'SHOW_TWIN': return 'Living Twin';
     case 'OPEN_SAFETY': return 'Safety';
