@@ -210,11 +210,11 @@ test('Guide opens Legal Advisory when there is no single source record to focus'
 
 
 test('clearing the shared Guide session invalidates pending voice replies across routes', () => {
-  assert.match(guideSessionSource, /generation:\s*current\.generation\s*\+\s*1/);
-  assert.match(guideSessionSource, /export function getGuideSessionGeneration/);
-  assert.match(guideSessionSource, /export function isGuideSessionGenerationCurrent/);
-  assert.match(voiceConversationSource, /const sessionGeneration = getGuideSessionGeneration\(caseId\)/);
-  assert.match(voiceConversationSource, /!isGuideSessionGenerationCurrent\(caseId, sessionGeneration\)/);
+  assert.match(guideSessionSource, /requestSequence/);
+  assert.match(guideSessionSource, /export function beginGuideSessionRequest/);
+  assert.match(guideSessionSource, /export function isGuideSessionRequestCurrent/);
+  assert.match(voiceConversationSource, /beginGuideSessionRequest\(caseId\)/);
+  assert.match(voiceConversationSource, /isGuideSessionRequestCurrent\(caseId, sessionRequest\)/);
 });
 
 test('voice conversation preserves an unavailable local assistant response status', () => {
@@ -236,8 +236,8 @@ test('Legal Advisory distinguishes catalog record status from source verificatio
 });
 
 test('clearing the shared case session invalidates pending text Guide replies across routes', () => {
-  assert.match(guideControlSurfaceSource, /generation: sessionGeneration/);
-  assert.match(guideControlSurfaceSource, /getGuideSessionGeneration\(caseId\)/);
-  assert.match(guideControlSurfaceSource, /isGuideSessionGenerationCurrent\(caseId, requestGeneration\)/);
-  assert.match(guideControlSurfaceSource, /observedSessionGenerationRef\.current === sessionGeneration/);
+  assert.match(guideControlSurfaceSource, /requestSequence: sessionRequestSequence/);
+  assert.match(guideControlSurfaceSource, /beginGuideSessionRequest\(caseId\)/);
+  assert.match(guideControlSurfaceSource, /isGuideSessionRequestCurrent\(caseId, sessionRequest\)/);
+  assert.match(guideControlSurfaceSource, /activeSessionRequestRef\.current === sessionRequestSequence/);
 });
