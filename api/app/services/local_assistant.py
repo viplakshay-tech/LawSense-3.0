@@ -36,7 +36,8 @@ GUIDE_ACTION_TYPES = frozenset({
 GUIDE_ACTION_DESCRIPTIONS = {
     "ASK_CLARIFICATION": "open the current case clarification questions",
     "SHOW_EVIDENCE": "open the case evidence and document workspace",
-    "SHOW_LEGAL_GROUNDING": "open source-linked legal grounding and Legal Advisory context",
+    "SHOW_LEGAL_GROUNDING": "open one exact source record or source-linked legal grounding",
+    "OPEN_LEGAL_ADVISORY": "open the current case Legal Advisory based on information so far",
     "OPEN_JOURNEY": "open the case journey and recorded next steps",
     "SHOW_TWIN": "open the case Legal Twin graph and timeline",
     "START_VOICE": "open the voice or text statement review page",
