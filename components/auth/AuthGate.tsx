@@ -1,7 +1,7 @@
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 
 type AuthUser = { userId: string; username: string };
 
@@ -10,6 +10,30 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [verifiedPath, setVerifiedPath] = useState<string | null>(null);
+  const previousPathnameRef = useRef(pathname);
+  const pendingRouteFocusRef = useRef(false);
+
+  useEffect(() => {
+    if (previousPathnameRef.current === pathname) return;
+    previousPathnameRef.current = pathname;
+    pendingRouteFocusRef.current = pathname !== '/login' && pathname !== '/women-safety';
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!pendingRouteFocusRef.current || verifiedPath !== pathname || isPublic) return;
+    const frame = window.requestAnimationFrame(() => {
+      const settle = window.requestAnimationFrame(() => {
+        const heading = document.querySelector<HTMLElement>('main h1, main h2');
+        if (heading) {
+          if (!heading.hasAttribute('tabindex')) heading.tabIndex = -1;
+          heading.focus({ preventScroll: true });
+        }
+        pendingRouteFocusRef.current = false;
+      });
+      return () => window.cancelAnimationFrame(settle);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [isPublic, pathname, verifiedPath]);
   const isPublic = pathname === '/login' || pathname === '/women-safety';
 
   useEffect(() => {

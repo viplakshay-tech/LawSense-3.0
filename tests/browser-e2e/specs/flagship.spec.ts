@@ -386,7 +386,8 @@ test('a failed case API request is visible and retry recovers from the real API'
     const isCaseRead = route.request().method() === 'GET'
       && /^\/api\/cases\/[^/]+$/.test(requestUrl.pathname);
     if (isCaseRead) caseReadCount += 1;
-    if (isCaseRead && caseReadCount === 2 && !failedWorkspaceRead) {
+    // The current workspace performs one initial case read after intake; fail that first read.
+    if (isCaseRead && caseReadCount === 1 && !failedWorkspaceRead) {
       failedWorkspaceRead = true;
       failedCaseReadPath = requestUrl.pathname;
       await route.abort('failed');
