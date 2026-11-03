@@ -8,6 +8,7 @@ type AuthUser = { userId: string; username: string };
 export function AuthGate({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const isPublic = pathname === '/login' || pathname === '/women-safety';
   const [user, setUser] = useState<AuthUser | null>(null);
   const [verifiedPath, setVerifiedPath] = useState<string | null>(null);
   const previousPathnameRef = useRef(pathname);
@@ -37,7 +38,6 @@ export function AuthGate({ children }: { children: ReactNode }) {
       if (settleFrame) window.cancelAnimationFrame(settleFrame);
     };
   }, [isPublic, pathname, verifiedPath]);
-  const isPublic = pathname === '/login' || pathname === '/women-safety';
 
   useEffect(() => {
     if (isPublic) return;
