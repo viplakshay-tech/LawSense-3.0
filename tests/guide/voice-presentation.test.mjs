@@ -125,6 +125,19 @@ test('the entire voice workspace remounts per case so transcript and conversatio
 });
 
 
+test('Guide finding focus validates the target document before navigation', () => {
+  assert.deepEqual(
+    validateGuideActionCommand({ type: 'highlightEvidence', findingId: 'finding-1', documentId: 'document-1' }),
+    { ok: true, command: { type: 'highlightEvidence', findingId: 'finding-1', documentId: 'document-1' } },
+  );
+  assert.deepEqual(
+    validateGuideActionCommand({ type: 'highlightEvidence', findingId: 'finding-1' }),
+    { ok: true, command: { type: 'highlightEvidence', findingId: 'finding-1' } },
+  );
+  assert.equal(validateGuideActionCommand({ type: 'highlightEvidence', findingId: 'finding-1', documentId: ' ' }).ok, false);
+  assert.equal(validateGuideActionCommand({ type: 'highlightEvidence', findingId: ' '.repeat(2) }).ok, false);
+});
+
 test('Guide Twin commands accept bounded identifiers and valid timestamps only', () => {
   assert.deepEqual(
     validateGuideActionCommand({ type: 'selectTwinNode', nodeId: 'fact:deposit-1', ignored: true }),
