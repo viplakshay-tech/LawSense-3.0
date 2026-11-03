@@ -196,7 +196,6 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
   useEffect(() => {
     const openFromGuide = () => {
       setOpen(true);
-      void loadAdvisory();
     };
     window.addEventListener(OPEN_LEGAL_ADVISORY_EVENT, openFromGuide);
     return () => window.removeEventListener(OPEN_LEGAL_ADVISORY_EVENT, openFromGuide);
