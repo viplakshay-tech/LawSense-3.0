@@ -254,20 +254,21 @@ def chat_with_local_model(
         if not content:
             raise ValueError("empty assistant response")
 
-        proposed_action: str | None = None
         try:
             structured = json.loads(content)
-        except json.JSONDecodeError:
-            structured = None
+        except json.JSONDecodeError as exc:
+            raise ValueError("assistant response did not match the required JSON contract") from exc
+        if not isinstance(structured, dict):
+            raise ValueError("assistant response did not contain a JSON object")
 
-        if isinstance(structured, dict):
-            reply = structured.get("reply")
-            if not isinstance(reply, str) or not reply.strip():
-                raise ValueError("structured response has no reply text")
-            candidate = structured.get("proposed_action")
-            if isinstance(candidate, str) and candidate in allowed_actions and candidate in GUIDE_ACTION_TYPES:
-                proposed_action = candidate
-            content = reply.strip()
+        reply = structured.get("reply")
+        if not isinstance(reply, str) or not reply.strip():
+            raise ValueError("structured response has no reply text")
+        proposed_action: str | None = None
+        candidate = structured.get("proposed_action")
+        if isinstance(candidate, str) and candidate in allowed_actions and candidate in GUIDE_ACTION_TYPES:
+            proposed_action = candidate
+        content = reply.strip()
 
         if not content:
             raise ValueError("empty assistant response")
