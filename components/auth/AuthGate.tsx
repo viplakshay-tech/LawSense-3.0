@@ -21,8 +21,9 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!pendingRouteFocusRef.current || verifiedPath !== pathname || isPublic) return;
+    let settleFrame = 0;
     const frame = window.requestAnimationFrame(() => {
-      const settle = window.requestAnimationFrame(() => {
+      settleFrame = window.requestAnimationFrame(() => {
         const heading = document.querySelector<HTMLElement>('main h1, main h2');
         if (heading) {
           if (!heading.hasAttribute('tabindex')) heading.tabIndex = -1;
@@ -30,9 +31,11 @@ export function AuthGate({ children }: { children: ReactNode }) {
         }
         pendingRouteFocusRef.current = false;
       });
-      return () => window.cancelAnimationFrame(settle);
     });
-    return () => window.cancelAnimationFrame(frame);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      if (settleFrame) window.cancelAnimationFrame(settleFrame);
+    };
   }, [isPublic, pathname, verifiedPath]);
   const isPublic = pathname === '/login' || pathname === '/women-safety';
 
