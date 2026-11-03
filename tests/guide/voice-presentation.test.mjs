@@ -215,6 +215,8 @@ test('clearing the shared Guide session invalidates pending voice replies across
   assert.match(guideSessionSource, /export function isGuideSessionRequestCurrent/);
   assert.match(voiceConversationSource, /beginGuideSessionRequest\(caseId\)/);
   assert.match(voiceConversationSource, /isGuideSessionRequestCurrent\(caseId, sessionRequest\)/);
+  assert.match(voiceConversationSource, /sessionRequest\.signal/);
+  assert.match(guideControlSurfaceSource, /sessionRequest\.signal/);
 });
 
 test('voice conversation preserves an unavailable local assistant response status', () => {
