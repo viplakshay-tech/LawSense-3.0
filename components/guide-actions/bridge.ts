@@ -5,7 +5,7 @@ import type {
   GuideActionHandlerOutcome,
   GuideActionResult,
 } from './types';
-import { validateGuideActionCommand } from './validation';
+import { validateGuideActionCommand } from './validation.ts';
 
 function errorMessage(cause: unknown): string {
   return cause instanceof Error ? cause.message : 'The action handler failed.';
