@@ -378,17 +378,14 @@ test('a malformed 200 case response exits loading into recovery actions', async 
 });
 
 test('a failed case API request is visible and retry recovers from the real API', async ({ page }) => {
-  let caseReadCount = 0;
-  let failedWorkspaceRead = false;
+  let failNextCaseRead = false;
   let failedCaseReadPath: string | null = null;
   await page.route('**/api/cases/**', async (route: Route) => {
     const requestUrl = new URL(route.request().url());
     const isCaseRead = route.request().method() === 'GET'
       && /^\/api\/cases\/[^/]+$/.test(requestUrl.pathname);
-    if (isCaseRead) caseReadCount += 1;
-    // The current workspace performs one initial case read after intake; fail that first read.
-    if (isCaseRead && caseReadCount === 1 && !failedWorkspaceRead) {
-      failedWorkspaceRead = true;
+    if (failNextCaseRead && isCaseRead) {
+      failNextCaseRead = false;
       failedCaseReadPath = requestUrl.pathname;
       await route.abort('failed');
       return;
@@ -407,6 +404,16 @@ test('a failed case API request is visible and retry recovers from the real API'
   await expect(page).toHaveURL(/\/case\/[^/]+$/);
   const caseId = new URL(page.url()).pathname.split('/').at(-1)!;
   expect(caseId).toBe(createdCase.id);
+
+  // Reload explicitly so this test exercises a genuine workspace restoration,
+  // rather than relying on an incidental request count during intake.
+  failNextCaseRead = true;
+  const failedReadRequest = page.waitForRequest((request) => {
+    const requestUrl = new URL(request.url());
+    return request.method() === 'GET' && requestUrl.pathname === `/api/cases/${caseId}`;
+  });
+  await page.reload();
+  await failedReadRequest;
   expect(failedCaseReadPath).toBe(`/api/cases/${caseId}`);
   await expect(page.getByRole('heading', { name: 'This case could not be reopened' })).toBeVisible();
   await expect(page.getByText('Failed to fetch')).toBeVisible();
