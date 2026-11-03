@@ -15,3 +15,5 @@ The speech response is assembled from record counts and status text for presenta
 The provider exposes one case-derived state, action list, and presentation model to the Legal Guide page and case control surface. The page uses those values for its state, case summary, and available controls; its selected actions are revalidated by the runtime and executed through `components/guide-actions`. Connected commands navigate to existing case routes or call browser speech synthesis. Voice capture opens its existing page; the microphone starts only after the user activates its capture control. Commands that need unavailable page-local selections are not exposed as Guide actions.
 
 `GuidePresence` visualizes runtime state. The case shell mounts the Guide surface once so its state and activity remain available across case routes.
+
+`OPEN_DRAFTING` is available only with an active case and routes to that case's existing document studio. Draft editing, review, and export remain user-controlled.
