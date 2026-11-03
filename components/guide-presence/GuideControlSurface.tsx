@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import type { FormEvent, KeyboardEvent } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Activity, ArrowLeft, ChevronDown, ChevronUp, CircleHelp, Loader2, MessageCircle, Mic2, Radio, Send, ShieldAlert, Trash2, Volume2, VolumeX } from 'lucide-react';
@@ -44,13 +44,18 @@ type GuideChatEntry = {
   proposedAction?: GuideAction;
 };
 
-function GuideConversationPanel({
+export function GuideConversationPanel({
   caseId,
   onOpenVoice,
+  variant = 'compact',
 }: {
   caseId: string | null;
   onOpenVoice: () => void;
+  variant?: 'compact' | 'workspace';
 }) {
+  const headingId = useId();
+  const languageId = useId();
+  const messageId = useId();
   const { snapshot, dispatch, runAction, actionRunning } = useGuideRuntime();
   const { turns, language: chatLanguage, history, appendTurn, setLanguage: setChatLanguage, clear: clearSession } = useGuideSession(caseId ?? '');
   const chatEntries: GuideChatEntry[] = turns.map((turn) => ({
@@ -145,12 +150,12 @@ function GuideConversationPanel({
   }
 
   return (
-              <section aria-labelledby="guide-chat-heading" className="rounded-xl border border-[#e9bd7b]/20 bg-[linear-gradient(145deg,rgba(233,189,123,0.055),rgba(255,255,255,0.018)_65%)] p-3">
+              <section aria-labelledby={headingId} className={`rounded-xl border border-[#e9bd7b]/20 bg-[linear-gradient(145deg,rgba(233,189,123,0.055),rgba(255,255,255,0.018)_65%)] p-3 ${variant === 'workspace' ? 'ls-guide-room__conversationPanel' : ''}`}>
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-start gap-2">
                     <MessageCircle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-[#e9bd7b]" />
                     <div>
-                      <h2 id="guide-chat-heading" className="text-xs font-semibold text-slate-100">Talk to your Guide</h2>
+                      <h2 id={headingId} className="text-xs font-semibold text-slate-100">Talk to your Guide</h2>
                       <p className="mt-1 text-[10px] leading-4 text-slate-400">Uses your saved case context with the configured local assistant. This chat is not saved to the case; legal advice stays in Legal Advisory.</p>
                     </div>
                   </div>
@@ -201,9 +206,9 @@ function GuideConversationPanel({
                 {chatError && <p role="alert" className="mt-2 rounded-lg border border-rose-200/15 bg-rose-200/[0.05] px-2.5 py-2 text-[10px] leading-4 text-rose-100">{chatError}</p>}
     
                 <form onSubmit={handleChatSubmit} className="mt-3 space-y-2">
-                  <label htmlFor="guide-chat-language" className="sr-only">Guide reply language</label>
+                  <label htmlFor={languageId} className="sr-only">Guide reply language</label>
                   <select
-                    id="guide-chat-language"
+                    id={languageId}
                     value={chatLanguage}
                     onChange={(event) => setChatLanguage(event.target.value as GuideChatLanguage)}
                     className="min-h-9 w-full rounded-lg border border-white/[0.1] bg-[#101923] px-2.5 text-[11px] text-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e9bd7b]"
@@ -212,9 +217,9 @@ function GuideConversationPanel({
                     <option value="hindi">हिंदी में जवाब दें</option>
                     <option value="hinglish">Reply in Hinglish</option>
                   </select>
-                  <label htmlFor="guide-chat-message" className="sr-only">Message your Guide</label>
+                  <label htmlFor={messageId} className="sr-only">Message your Guide</label>
                   <textarea
-                    id="guide-chat-message"
+                    id={messageId}
                     value={chatDraft}
                     onChange={(event) => setChatDraft(event.target.value)}
                     maxLength={10000}
@@ -288,6 +293,7 @@ export function GuideControlSurface() {
   const stateText = GUIDE_PRESENCE_LABELS[presenceState];
   const voiceMode = pathname.split('/').filter(Boolean).at(-1) === 'voice';
   const safetyMode = pathname.split('/').filter(Boolean).at(-1) === 'safety';
+  const guideWorkspaceMode = pathname.split('/').filter(Boolean).at(-1) === 'guide';
 
   function handleSurfaceKeyDown(event: KeyboardEvent<HTMLElement>) {
     if (event.key !== 'Escape' || !expanded) return;
@@ -385,22 +391,30 @@ export function GuideControlSurface() {
         hidden={!expanded}
         className="max-h-[min(72dvh,38rem)] space-y-3 overflow-y-auto p-3.5 [scrollbar-color:rgba(148,163,184,0.25)_transparent] [scrollbar-width:thin]"
       >
-          <GuidePresence
-            state={presenceState}
-            speechState={snapshot.speechState}
-            size="compact"
-            detail={contextualMessage.text}
-            accessibleLabel={`Guide state: ${stateText}`}
-          />
-
-          <GuideConversationPanel
-            key={activeCaseId ?? 'no-case'}
-            caseId={activeCaseId}
-            onOpenVoice={() => {
-              updateExpanded(false);
-              if (activeCaseId) router.push(`/case/${encodeURIComponent(activeCaseId)}/voice`);
-            }}
-          />
+          {guideWorkspaceMode ? (
+            <section className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3" aria-label="Main Guide workspace">
+              <p className="text-[10px] leading-5 text-slate-300">You are in the main Guide workspace. Continue the shared text conversation in the workspace panel.</p>
+              <a href="#guide-conversation" onClick={() => updateExpanded(false)} className="mt-2 inline-flex min-h-9 items-center rounded-lg border border-[#e9bd7b]/25 px-3 text-[10px] font-semibold text-[#f2d7aa] hover:bg-[#e9bd7b]/[0.08] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e9bd7b]">Go to conversation</a>
+            </section>
+          ) : (
+            <>
+              <GuidePresence
+                state={presenceState}
+                speechState={snapshot.speechState}
+                size="compact"
+                detail={contextualMessage.text}
+                accessibleLabel={`Guide state: ${stateText}`}
+              />
+              <GuideConversationPanel
+                key={activeCaseId ?? 'no-case'}
+                caseId={activeCaseId}
+                onOpenVoice={() => {
+                  updateExpanded(false);
+                  if (activeCaseId) router.push(`/case/${encodeURIComponent(activeCaseId)}/voice`);
+                }}
+              />
+            </>
+          )}
 
           <section aria-labelledby="guide-understanding-heading" className="rounded-xl border border-white/[0.065] bg-white/[0.025] p-3">
             <h2 id="guide-understanding-heading" className="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500">
