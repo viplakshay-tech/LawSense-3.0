@@ -77,7 +77,7 @@ function GuideConversationPanel({
     setChatSending(true);
     setChatError(null);
     appendTurn({
-      id: `guide-chat-${requestToken}-user`,
+      id: `guide-chat-${Date.now()}-${requestToken}-user`,
       role: 'user',
       content: message,
       inputMode: 'text',
@@ -111,7 +111,7 @@ function GuideConversationPanel({
         ? snapshot.availableActions.find((action) => action.type === response.proposed_action)
         : undefined;
       appendTurn({
-        id: `guide-chat-${requestToken}-assistant`,
+        id: `guide-chat-${Date.now()}-${requestToken}-assistant`,
         role: 'assistant',
         content: response.reply,
         inputMode: 'text',
