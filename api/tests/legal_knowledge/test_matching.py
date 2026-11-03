@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 import unittest
+from dataclasses import replace
 
+from app.engines.legal_knowledge.matching import build_law_matches
+from app.engines.legal_knowledge.models import KnowledgeStatus, LegalProvision, LegalDocument, LegalSource
+from app.engines.legal_knowledge.seed import build_authoritative_legal_knowledge_seed
 from app.engines.legal_twin import EdgeType, NodeType, build_legal_twin
 from app.services.case_pipeline import CasePipelineRequest, run_case_pipeline
 
@@ -60,6 +64,37 @@ class LegalMatchTests(unittest.TestCase):
             edge.source_id == law_node.id and edge.kind is EdgeType.RELATES_TO
             for edge in twin.edges.values()
         ))
+
+    def test_superseded_or_withdrawn_catalog_records_cannot_support_plausible_matches(self) -> None:
+        result = run_case_pipeline(CasePipelineRequest(
+            case_id="case-withdrawn-source",
+            initial_statement="I bought a defective phone and the seller refused my refund.",
+            recorded_at="2026-10-10T04:00:00+00:00",
+        ))
+        seed = build_authoritative_legal_knowledge_seed()
+        records = list(seed.items)
+        target = next(
+            item for item in records
+            if isinstance(item, LegalProvision) and item.id == "provision-consumer-protection-2019-section-2-10"
+        )
+        document = next(item for item in records if isinstance(item, LegalDocument) and item.id == target.document_id)
+        source = next(item for item in records if isinstance(item, LegalSource) and item.id == target.source)
+
+        for target_id in (target.id, document.id, source.id):
+            with self.subTest(catalog_record=target_id):
+                altered = [
+                    replace(item, status=KnowledgeStatus.WITHDRAWN) if item.id == target_id else item
+                    for item in records
+                ]
+                matches = build_law_matches(
+                    result.case_state,
+                    altered,
+                    result.legal_knowledge.governed_sources,
+                )
+                candidate = next(item for item in matches if item["candidate_id"] == target.id)
+                self.assertEqual(candidate["evidence_assessment"], "unclear")
+                self.assertIn("withdrawn", " ".join(candidate["assessment_rationale"]).casefold())
+                self.assertIn("catalog_record_status", candidate["assessment_factors"])
 
     def test_wage_candidate_surfaces_gazette_transition_caution_without_date(self) -> None:
         result = run_case_pipeline(CasePipelineRequest(
