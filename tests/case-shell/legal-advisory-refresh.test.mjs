@@ -10,7 +10,7 @@ const advisorySource = await readFile(
 test('Legal Advisory reloads when the open case record changes', () => {
   assert.match(
     advisorySource,
-    /useEffect\(\(\) => \{\s*if \(!open\) return;\s*void loadAdvisory\(\);[\s\S]*?\}, \[open, loadAdvisory\]\);/,
+    /useEffect\(\(\) => \{\s*if \(!open\) return;\s*const frame = window\.requestAnimationFrame\(\(\) => \{\s*void loadAdvisory\(\);\s*\}\);[\s\S]*?\}, \[open, loadAdvisory\]\);/,
   );
 });
 
