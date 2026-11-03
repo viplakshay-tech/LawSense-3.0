@@ -422,8 +422,9 @@ test('a failed case API request is visible and retry recovers from the real API'
   });
   await page.reload();
   await failedReadRequest;
-  expect(failedCaseReadPath).toBe(`/api/cases/${caseId}`);
   await expect(page.getByRole('heading', { name: 'This case could not be reopened' })).toBeVisible();
+  // The request event fires before the route callback finishes aborting it.
+  await expect.poll(() => failedCaseReadPath).toBe(`/api/cases/${caseId}`);
   await expect(page.getByText('Failed to fetch')).toBeVisible();
 
   const retryResponsePromise = page.waitForResponse((response) => {
