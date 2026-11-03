@@ -210,7 +210,8 @@ test('the Guide opens the existing document studio only after the user approves 
   expect(guideResponse.status()).toBe(200);
   await expect(page).toHaveURL(`/case/${caseId}`);
 
-  const approval = page.getByRole('button', { name: 'Open Document drafting' });
+  const guideConversation = page.getByRole('log', { name: 'Guide conversation' });
+  const approval = guideConversation.getByRole('button', { name: 'Open document drafting', exact: true });
   await expect(approval).toBeVisible();
   await approval.click();
 
