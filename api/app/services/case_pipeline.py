@@ -1289,7 +1289,9 @@ def _govern_sources(
                 else SourceVerificationStatus.UNVERIFIED
             ),
             verification_evidence=evidence,
-            freshness_status=SourceFreshnessStatus.UNKNOWN,
+            freshness_status=(
+                version.freshness_status if version else SourceFreshnessStatus.UNKNOWN
+            ),
             applicability_status=SourceApplicabilityStatus.APPLICABILITY_NOT_ESTABLISHED,
         ))
     registry = SourceGovernanceRegistry()
