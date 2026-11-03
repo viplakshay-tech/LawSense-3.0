@@ -48,7 +48,7 @@ test('Guide API forwards shared session cancellation to its fetch request', asyn
   assert.match(apiSource, /sessionSignal\?\.addEventListener\('abort', abortFromSession/);
   assert.match(apiSource, /signal: controller\.signal/);
   assert.match(apiSource, /sessionSignal\?\.removeEventListener\('abort', abortFromSession\)/);
-  assert.match(sessionSource, /invalidateGuideSessionRequest\(previousCaseId\)/);
+  assert.match(sessionSource, /invalidateGuideSessionRequest\(previousActiveCaseId\)/);
 });
 
 test('switching cases cancels the old request without deleting its conversation', () => {
