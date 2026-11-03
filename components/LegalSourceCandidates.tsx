@@ -682,6 +682,7 @@ export function LegalSourceCandidates({
           return (
             <motion.article
               key={record.id}
+              id={`legal-record-${encodeURIComponent(record.id)}`}
               layout={!reducedMotion}
               className={`overflow-hidden rounded-xl border transition-colors ${selected ? dark ? 'border-indigo-200/25 bg-indigo-200/[0.035]' : 'border-indigo-300/70 bg-indigo-50/40 dark:border-indigo-200/25 dark:bg-indigo-200/[0.035]' : card}`}
             >

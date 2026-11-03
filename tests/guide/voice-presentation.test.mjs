@@ -15,6 +15,8 @@ const guidePresenceCss = await readFile(new URL('../../components/guide-presence
 const avatarCss = await readFile(new URL('../../components/guide-presence/avatar/IllustratedAvatarRenderer.css', import.meta.url), 'utf8');
 const callCss = await readFile(new URL('../../app/case/[id]/voice/VoiceCaseClient.css', import.meta.url), 'utf8');
 const voicePage = await readFile(new URL('../../app/case/[id]/voice/page.tsx', import.meta.url), 'utf8');
+const guideRuntimeProvider = await readFile(new URL('../../components/guide-runtime/GuideRuntimeProvider.tsx', import.meta.url), 'utf8');
+const legalSourceCandidates = await readFile(new URL('../../components/LegalSourceCandidates.tsx', import.meta.url), 'utf8');
 
 test('voice milestones present the state reported by the call flow', () => {
   const started = guideVoiceSnapshotForEvent({ type: 'capture_started', draftId: 'd', captureId: 'c', provider: 'browser', language: 'english' }, 'IDLE', 'idle');
@@ -173,4 +175,12 @@ test('Guide bridge forwards the finding and case document IDs to its validated a
 
   assert.equal(result.status, 'success');
   assert.deepEqual(calls, [{ findingId: 'finding-1', documentId: 'document-1' }]);
+});
+
+
+test('Guide legal-grounding actions open only a source record returned for the active case', () => {
+  assert.match(guideRuntimeProvider, /recordIds\.length === 1/);
+  assert.match(guideRuntimeProvider, /caseState\.analysis\?\.legalKnowledge\.records\.some/);
+  assert.match(guideRuntimeProvider, /#legal-record-\$\{encodeURIComponent\(recordId\)\}/);
+  assert.match(legalSourceCandidates, /id=\{\x60legal-record-\$\{encodeURIComponent\(record\.id\)\}\x60\}/);
 });
