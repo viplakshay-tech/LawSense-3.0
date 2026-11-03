@@ -622,7 +622,9 @@ export function DocumentReviewWorkspace({ caseId, embedded = false, focusRequest
     const finding = selectedReview.findings.find((item) => item.id === requestedFindingId);
     if (!finding) {
       requestedFindingHandledRef.current = requestKey;
-      setActionError('The requested finding is not present in this document review. The review remains unchanged.');
+      window.requestAnimationFrame(() => {
+        setActionError('The requested finding is not present in this document review. The review remains unchanged.');
+      });
       return;
     }
     requestedFindingHandledRef.current = requestKey;
@@ -637,7 +639,7 @@ export function DocumentReviewWorkspace({ caseId, embedded = false, focusRequest
         block: 'center',
       });
     });
-  }, [selectedReview, selectedDocument?.id]);
+  }, [selectedReview, selectedDocument]);
 
   useEffect(() => {
     const url = previewFile?.url;
