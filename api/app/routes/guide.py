@@ -55,7 +55,7 @@ class GuideChatRequest(BaseModel):
     # as authoritative legal source material.
     verified_material: list[VerifiedMaterial] = Field(default_factory=list, max_length=10)
     conversation_history: list[GuideConversationTurn] = Field(default_factory=list, max_length=8)
-    available_actions: list[GuideActionName] = Field(default_factory=list, max_length=9)
+    available_actions: list[GuideActionName] = Field(default_factory=list, max_length=10)
 
     @model_validator(mode="after")
     def check_material_size(self) -> "GuideChatRequest":
