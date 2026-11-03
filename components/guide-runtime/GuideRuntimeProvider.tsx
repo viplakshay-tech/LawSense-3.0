@@ -90,6 +90,8 @@ function commandForAction(action: GuideAction): GuideActionCommand {
       return action.payload.recordIds.length === 1
         ? { type: 'openLegalGrounding', recordId: action.payload.recordIds[0] }
         : { type: 'openLegalAdvisory' };
+    case 'OPEN_LEGAL_ADVISORY':
+      return { type: 'openLegalAdvisory' };
     case 'OPEN_JOURNEY':
       return { type: 'openJourney' };
     case 'SHOW_TWIN':
