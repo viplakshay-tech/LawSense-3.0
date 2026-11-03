@@ -132,17 +132,22 @@ def build_law_matches(
         verification_status = (
             governed.verification_status.value if governed is not None else "unverified"
         )
+        freshness_status = (
+            governed.freshness_status.value if governed is not None else "unknown"
+        )
+        freshness_current = freshness_status == "current"
         conflict_present = any(item.status == "conflicting" for item in facts)
         fact_statuses = {item["status"] for item in supporting_facts}
         if (
             "evidence_supported" in fact_statuses
             and verification_status == "verified"
+            and freshness_current
             and jurisdiction_match == "matched"
             and incident_temporal_status == "supported"
             and not conflict_present
         ):
             evidence_assessment = "supported"
-        elif matched_cues and verification_status == "verified" and jurisdiction_match != "mismatch":
+        elif matched_cues and verification_status == "verified" and freshness_current and jurisdiction_match != "mismatch":
             evidence_assessment = "plausible"
         else:
             evidence_assessment = "unclear"
@@ -154,7 +159,7 @@ def build_law_matches(
             "jurisdiction": jurisdiction_match,
             "temporal_applicability": incident_temporal_status,
             "source_verification": verification_status,
-            "source_freshness": governed.freshness_status.value if governed else "unknown",
+            "source_freshness": freshness_status,
         }
         assessment_rationale = [
             "This candidate was retrieved for a recorded legal-issue category; issue classification alone does not establish applicability.",
@@ -165,6 +170,11 @@ def build_law_matches(
                 "Source identity has a verified catalog record."
                 if verification_status == "verified"
                 else "Source verification is not established in the local catalog."
+            ),
+            (
+                "Source freshness has an explicit current review."
+                if freshness_current
+                else "Source freshness is not established as current; this remains a research lead only."
             ),
         ]
         if conflict_present:
@@ -180,8 +190,8 @@ def build_law_matches(
         )
 
         limitations = [jurisdiction_limit, temporal_limit]
-        if governed is not None and governed.freshness_status.value == "unknown":
-            limitations.append("Source freshness has not been independently assessed.")
+        if not freshness_current:
+            limitations.append("Source freshness has not been established as current; this candidate cannot support a current legal conclusion.")
         limitations.append("A candidate match is not a determination that the provision applies.")
         procedure_summary = _procedure_guidance(
             linked_procedures,
@@ -456,6 +466,7 @@ def _procedure_guidance(
             procedure.status.value == "verified"
             and governed is not None
             and governed.verification_status.value == "verified"
+            and governed.freshness_status.value == "current"
         )
         procedure_items.append({
             "id": procedure.id,
@@ -463,6 +474,7 @@ def _procedure_guidance(
             "steps": list(procedure.steps),
             "jurisdiction": procedure.jurisdiction,
             "verification_status": "verified" if verified else "unverified",
+            "freshness_status": governed.freshness_status.value if governed else "unknown",
             "source_url": procedure.source_url,
         })
         authority = authorities.get(procedure.authority or "")
@@ -471,6 +483,7 @@ def _procedure_guidance(
                 "name": authority.title,
                 "authority_type": authority.authority_type,
                 "verification_status": "verified" if verified and authority.status.value == "verified" else "unverified",
+                "freshness_status": governed.freshness_status.value if governed else "unknown",
                 "source_url": authority.source_url,
             })
         for field in ("required_documents", "requiredDocuments", "required_document_names", "requiredDocumentNames"):
@@ -549,6 +562,8 @@ def _supporting_source_summaries(
             "official_source_url": official_url,
             "verification_status": "verified" if verified else "unverified",
             "freshness_status": governed.freshness_status.value if governed else "unknown",
+            "freshness_checked_at": governed.freshness_checked_at.isoformat() if governed and governed.freshness_checked_at else None,
+            "freshness_evidence": governed.freshness_evidence if governed else None,
             "retrieved_at": reference.retrieval_time.isoformat(),
             "reference": reference.page_section_reference,
         })
