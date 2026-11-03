@@ -26,7 +26,7 @@ The integration branch already provides useful foundations:
 - `GuidePresence` renders runtime state through an avatar adapter and respects reduced-motion preferences.
 - `/guide/chat` can call a configured loopback Ollama service. It has no cloud fallback and receives a bounded case context.
 - Guide chat may propose only actions supplied by the frontend allowlist. The user must click to execute a proposal.
-- The voice route retains its own microphone capture, transcript review, confirmation and playback lifecycle; confirmed turns and language are shared with the floating text Guide through the case-scoped session.
+- The voice route retains its own microphone capture, transcript review, confirmation and playback lifecycle; confirmed turns, language and a monotonic request sequence are shared with the floating text Guide through the case-scoped session. A newer request or session clear invalidates older pending responses across modes.
 - `OPEN_DRAFTING` opens the active case's existing document studio only after user approval.
 - `SHOW_LEGAL_GROUNDING` focuses one exact source record when unambiguous; with zero or multiple candidate records, it opens the persistent Legal Advisory for the active case.
 - The case-level Guide action adapter supports read-only document finding focus when both a finding ID and an active-case document ID are supplied, plus Legal Twin node focus and timeline snapshot navigation through validated `?focus=` and `?at=` deep links. The document review page verifies that the finding exists before selecting it; the Twin checks requested nodes against the returned projection. These actions do not mutate CaseState.
