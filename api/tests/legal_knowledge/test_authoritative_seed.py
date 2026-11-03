@@ -69,6 +69,7 @@ class AuthoritativeLegalKnowledgeSeedTests(unittest.TestCase):
                 )
 
         for provision in provisions:
+            self.assertIsNone(provision.confidence, "Seeded confidence must not imply an uncalibrated probability.")
             self.assertTrue(provision.provision_reference)
             self.assertTrue(provision.text)
             self.assertEqual(provision.provenance[0].document_id, provision.document_id)

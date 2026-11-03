@@ -566,7 +566,6 @@ def build_authoritative_legal_knowledge_seed() -> InMemoryLegalKnowledgeStore:
             effective_from=source.effective_date,
             retrieved_at=source_retrieved_at,
             status=KnowledgeStatus.VERIFIED,
-            confidence=1.0,
             search_text=spec.search_text,
             document_id=document.id,
             provision_reference=spec.reference,
