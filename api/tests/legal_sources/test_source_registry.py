@@ -433,6 +433,18 @@ class LegalSourceRegistryTests(unittest.TestCase):
         self.assertEqual(entry.freshness_checked_at, checked_at)
         self.assertIn("Compared the current official publication", entry.freshness_evidence or "")
 
+    def test_freshness_review_requires_a_retrieved_snapshot(self) -> None:
+        checked_at = datetime(2026, 10, 9, 12, 0, tzinfo=timezone.utc)
+        version = make_version(
+            self.source,
+            status=KnowledgeStatus.UNVERIFIED,
+            freshness_status=SourceFreshnessStatus.CURRENT,
+            freshness_checked_at=checked_at,
+            freshness_evidence="Reviewed current publication.",
+        )
+        with self.assertRaisesRegex(SourceRegistryValidationError, "requires a retrieved source snapshot"):
+            validate_registry_version(replace(version, retrieved_at=None))
+
     def test_freshness_review_cannot_predate_the_retrieved_snapshot(self) -> None:
         with self.assertRaisesRegex(SourceRegistryValidationError, "cannot precede"):
             validate_registry_version(make_version(
