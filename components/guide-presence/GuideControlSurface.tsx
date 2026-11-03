@@ -89,8 +89,11 @@ export function GuideConversationPanel({
     observedSessionGenerationRef.current = sessionGeneration;
     chatRequestSequenceRef.current += 1;
     chatInFlightRef.current = false;
-    setChatSending(false);
-    setChatError(null);
+    const resetFrame = window.requestAnimationFrame(() => {
+      setChatSending(false);
+      setChatError(null);
+    });
+    return () => window.cancelAnimationFrame(resetFrame);
   }, [sessionGeneration]);
 
   async function handleChatSubmit(event: FormEvent<HTMLFormElement>) {
