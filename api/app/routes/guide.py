@@ -17,6 +17,7 @@ GuideActionName = Literal[
     "ASK_CLARIFICATION",
     "SHOW_EVIDENCE",
     "SHOW_LEGAL_GROUNDING",
+    "OPEN_LEGAL_ADVISORY",
     "OPEN_JOURNEY",
     "SHOW_TWIN",
     "START_VOICE",
