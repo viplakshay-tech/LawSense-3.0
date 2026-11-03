@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCaseState } from '@/app/case/[id]/CaseStateProvider';
+import { OPEN_LEGAL_ADVISORY_EVENT } from '@/components/case-shell/legal-advisory-events';
 import { createGuideActionBridge } from '@/components/guide-actions';
 import type {
   GuideActionAdapter,
@@ -88,7 +89,7 @@ function commandForAction(action: GuideAction): GuideActionCommand {
     case 'SHOW_LEGAL_GROUNDING':
       return action.payload.recordIds.length === 1
         ? { type: 'openLegalGrounding', recordId: action.payload.recordIds[0] }
-        : { type: 'navigate', route: { kind: 'guide', caseId: action.payload.caseId } };
+        : { type: 'openLegalAdvisory' };
     case 'OPEN_JOURNEY':
       return { type: 'openJourney' };
     case 'SHOW_TWIN':
@@ -219,6 +220,12 @@ export function GuideRuntimeProvider({ caseId, children }: { caseId: string; chi
           return { status: 'unavailable', reason: 'The requested document finding identifier is invalid.' };
         }
         push(`${base}/documents?documentId=${encodeURIComponent(documentId)}&findingId=${encodeURIComponent(findingId)}#document-preview`);
+      },
+      openLegalAdvisory: () => {
+        if (typeof window === 'undefined') {
+          return { status: 'unavailable', reason: 'Legal Advisory can only be opened in the active browser session.' };
+        }
+        window.dispatchEvent(new Event(OPEN_LEGAL_ADVISORY_EVENT));
       },
       openLegalGrounding: (recordId) => {
         if (!caseState || caseState.id !== caseId

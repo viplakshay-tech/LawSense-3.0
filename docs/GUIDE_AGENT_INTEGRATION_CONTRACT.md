@@ -28,6 +28,7 @@ The integration branch already provides useful foundations:
 - Guide chat may propose only actions supplied by the frontend allowlist. The user must click to execute a proposal.
 - The voice route retains its own microphone capture, transcript review, confirmation and playback lifecycle; confirmed turns and language are shared with the floating text Guide through the case-scoped session.
 - `OPEN_DRAFTING` opens the active case's existing document studio only after user approval.
+- `SHOW_LEGAL_GROUNDING` focuses one exact source record when unambiguous; with zero or multiple candidate records, it opens the persistent Legal Advisory for the active case.
 - The case-level Guide action adapter supports read-only document finding focus when both a finding ID and an active-case document ID are supplied, plus Legal Twin node focus and timeline snapshot navigation through validated `?focus=` and `?at=` deep links. The document review page verifies that the finding exists before selecting it; the Twin checks requested nodes against the returned projection. These actions do not mutate CaseState.
 
 Important gaps confirmed by the current code:

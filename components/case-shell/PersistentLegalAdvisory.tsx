@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { AlertTriangle, CircleHelp, FileText, LoaderCircle, RefreshCw, Scale, ShieldAlert, X } from 'lucide-react';
 import { useCaseState } from '@/app/case/[id]/CaseStateProvider';
+import { OPEN_LEGAL_ADVISORY_EVENT } from './legal-advisory-events';
 import type { CaseState } from '@/lib/api';
 
 type JsonRecord = Record<string, unknown>;
@@ -184,6 +185,15 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
       if (requestId === loadRequestIdRef.current) setLoading(false);
     }
   }, [caseId, caseState]);
+
+  useEffect(() => {
+    const openFromGuide = () => {
+      setOpen(true);
+      void loadAdvisory();
+    };
+    window.addEventListener(OPEN_LEGAL_ADVISORY_EVENT, openFromGuide);
+    return () => window.removeEventListener(OPEN_LEGAL_ADVISORY_EVENT, openFromGuide);
+  }, [loadAdvisory]);
 
   useEffect(() => {
     if (!open) return;
