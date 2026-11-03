@@ -59,6 +59,8 @@ class GovernedLegalSource:
     verification_status: SourceVerificationStatus = SourceVerificationStatus.UNVERIFIED
     verification_evidence: str | None = None
     freshness_status: SourceFreshnessStatus = SourceFreshnessStatus.UNKNOWN
+    freshness_checked_at: datetime | None = None
+    freshness_evidence: str | None = None
     applicability_status: SourceApplicabilityStatus = (
         SourceApplicabilityStatus.APPLICABILITY_NOT_ESTABLISHED
     )
