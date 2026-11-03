@@ -423,6 +423,15 @@ class LegalSourceRegistryTests(unittest.TestCase):
         validate_registry_version(current)
         self.assertEqual(current.freshness_status, SourceFreshnessStatus.CURRENT)
         self.assertEqual(current.freshness_checked_at, checked_at)
+        entry = self.registry.register(
+            self.source,
+            current,
+            authority=self.authority,
+            jurisdiction=self.jurisdiction,
+        )
+        self.assertEqual(entry.freshness_status, SourceFreshnessStatus.CURRENT)
+        self.assertEqual(entry.freshness_checked_at, checked_at)
+        self.assertIn("Compared the current official publication", entry.freshness_evidence or "")
 
     def test_freshness_review_cannot_predate_the_retrieved_snapshot(self) -> None:
         with self.assertRaisesRegex(SourceRegistryValidationError, "cannot precede"):
