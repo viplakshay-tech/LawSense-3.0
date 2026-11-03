@@ -23,7 +23,6 @@ import com.getcapacitor.annotation.Permission;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
