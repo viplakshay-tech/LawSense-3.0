@@ -187,8 +187,11 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
 
   useEffect(() => {
     if (!open) return;
-    void loadAdvisory();
+    const frame = window.requestAnimationFrame(() => {
+      void loadAdvisory();
+    });
     return () => {
+      window.cancelAnimationFrame(frame);
       loadRequestIdRef.current += 1;
     };
   }, [open, loadAdvisory]);
