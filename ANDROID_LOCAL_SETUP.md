@@ -20,7 +20,7 @@ Do not expose the web or API ports to the public Internet. A trusted local HTTPS
 
 ## Build and install
 
-The Android build requires Node.js 22 or later, a Java JDK supported by the generated Gradle project, Android SDK command-line tools, an Android platform, and Android build tools. From this directory, install npm dependencies, run `npx cap add android` once, run `npx cap sync android`, then build the debug APK with `android\gradlew.bat assembleDebug`. The APK is produced at `android\app\build\outputs\apk\debug\app-debug.apk`.
+The Android build requires Node.js 22 or later, JDK 21, Android SDK command-line tools, an Android platform, and Android build tools. From this directory, install npm dependencies, run `npx cap add android` once, run `npx cap sync android`, then build the debug APK with `android\gradlew.bat assembleDebug`. The APK is produced at `android\app\build\outputs\apk\debug\app-debug.apk`.
 
 Install it with `adb install -r android\app\build\outputs\apk\debug\app-debug.apk`, or copy the APK to the phone and open it after allowing installation from that file source. The debug APK is for personal testing and is not a Play Store release.
 
