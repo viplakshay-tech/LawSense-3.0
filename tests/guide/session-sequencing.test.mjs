@@ -7,6 +7,7 @@ import {
   clearGuideSession,
   finishGuideSessionRequest,
   getGuideSessionSnapshot,
+  invalidateGuideSessionRequest,
   isGuideSessionRequestCurrent,
 } from '../../lib/guide-session.ts';
 
@@ -45,4 +46,16 @@ test('Guide API forwards shared session cancellation to its fetch request', asyn
   assert.match(apiSource, /sessionSignal\?\.addEventListener\('abort', abortFromSession/);
   assert.match(apiSource, /signal: controller\.signal/);
   assert.match(apiSource, /sessionSignal\?\.removeEventListener\('abort', abortFromSession\)/);
+});
+
+test('switching cases cancels the old request without deleting its conversation', () => {
+  const oldCaseId = 'guide-case-switch-old-case';
+  clearGuideSession(oldCaseId);
+  const request = beginGuideSessionRequest(oldCaseId);
+
+  invalidateGuideSessionRequest(oldCaseId);
+
+  assert.equal(request.signal.aborted, true);
+  assert.equal(isGuideSessionRequestCurrent(oldCaseId, request), false);
+  assert.deepEqual(getGuideSessionSnapshot(oldCaseId).turns, []);
 });
