@@ -56,6 +56,8 @@ function createDispatch(adapter: GuideActionAdapter) {
         return invoke(command, adapter.highlightEvidence ? () => adapter.highlightEvidence!(command.findingId, command.documentId) : undefined);
       case 'openLegalGrounding':
         return invoke(command, adapter.openLegalGrounding ? () => adapter.openLegalGrounding!(command.recordId) : undefined);
+      case 'openLegalAdvisory':
+        return invoke(command, adapter.openLegalAdvisory);
       case 'openJourney':
         return invoke(command, adapter.openJourney);
       case 'openTwin':
