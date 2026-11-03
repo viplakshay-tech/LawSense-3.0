@@ -217,7 +217,7 @@ test('the Guide opens the existing document studio only after the user approves 
 
   await expect(page).toHaveURL(`/case/${caseId}/draft`);
   await expect(page.getByRole('heading', { name: 'Shape a clear first draft' })).toBeVisible();
-  await expect(page.getByText('Law Sense · Document studio')).toBeVisible();
+  await expect(page.getByText('Law Sense · Document studio', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Download .txt' })).toBeDisabled();
   await expect(page.getByRole('button', { name: 'Print / save PDF' })).toBeDisabled();
 });
@@ -468,6 +468,10 @@ test('a transient case API failure is visible and retry recovers from the real A
   await expect(page).toHaveURL(/\/case\/[^/]+$/);
   const caseId = new URL(page.url()).pathname.split('/').at(-1)!;
   expect(caseId).toBe(createdCase.id);
+
+  // Let the initial CaseStateProvider request finish before arming the one-shot
+  // failure; otherwise a late initial request can consume it before reload.
+  await expect(page.getByRole('heading', { name: 'Information still needed' })).toBeVisible();
 
   // Force a fresh workspace restore, then return one controlled transient
   // service failure for the case read. The retry goes to the real API.
