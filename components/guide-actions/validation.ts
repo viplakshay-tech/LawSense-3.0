@@ -32,7 +32,8 @@ function parseRoute(value: unknown): GuideRoute | null {
       || value.kind === 'journey'
       || value.kind === 'twin'
       || value.kind === 'voice'
-      || value.kind === 'safety')
+      || value.kind === 'safety'
+      || value.kind === 'draft')
     && isIdentifier(value.caseId)
   ) {
     return { kind: value.kind, caseId: value.caseId };
