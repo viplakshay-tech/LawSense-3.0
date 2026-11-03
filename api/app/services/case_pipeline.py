@@ -652,6 +652,10 @@ def _case_analysis_from_stages(
             } for reference in item.provenance],
             source_verification_status=(governed.verification_status.value if governed else "unverified"),
             source_freshness_status=(governed.freshness_status.value if governed else "unknown"),
+            source_freshness_checked_at=(
+                governed.freshness_checked_at.isoformat() if governed and governed.freshness_checked_at else None
+            ),
+            source_freshness_evidence=(governed.freshness_evidence if governed else None),
             source_applicability_status=(
                 governed.applicability_status.value if governed else "applicability_not_established"
             ),
@@ -1293,6 +1297,8 @@ def _govern_sources(
             freshness_status=(
                 version.freshness_status if version else SourceFreshnessStatus.UNKNOWN
             ),
+            freshness_checked_at=(version.freshness_checked_at if version else None),
+            freshness_evidence=(version.freshness_evidence if version else None),
             applicability_status=SourceApplicabilityStatus.APPLICABILITY_NOT_ESTABLISHED,
         ))
     registry = SourceGovernanceRegistry()
