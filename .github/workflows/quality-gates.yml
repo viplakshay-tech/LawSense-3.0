@@ -4,6 +4,16 @@ on:
   pull_request:
     branches:
       - lawsense-3-integration
+  push:
+    branches:
+      - lawsense-3-integration
+    paths:
+      - "android/**"
+      - "capacitor-shell/**"
+      - "capacitor.config.ts"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/quality-gates.yml"
   workflow_dispatch:
 
 permissions:
@@ -14,6 +24,55 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  android-debug-apk:
+    name: Android debug APK build
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android platform and build tools
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+
+      - name: Install JavaScript dependencies
+        run: npm ci
+
+      - name: Test the local Android connection shell
+        run: node --test tests/android/connection-shell.test.mjs
+
+      - name: Sync Capacitor Android project
+        run: npx cap sync android
+
+      - name: Build debug APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Upload installable debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: lawsense-android-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+
   frontend:
     name: Frontend lint, tests and production build
     runs-on: ubuntu-latest
