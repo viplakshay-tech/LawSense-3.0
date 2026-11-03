@@ -387,7 +387,7 @@ test('a transient case API failure is visible and retry recovers from the real A
     const request = route.request();
     const requestUrl = new URL(request.url());
     const isCaseRead = request.method() === 'GET'
-      && /^\\/api\\/cases\\/[^/]+$/.test(requestUrl.pathname);
+      && /^\/api\/cases\/[^/]+$/.test(requestUrl.pathname);
     if (failNextCaseRead && isCaseRead) {
       failNextCaseRead = false;
       failedCaseReadPath = requestUrl.pathname;
@@ -401,7 +401,7 @@ test('a transient case API failure is visible and retry recovers from the real A
 
     const target = new URL(request.url());
     target.port = '8001';
-    target.pathname = target.pathname.replace(/^\\/api(?=\\/|$)/, '');
+    target.pathname = target.pathname.replace(/^\/api(?=\/|$)/, '');
     const response = await route.fetch({ url: target.toString() });
     await route.fulfill({ response });
   });
