@@ -17,6 +17,7 @@ export type GuideActionCommand =
   | { type: 'openDocument'; documentId: string }
   | { type: 'highlightEvidence'; findingId: string; documentId?: string }
   | { type: 'openLegalGrounding'; recordId: string }
+  | { type: 'openLegalAdvisory' }
   | { type: 'openJourney' }
   | { type: 'openTwin' }
   | { type: 'selectTwinNode'; nodeId: string }
@@ -51,6 +52,7 @@ export interface GuideActionAdapter {
   openDocument?: (documentId: string) => GuideActionHandlerOutcome | Promise<GuideActionHandlerOutcome>;
   highlightEvidence?: (findingId: string, documentId?: string) => GuideActionHandlerOutcome | Promise<GuideActionHandlerOutcome>;
   openLegalGrounding?: (recordId: string) => GuideActionHandlerOutcome | Promise<GuideActionHandlerOutcome>;
+  openLegalAdvisory?: GuideActionHandler;
   openJourney?: GuideActionHandler;
   openTwin?: GuideActionHandler;
   selectTwinNode?: (nodeId: string) => GuideActionHandlerOutcome | Promise<GuideActionHandlerOutcome>;
