@@ -69,6 +69,7 @@ export function validateGuideActionCommand(input: unknown): GuideActionValidatio
       return input.evidenceId === undefined || isIdentifier(input.evidenceId)
         ? { ok: true, command: { type: 'openEvidence', ...(input.evidenceId ? { evidenceId: input.evidenceId } : {}) } }
         : invalid('openEvidence evidenceId must be a non-empty identifier.');
+    case 'openLegalAdvisory':
     case 'openJourney':
     case 'openTwin':
     case 'startVoice':
