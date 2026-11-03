@@ -205,6 +205,14 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [open]);
 
+  const sourceReviewRecords = rows(caseState?.analysis?.legalKnowledge?.records).filter((record) =>
+    ['legal_provision', 'legal_rule', 'legal_procedure'].includes(textValue(record.type).toLowerCase()),
+  );
+  const sourceGovernanceNeedsAttention = sourceReviewRecords.some((record) =>
+    textValue(record.sourceVerificationStatus, 'unverified') !== 'verified'
+    || textValue(record.sourceFreshnessStatus, 'unknown') !== 'current'
+    || textValue(record.jurisdictionMatchStatus, 'unknown') !== 'matched',
+  );
   const statements = rows(result?.groundedLegalStatements);
   const questions = rows(result?.unresolvedQuestions);
   const evidenceGaps = rows(result?.evidenceGaps);
@@ -219,6 +227,7 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
     || evidenceGaps.length > 0
     || conflicts.length > 0
     || jurisdictionStatus.toLowerCase().includes('unknown')
+    || sourceGovernanceNeedsAttention
     || legalKnowledgeStatus === 'unavailable'
     || legalKnowledgeStatus === 'insufficient_or_blocked';
   const advisoryStatus = statements.length === 0
@@ -231,6 +240,7 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
   if (questions.length > 0) nextSteps.push('Open the Guide and answer the listed unresolved questions. Mark anything you do not know as unknown rather than guessing.');
   if (evidenceGaps.length > 0) nextSteps.push('Review each evidence gap and attach or identify a relevant source where available. Keep extracted details unconfirmed until you have checked them.');
   if (jurisdictionStatus.toLowerCase().includes('unknown')) nextSteps.push('Confirm where the relevant events happened, including the state or district when known; procedure and deadlines can depend on jurisdiction.');
+  if (sourceGovernanceNeedsAttention) nextSteps.push('Review each candidate source identity, current-version/freshness status and jurisdiction against the original official publication. A catalog status or retrieval timestamp is not a live verification.');
   if (statements.length === 0) nextSteps.push('The current analysis has no reliable source-linked legal statement. Add missing facts and documents, then refresh the review; this does not mean no remedy exists.');
   if (nextSteps.length === 0) nextSteps.push('Check the relevant original documents and official source links, confirm current jurisdiction and dates, and review any procedural deadline with a qualified legal professional before acting.');
 
@@ -343,6 +353,45 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
                         <dd className="mt-1 text-sm font-medium text-slate-100">{humanize(jurisdictionStatus)}</dd>
                       </div>
                     </dl>
+                    {sourceReviewRecords.length > 0 && (
+                      <section className="mt-4 rounded-xl border border-amber-100/15 bg-amber-100/[0.025] p-3">
+                        <h4 className="text-xs font-semibold uppercase tracking-[0.13em] text-amber-100">Source verification and freshness</h4>
+                        <p className="mt-1 text-xs leading-5 text-slate-400">These are separate catalog assessments, not a live check. Even a verified source identity does not establish that its text is current or applies to this case.</p>
+                        <div className="mt-3 space-y-2">
+                          {sourceReviewRecords.slice(0, 8).map((record, index) => {
+                            const sourceUrl = recordedHttpsUrl(record);
+                            return (
+                              <article key={textValue(record.id, 'source-record-' + index)} className="rounded-lg border border-white/[0.07] bg-black/10 p-3">
+                                <p className="text-xs font-semibold text-slate-100">{textValue(record.title, 'Legal source record')}</p>
+                                <dl className="mt-2 grid grid-cols-2 gap-2 text-[11px]">
+                                  <div>
+                                    <dt className="text-slate-500">Source identity</dt>
+                                    <dd className="mt-0.5 text-slate-200">{humanize(textValue(record.sourceVerificationStatus, 'unverified'))}</dd>
+                                  </div>
+                                  <div>
+                                    <dt className="text-slate-500">Freshness</dt>
+                                    <dd className="mt-0.5 text-slate-200">{humanize(textValue(record.sourceFreshnessStatus, 'unknown'))}</dd>
+                                  </div>
+                                  <div>
+                                    <dt className="text-slate-500">Applicability</dt>
+                                    <dd className="mt-0.5 text-slate-200">{humanize(textValue(record.sourceApplicabilityStatus, 'applicability_not_established'))}</dd>
+                                  </div>
+                                  <div>
+                                    <dt className="text-slate-500">Jurisdiction match</dt>
+                                    <dd className="mt-0.5 text-slate-200">{humanize(textValue(record.jurisdictionMatchStatus, 'unknown'))}</dd>
+                                  </div>
+                                </dl>
+                                {sourceUrl && (
+                                  <a href={sourceUrl} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex min-h-8 items-center text-xs font-semibold text-[#f2dfb9] underline decoration-[#d9bd8c]/30 underline-offset-4">
+                                    Open recorded official source
+                                  </a>
+                                )}
+                              </article>
+                            );
+                          })}
+                        </div>
+                      </section>
+                    )}
                     {statements.length > 0 ? (
                       <div className="mt-4 space-y-3">
                         <h4 className="text-xs font-semibold uppercase tracking-[0.13em] text-slate-400">Source-linked legal material to review</h4>
@@ -364,7 +413,7 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
                                     const details = textValue(reference.details);
                                     return (
                                       <div key={textValue(reference.sourceId, 'source-ref-' + referenceIndex) + '-' + referenceIndex} className="border-t border-white/[0.06] pt-2 first:border-t-0 first:pt-0">
-                                        <p className="text-xs font-medium text-slate-200">{sourceType} · {humanize(referenceStatus)}</p>
+                                        <p className="text-xs font-medium text-slate-200">{sourceType} · Knowledge-record status: {humanize(referenceStatus)}</p>
                                         {sourcePath && !sourceUrl && <p className="mt-0.5 break-words text-xs leading-5 text-slate-400">{sourcePath}</p>}
                                         {typeof pageNumber === 'number' && <p className="mt-0.5 text-xs text-slate-400">Page {pageNumber}</p>}
                                         {details && <p className="mt-0.5 break-words text-xs leading-5 text-slate-500">{details}</p>}
