@@ -230,6 +230,9 @@ test('Legal Advisory distinguishes catalog record status from source verificatio
   assert.match(persistentLegalAdvisorySource, /sourceFreshnessEvidence/);
   assert.match(persistentLegalAdvisorySource, /Freshness review recorded/);
   assert.match(persistentLegalAdvisorySource, /Review evidence:/);
+  assert.match(persistentLegalAdvisorySource, /timeZoneName: 'short'/);
+  assert.match(persistentLegalAdvisorySource, /year: 'numeric'/);
+  assert.doesNotMatch(persistentLegalAdvisorySource, /dateStyle: 'medium'.*timeZoneName: 'short'/);
   assert.match(persistentLegalAdvisorySource, /sourceApplicabilityStatus/);
   assert.match(persistentLegalAdvisorySource, /jurisdictionMatchStatus/);
   assert.match(persistentLegalAdvisorySource, /Source verification and freshness/);
