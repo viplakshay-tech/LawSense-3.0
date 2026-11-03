@@ -5,7 +5,7 @@ import { Mic, MicOff, RotateCcw, Send } from 'lucide-react';
 import type { GuideVoiceEvent, VoiceLanguage } from '@/components/guide-runtime/voice-adapter/events';
 import type { RecognitionLanguage } from './VoiceCapture';
 import { sendGuideMessage, type GuideActionName } from '@/lib/api';
-import { getGuideConversationHistory, useGuideSession } from '@/lib/guide-session';
+import { getGuideConversationHistory, useGuideSession, type GuideSessionTurn } from '@/lib/guide-session';
 import type { GuideAction } from '@/components/guide-runtime/types';
 import {
   requestNativeGuideAudio,
@@ -173,7 +173,7 @@ export default function GuideConversation({
     onStateChangeRef.current?.(next);
   }, []);
 
-  const updateGuideAudio = useCallback((turnId: string, audio: NonNullable<ConversationTurn['audio']>) => {
+  const updateGuideAudio = useCallback((turnId: string, audio: NonNullable<GuideSessionTurn['audio']>) => {
     updateTurn(turnId, { audio });
   }, []);
 
