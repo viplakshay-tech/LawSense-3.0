@@ -477,7 +477,7 @@ export default function GuideConversation({
       );
     };
     speakResponse(responseText, responseId, finishTurn);
-  }, [addTurn, appendUserTurn, caseId, speakResponse, transition]);
+  }, [addTurn, appendUserTurn, availableActions, caseId, speakResponse, transition]);
 
   const startListening = useCallback(async () => {
     if (!callActiveRef.current || !shouldListenRef.current || disabledRef.current) return;
