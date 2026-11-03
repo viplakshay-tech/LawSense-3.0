@@ -1,5 +1,6 @@
 export { GuidePresence, default } from './GuidePresence';
 export { GuideControlSurface } from './GuideControlSurface';
+export { GuideConversationPanel } from './GuideControlSurface';
 export { GUIDE_PRESENCE_LABELS, GUIDE_PRESENCE_STATES } from './types';
 export { AvatarSurface, illustratedAvatarAdapter } from './avatar/AvatarSurface';
 export { GUIDE_PRESENTATION_CONTRACT, canonicalGuidePresenceState, getGuideStatePresentation } from './presentation-contract';
