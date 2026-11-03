@@ -251,7 +251,7 @@ test('clearing the shared case session invalidates pending text Guide replies ac
 
 
 test('Legal Advisory is a distinct always-available Guide action', () => {
-  assert.match(guideActionRegistrySource, /type: 'OPEN_LEGAL_ADVISORY'[\s\S]*?caseState \? \[\{ type: 'OPEN_LEGAL_ADVISORY'/);
+  assert.match(guideActionRegistrySource, /type: 'OPEN_LEGAL_ADVISORY'[\s\S]*?caseState\s*\?\s*\[\{ type: 'OPEN_LEGAL_ADVISORY'/);
   assert.match(guideRuntimeProvider, /case 'OPEN_LEGAL_ADVISORY':\s*return \{ type: 'openLegalAdvisory' \}/);
   assert.match(guideClientSource, /case 'OPEN_LEGAL_ADVISORY'/);
   assert.match(guideControlSurfaceSource, /case 'OPEN_LEGAL_ADVISORY'/);
