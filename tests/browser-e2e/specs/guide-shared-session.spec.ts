@@ -91,7 +91,7 @@ test('dedicated Guide workspace has an inline text conversation that continues i
   await expect(guideConversation).toContainText('Help me identify the next missing detail.');
   await expect(guideConversation).toContainText('When was the first salary payment due?');
 
-  await page.getByRole('button', { name: 'Voice' }).click();
+  await page.getByRole('button', { name: 'Voice', exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/case/${caseId}/voice#voice-transcript$`));
 
   const voiceConversation = page.getByRole('log', { name: 'Voice conversation transcript' });
