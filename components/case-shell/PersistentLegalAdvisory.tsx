@@ -173,7 +173,7 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
           }
         } catch {
           // A helpline lookup failure must not hide the legal reasoning already loaded.
-          setResources([]);
+          if (requestId === loadRequestIdRef.current) setResources([]);
         }
       }
     } catch (cause) {
