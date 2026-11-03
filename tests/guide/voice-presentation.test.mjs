@@ -6,6 +6,7 @@ import {
   createGuideConversationResponse,
   guideConversationPresentation,
   selectGuideSpeechVoice,
+  resolveGuideActionProposal,
 } from '../../components/voice/conversation.ts';
 
 const guidePresenceCss = await readFile(new URL('../../components/guide-presence/GuidePresence.css', import.meta.url), 'utf8');
@@ -90,6 +91,18 @@ test('spoken follow-ups repeat the received words and existing open question wit
   const hindiReply = createGuideConversationResponse('मुझे घर से बाहर कर दिया', undefined, 'Hindi');
   assert.match(hindiReply, /मुझे घर से बाहर कर दिया/);
   assert.match(hindiReply, /ड्राफ़्ट/);
+});
+
+test('voice Guide action proposals resolve only to actions currently available in the runtime', () => {
+  const availableActions = [
+    { type: 'NAVIGATE', payload: { caseId: 'case-1', target: 'documents' } },
+    { type: 'SHOW_TWIN', payload: { caseId: 'case-1' } },
+  ];
+
+  assert.equal(resolveGuideActionProposal('SHOW_TWIN', availableActions), availableActions[1]);
+  assert.equal(resolveGuideActionProposal('OPEN_JOURNEY', availableActions), undefined);
+  assert.equal(resolveGuideActionProposal(null, availableActions), undefined);
+  assert.equal(resolveGuideActionProposal(undefined, []), undefined);
 });
 
 test('reduced motion keeps the Guide portrait still', () => {
