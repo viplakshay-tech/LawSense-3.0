@@ -123,7 +123,7 @@ test('a synthetic workplace-harassment case can revisit every stage without page
   await expect(page.locator('#overview').getByText(scenario, { exact: true })).toBeVisible();
   const statusesAfter = await stageLinks.evaluateAll((links) => links.map((link) => link.getAttribute('data-stage-status')));
   expect(
-    statusesAfter.every((status, index) => status !== 'Complete' || statusesBefore[index] === 'Complete'),
+    statusesAfter.every((status, index) => status !== 'complete' || statusesBefore[index] === 'complete'),
     'Opening and revisiting journey pages must not mark additional stages complete.',
   ).toBe(true);
   await expect(page.locator('.ls-case-context-meta')).toContainText('of 9 stages complete');
