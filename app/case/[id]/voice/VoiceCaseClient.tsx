@@ -20,6 +20,7 @@ import {
 } from '@/lib/api';
 import { useCaseState } from '../CaseStateProvider';
 import { guidePresenceStateFromSnapshot, useGuideRuntime } from '@/components/guide-runtime';
+import { useGuideSession } from '@/lib/guide-session';
 
 const LANGUAGES: RecognitionLanguage[] = ['English', 'Hindi', 'Hinglish'];
 
@@ -49,9 +50,10 @@ function describeLanguage(value: string | null | undefined): string {
 export default function VoiceCaseClient({ id }: { id: string }) {
   const { caseState: caseData, loading, error: caseError, revision, replaceCaseState, refreshCaseState } = useCaseState();
   const { snapshot: guideRuntimeSnapshot, dispatch: dispatchCaseGuideEvent, runAction: runGuideAction, actionRunning: guideActionRunning } = useGuideRuntime();
+  const { language: sessionLanguage, setLanguage: setSessionLanguage } = useGuideSession(id);
   const [transcript, setTranscript] = useState('');
   const [inputMethod, setInputMethod] = useState<VoiceInputMethod>('text');
-  const [language, setLanguage] = useState<RecognitionLanguage>('Hinglish');
+  const [language, setLanguageState] = useState<RecognitionLanguage>('Hinglish');
   const [draftId, setDraftId] = useState(() => createId('draft'));
   const [preview, setPreview] = useState<VoiceTranscriptResponse | null>(null);
   const [requestWorking, setRequestWorking] = useState(false);
@@ -107,6 +109,15 @@ export default function VoiceCaseClient({ id }: { id: string }) {
           : guideSnapshot.detail);
   const callBusy = voiceCallActive || conversationPresentation?.status === 'requesting_permission';
   const visibleError = error;
+
+  useEffect(() => {
+    setLanguageState(sessionLanguage === 'hindi' ? 'Hindi' : sessionLanguage === 'english' ? 'English' : 'Hinglish');
+  }, [sessionLanguage]);
+
+  const setLanguage = useCallback((nextLanguage: RecognitionLanguage) => {
+    setLanguageState(nextLanguage);
+    setSessionLanguage(nextLanguage.toLocaleLowerCase() as VoiceLanguage);
+  }, [setSessionLanguage]);
 
   const emitVoiceEvent = useCallback((event: GuideVoiceEvent) => {
     return adapter.emit(event);
