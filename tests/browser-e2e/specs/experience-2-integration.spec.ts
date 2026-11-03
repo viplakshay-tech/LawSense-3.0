@@ -363,3 +363,67 @@ test('Guide deep links open the requested Legal Twin time state and focus a retu
   expect(new URL(snapshotResponse.url()).searchParams.get('as_of')).toBe(asOf);
   await expect(page.locator('#legal-twin-graph [role="button"][aria-pressed="true"]')).toHaveCount(1);
 });
+
+
+test('document finding deep links select only a finding returned for the requested case document', async ({ page }) => {
+  const caseId = await enterCase(page);
+  const documentId = 'document-guide-finding-focus';
+  const findingId = 'finding-guide-focus';
+  await page.route(caseApiUrl(page, caseId), async (route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    const response = await fetchFromIsolatedApi(route);
+    const caseState = await response.json() as { documents: Array<Record<string, unknown>> };
+    caseState.documents.push({
+      id: documentId,
+      filename: 'employment-letter.pdf',
+      mimeType: 'application/pdf',
+      extension: '.pdf',
+      fileSize: 256,
+      sha256: 'b'.repeat(64),
+      pageCount: 2,
+      processingTimestamp: '2026-10-08T00:00:00Z',
+      processingStatus: 'extracted',
+      classification: 'unknown',
+      classificationConfidence: 0,
+      classificationSignals: [],
+      pages: [
+        { pageNumber: 1, extractionMethod: 'pdf_text', processingStatus: 'extracted', textLength: 40 },
+        { pageNumber: 2, extractionMethod: 'pdf_text', processingStatus: 'extracted', textLength: 20 },
+      ],
+      errors: [],
+      reviewStatus: 'pending',
+      confirmationHistory: [],
+    });
+    await route.fulfill({ response, json: caseState });
+  });
+  await page.route(`**/api/cases/${caseId}/documents/${documentId}/review`, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        caseId,
+        status: 'available',
+        documentId,
+        processingStatus: 'extracted',
+        errors: [],
+        findings: [{
+          id: findingId,
+          category: 'date',
+          value: '8 October 2026',
+          text: 'The letter records 8 October 2026.',
+          source: 'document',
+          provenance: [{ source: 'document', documentId, pageNumber: 2, extractionMethod: 'pdf_text' }],
+          confidence: 92,
+          nature: 'extraction',
+          status: 'extracted',
+          upstreamStatus: 'candidate',
+        }],
+      }),
+    });
+  });
+
+  await page.goto(`/case/${caseId}/documents?documentId=${documentId}&findingId=${findingId}#document-preview`);
+  await expect(page.getByRole('heading', { name: 'Evidence Map', exact: true })).toBeVisible();
+  await expect(page.locator('article button[aria-pressed="true"]')).toHaveCount(1);
+  await expect(page.locator('article button[aria-pressed="true"]')).toContainText('Source selected');
+});

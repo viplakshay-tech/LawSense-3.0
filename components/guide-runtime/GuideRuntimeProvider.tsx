@@ -208,7 +208,16 @@ export function GuideRuntimeProvider({ caseId, children }: { caseId: string; chi
         }
         push(`${base}/documents?documentId=${encodeURIComponent(documentId)}`);
       },
-      highlightEvidence: () => ({ status: 'unavailable', reason: 'The case view does not expose a Guide finding-highlight callback.' }),
+      highlightEvidence: (findingId, documentId) => {
+        if (!caseState || caseState.id !== caseId || !documentId
+          || !caseState.documents.some((document) => document.id === documentId)) {
+          return { status: 'unavailable', reason: 'Highlighting a finding requires a document ID that belongs to the active case.' };
+        }
+        if (!findingId.trim() || findingId.length > 512) {
+          return { status: 'unavailable', reason: 'The requested document finding identifier is invalid.' };
+        }
+        push(`${base}/documents?documentId=${encodeURIComponent(documentId)}&findingId=${encodeURIComponent(findingId)}#document-preview`);
+      },
       openLegalGrounding: () => push(`${base}#analysis`),
       openJourney: () => push(`${base}#journey`),
       openTwin: () => push(`${base}/twin`),

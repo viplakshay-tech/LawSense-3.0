@@ -584,6 +584,7 @@ export function DocumentReviewWorkspace({ caseId, embedded = false, focusRequest
   }, [caseData, caseId]);
 
   const documentFocusHandledRef = useRef(false);
+  const requestedFindingHandledRef = useRef<string | null>(null);
   useEffect(() => {
     if (documentFocusHandledRef.current) return;
     const search = new URLSearchParams(window.location.search);
@@ -611,6 +612,34 @@ export function DocumentReviewWorkspace({ caseId, embedded = false, focusRequest
       });
     });
   }, [documents, requestedEvidence, selectedDocument]);
+
+  useEffect(() => {
+    if (!selectedReview || !selectedDocument) return;
+    const requestedFindingId = new URLSearchParams(window.location.search).get('findingId');
+    if (!requestedFindingId) return;
+    const requestKey = selectedDocument.id + ':' + requestedFindingId;
+    if (requestedFindingHandledRef.current === requestKey) return;
+    const finding = selectedReview.findings.find((item) => item.id === requestedFindingId);
+    if (!finding) {
+      requestedFindingHandledRef.current = requestKey;
+      window.requestAnimationFrame(() => {
+        setActionError('The requested finding is not present in this document review. The review remains unchanged.');
+      });
+      return;
+    }
+    requestedFindingHandledRef.current = requestKey;
+    const source = finding.provenance.find((item) =>
+      item.source === 'document' && item.documentId === selectedDocument.id,
+    );
+    window.requestAnimationFrame(() => {
+      setActiveFindingId(finding.id);
+      if (source?.pageNumber != null) setCurrentPage(source.pageNumber);
+      document.getElementById('document-preview')?.scrollIntoView({
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+        block: 'center',
+      });
+    });
+  }, [selectedReview, selectedDocument]);
 
   useEffect(() => {
     const url = previewFile?.url;

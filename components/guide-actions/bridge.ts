@@ -5,7 +5,7 @@ import type {
   GuideActionHandlerOutcome,
   GuideActionResult,
 } from './types';
-import { validateGuideActionCommand } from './validation';
+import { validateGuideActionCommand } from './validation.ts';
 
 function errorMessage(cause: unknown): string {
   return cause instanceof Error ? cause.message : 'The action handler failed.';
@@ -53,7 +53,7 @@ function createDispatch(adapter: GuideActionAdapter) {
       case 'openDocument':
         return invoke(command, adapter.openDocument ? () => adapter.openDocument!(command.documentId) : undefined);
       case 'highlightEvidence':
-        return invoke(command, adapter.highlightEvidence ? () => adapter.highlightEvidence!(command.findingId) : undefined);
+        return invoke(command, adapter.highlightEvidence ? () => adapter.highlightEvidence!(command.findingId, command.documentId) : undefined);
       case 'openLegalGrounding':
         return invoke(command, adapter.openLegalGrounding ? () => adapter.openLegalGrounding!(command.recordId) : undefined);
       case 'openJourney':

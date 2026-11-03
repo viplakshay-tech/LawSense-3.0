@@ -81,8 +81,16 @@ export function validateGuideActionCommand(input: unknown): GuideActionValidatio
         : invalid('openDocument requires a non-empty documentId.');
     case 'highlightEvidence':
       return isIdentifier(input.findingId)
-        ? { ok: true, command: { type: 'highlightEvidence', findingId: input.findingId } }
-        : invalid('highlightEvidence requires a non-empty findingId.');
+        && (input.documentId === undefined || isIdentifier(input.documentId))
+        ? {
+            ok: true,
+            command: {
+              type: 'highlightEvidence',
+              findingId: input.findingId,
+              ...(input.documentId ? { documentId: input.documentId } : {}),
+            },
+          }
+        : invalid('highlightEvidence requires a non-empty findingId and, when supplied, a valid documentId.');
     case 'openLegalGrounding':
       return isIdentifier(input.recordId)
         ? { ok: true, command: { type: 'openLegalGrounding', recordId: input.recordId } }
