@@ -48,7 +48,7 @@ function describeLanguage(value: string | null | undefined): string {
 
 export default function VoiceCaseClient({ id }: { id: string }) {
   const { caseState: caseData, loading, error: caseError, revision, replaceCaseState, refreshCaseState } = useCaseState();
-  const { snapshot: guideRuntimeSnapshot, dispatch: dispatchCaseGuideEvent } = useGuideRuntime();
+  const { snapshot: guideRuntimeSnapshot, dispatch: dispatchCaseGuideEvent, runAction: runGuideAction, actionRunning: guideActionRunning } = useGuideRuntime();
   const [transcript, setTranscript] = useState('');
   const [inputMethod, setInputMethod] = useState<VoiceInputMethod>('text');
   const [language, setLanguage] = useState<RecognitionLanguage>('Hinglish');
@@ -387,6 +387,9 @@ export default function VoiceCaseClient({ id }: { id: string }) {
                 language={language}
                 openQuestions={caseData.unknowns}
                 hasDraft={Boolean(transcript.trim())}
+                availableActions={guideRuntimeSnapshot.availableActions}
+                onRunAction={(action) => { void runGuideAction(action); }}
+                actionRunning={guideActionRunning}
                 disabled={working || captureBusy || committed}
                 onUserTurn={receiveConversationTurn}
                 onStateChange={setConversationPresentation}
