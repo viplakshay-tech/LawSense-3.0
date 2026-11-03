@@ -232,6 +232,27 @@ class GuideRouteTests(unittest.TestCase):
         self.assertEqual(response["proposed_action"], "SHOW_EVIDENCE")
         self.assertEqual(response["reply"], "I can open the evidence workspace.")
 
+    def test_guide_can_propose_document_drafting_only_when_it_is_available(self) -> None:
+        def opener(request, *, timeout):
+            sent = json.loads(request.data.decode("utf-8"))
+            self.assertIn("OPEN_DRAFTING", sent["messages"][1]["content"])
+            return _Response({"message": {
+                "content": json.dumps({
+                    "reply": "I can open the document drafting workspace. You will review every field before exporting.",
+                    "proposed_action": "OPEN_DRAFTING",
+                })
+            }})
+
+        with self._proxy_free_opener_patch(opener):
+            status, response = _asgi_request({
+                **self.payload,
+                "available_actions": ["OPEN_DRAFTING"],
+            })
+
+        self.assertEqual(status, 200, response)
+        self.assertEqual(response["proposed_action"], "OPEN_DRAFTING")
+        self.assertIn("document drafting workspace", response["reply"])
+
     def test_model_cannot_propose_an_action_missing_from_the_current_allowlist(self) -> None:
         def opener(request, *, timeout):
             return _Response({"message": {

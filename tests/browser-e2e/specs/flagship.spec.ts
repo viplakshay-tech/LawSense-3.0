@@ -174,6 +174,54 @@ test('case workspace exposes persistent Legal Advisory and case-aware Guide chat
   await expect(page.getByText(/This chat is not saved to the case/)).toBeVisible();
 });
 
+
+test('the Guide opens the existing document studio only after the user approves its proposal', async ({ page }) => {
+  await enterCase(page);
+  const caseId = new URL(page.url()).pathname.split('/').at(-1)!;
+
+  await page.route('**/api/guide/chat', async (route) => {
+    const body = route.request().postDataJSON() as {
+      available_actions?: string[];
+      message?: string;
+    };
+    expect(body.message).toBe('Open document drafting.');
+    expect(body.available_actions).toContain('OPEN_DRAFTING');
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        reply: 'I can open the document drafting workspace. You will choose, edit, and review the document before exporting it.',
+        status: 'ok',
+        model: 'test-local-model',
+        proposed_action: 'OPEN_DRAFTING',
+      }),
+    });
+  });
+
+  await page.getByRole('button', { name: 'Expand Guide control surface' }).click();
+  await page.getByLabel('Message your Guide').fill('Open document drafting.');
+  const guideResponsePromise = page.waitForResponse((response) => {
+    const requestUrl = new URL(response.url());
+    return response.request().method() === 'POST'
+      && requestUrl.pathname === '/api/guide/chat';
+  });
+  await page.getByRole('button', { name: 'Send to local Guide' }).click();
+  const guideResponse = await guideResponsePromise;
+  expect(guideResponse.status()).toBe(200);
+  await expect(page).toHaveURL(`/case/${caseId}`);
+
+  const guideConversation = page.getByRole('log', { name: 'Guide conversation' });
+  const approval = guideConversation.getByRole('button', { name: 'Open document drafting', exact: true });
+  await expect(approval).toBeVisible();
+  await approval.click();
+
+  await expect(page).toHaveURL(`/case/${caseId}/draft`);
+  await expect(page.getByRole('heading', { name: 'Shape a clear first draft' })).toBeVisible();
+  await expect(page.getByText('Law Sense · Document studio', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Download .txt' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Print / save PDF' })).toBeDisabled();
+});
+
 test('real landlord-deposit flow refreshes CaseState and the Living Twin timeline', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
 
@@ -420,6 +468,10 @@ test('a transient case API failure is visible and retry recovers from the real A
   await expect(page).toHaveURL(/\/case\/[^/]+$/);
   const caseId = new URL(page.url()).pathname.split('/').at(-1)!;
   expect(caseId).toBe(createdCase.id);
+
+  // Let the initial CaseStateProvider request finish before arming the one-shot
+  // failure; otherwise a late initial request can consume it before reload.
+  await expect(page.getByRole('heading', { name: 'Information still needed' })).toBeVisible();
 
   // Force a fresh workspace restore, then return one controlled transient
   // service failure for the case read. The retry goes to the real API.

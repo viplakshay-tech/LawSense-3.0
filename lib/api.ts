@@ -1082,6 +1082,7 @@ export type GuideActionName =
   | 'OPEN_JOURNEY'
   | 'SHOW_TWIN'
   | 'START_VOICE'
+  | 'OPEN_DRAFTING'
   | 'OPEN_SAFETY'
   | 'NAVIGATE';
 
@@ -1151,6 +1152,7 @@ export async function sendGuideMessage(
           'OPEN_JOURNEY',
           'SHOW_TWIN',
           'START_VOICE',
+          'OPEN_DRAFTING',
           'OPEN_SAFETY',
           'NAVIGATE',
         ].includes(body.proposed_action))

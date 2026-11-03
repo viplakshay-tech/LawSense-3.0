@@ -141,6 +141,12 @@ const guideActionDefinitions: readonly GuideActionDefinition[] = [
       : [],
   },
   {
+    type: 'OPEN_DRAFTING',
+    resolve: ({ caseState }) => caseState
+      ? [{ type: 'OPEN_DRAFTING', payload: { caseId: caseState.id } }]
+      : [],
+  },
+  {
     type: 'SPEAK_RESPONSE',
     resolve: ({ response }) => response?.text.trim()
       ? [{ type: 'SPEAK_RESPONSE', payload: { response } }]

@@ -7,7 +7,8 @@ export type GuideRoute =
   | { kind: 'journey'; caseId: string }
   | { kind: 'twin'; caseId: string }
   | { kind: 'voice'; caseId: string }
-  | { kind: 'safety'; caseId: string };
+  | { kind: 'safety'; caseId: string }
+  | { kind: 'draft'; caseId: string };
 
 /** Closed command set. Payload values must come from the caller or application state. */
 export type GuideActionCommand =

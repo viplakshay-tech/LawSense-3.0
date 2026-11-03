@@ -124,6 +124,7 @@ export interface GuideActionPayloadMap {
   OPEN_JOURNEY: { caseId: string };
   SHOW_TWIN: { caseId: string };
   START_VOICE: { caseId: string };
+  OPEN_DRAFTING: { caseId: string };
   SPEAK_RESPONSE: { response: GuideResponse };
   OPEN_SAFETY: { caseId: string; context: SafetyContextSummary };
   NAVIGATE: { caseId: string; target: GuideNavigationTarget };

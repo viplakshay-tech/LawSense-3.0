@@ -55,6 +55,7 @@ function pathForRoute(route: GuideRoute): string {
     case 'twin': return `${base}/twin`;
     case 'voice': return `${base}/voice`;
     case 'safety': return `${base}/safety`;
+    case 'draft': return `${base}/draft`;
     default: {
       const exhaustiveRoute: never = route;
       return exhaustiveRoute;
@@ -94,6 +95,8 @@ function commandForAction(action: GuideAction): GuideActionCommand {
       return { type: 'openSafety' };
     case 'START_VOICE':
       return { type: 'startVoice' };
+    case 'OPEN_DRAFTING':
+      return { type: 'navigate', route: { kind: 'draft', caseId: action.payload.caseId } };
     case 'SPEAK_RESPONSE':
       return { type: 'speak', text: action.payload.response.text };
     case 'NAVIGATE':
@@ -114,6 +117,7 @@ function actionLabel(action: GuideAction): string {
     case 'SHOW_TWIN': return 'Living Twin';
     case 'OPEN_SAFETY': return 'Safety';
     case 'START_VOICE': return 'Voice capture';
+    case 'OPEN_DRAFTING': return 'Document drafting';
     case 'SPEAK_RESPONSE': return 'Guide speech';
     case 'NAVIGATE': return action.payload.target === 'case' ? 'Case overview' : action.payload.target;
     default: {

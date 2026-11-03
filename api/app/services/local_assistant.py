@@ -27,6 +27,7 @@ GUIDE_ACTION_TYPES = frozenset({
     "OPEN_JOURNEY",
     "SHOW_TWIN",
     "START_VOICE",
+    "OPEN_DRAFTING",
     "OPEN_SAFETY",
     "NAVIGATE",
 })
@@ -38,6 +39,7 @@ GUIDE_ACTION_DESCRIPTIONS = {
     "OPEN_JOURNEY": "open the case journey and recorded next steps",
     "SHOW_TWIN": "open the case Legal Twin graph and timeline",
     "START_VOICE": "open the voice or text statement review page",
+    "OPEN_DRAFTING": "open the existing case document drafting workspace without creating or saving a document",
     "OPEN_SAFETY": "open the existing safety workspace for this case",
     "NAVIGATE": "open the next workspace recommended by the deterministic case runtime",
 }

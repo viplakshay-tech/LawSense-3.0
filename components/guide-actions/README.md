@@ -10,6 +10,7 @@ The bridge is the typed boundary between Guide intents and case-workspace handle
 - `OPEN_JOURNEY` moves to the Journey section in the case overview.
 - `SHOW_TWIN` and `OPEN_SAFETY` open their existing case pages.
 - `START_VOICE` opens voice capture. The user must still start the microphone on that page.
+- `OPEN_DRAFTING` opens the existing document studio for the active case. It does not create, fill, review, download, or print a document; those steps remain under the user's control.
 - `SPEAK_RESPONSE` uses the browser speech engine when available and reports unsupported or failed playback as unavailable/error.
 - `NAVIGATE` maps the typed route to a fixed case-workspace path, encoding the case ID as one segment.
 

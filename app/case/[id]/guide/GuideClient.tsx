@@ -40,6 +40,7 @@ function guideActionLabel(action: GuideAction): string {
     case 'OPEN_JOURNEY': return 'Open the Journey plan';
     case 'SHOW_TWIN': return 'Open the Living Twin';
     case 'START_VOICE': return 'Add information by voice';
+    case 'OPEN_DRAFTING': return 'Open document drafting';
     case 'SPEAK_RESPONSE': return 'Read the case summary aloud';
     case 'OPEN_SAFETY': return 'Review safety information';
     case 'NAVIGATE': return action.payload.target === 'case'
