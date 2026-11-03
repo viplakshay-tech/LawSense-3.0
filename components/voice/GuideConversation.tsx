@@ -440,6 +440,7 @@ export default function GuideConversation({
         allowedActions,
       );
       responseText = result.reply;
+      responseStatus = result.status;
       proposedAction = result.status === 'ok' ? result.proposed_action ?? undefined : undefined;
     } catch {
       responseStatus = 'unavailable';
