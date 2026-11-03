@@ -38,6 +38,7 @@ function guideActionLabel(action: GuideAction): string {
     case 'ASK_CLARIFICATION': return 'Answer an open case question';
     case 'SHOW_EVIDENCE': return 'Open the Evidence Map';
     case 'SHOW_LEGAL_GROUNDING': return 'Review legal grounding';
+    case 'OPEN_LEGAL_ADVISORY': return 'Open Legal Advisory';
     case 'OPEN_JOURNEY': return 'Open the Journey plan';
     case 'SHOW_TWIN': return 'Open the Living Twin';
     case 'START_VOICE': return 'Add information by voice';
