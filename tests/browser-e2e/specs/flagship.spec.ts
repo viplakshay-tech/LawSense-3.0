@@ -186,7 +186,7 @@ test('real landlord-deposit flow refreshes CaseState and the Living Twin timelin
   await page.route('**/api/cases/**', async (route: Route) => {
     const requestUrl = new URL(route.request().url());
     const isCaseRead = route.request().method() === 'GET'
-      && /^\/api\/cases\/[^/]+$/.test(requestUrl.pathname);
+      && /^\/api\/cases\/[^\/]+$/.test(requestUrl.pathname);
     // Arm the hold immediately before entering the workspace, avoiding an
     // assumption about how many reads the intake review performs.
     if (isCaseRead && holdNextCaseRead) {
