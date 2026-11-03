@@ -378,11 +378,15 @@ test('a malformed 200 case response exits loading into recovery actions', async 
 });
 
 test('a failed case API request is visible and retry recovers from the real API', async ({ page }) => {
+  // Replace the shared beforeEach proxy so this test owns one deterministic
+  // interception chain; otherwise the general proxy can fulfill first.
+  await page.unroute('**/api/**');
   let failNextCaseRead = false;
   let failedCaseReadPath: string | null = null;
-  await page.route('**/api/cases/**', async (route: Route) => {
-    const requestUrl = new URL(route.request().url());
-    const isCaseRead = route.request().method() === 'GET'
+  await page.route('**/api/**', async (route: Route) => {
+    const request = route.request();
+    const requestUrl = new URL(request.url());
+    const isCaseRead = request.method() === 'GET'
       && /^\/api\/cases\/[^/]+$/.test(requestUrl.pathname);
     if (failNextCaseRead && isCaseRead) {
       failNextCaseRead = false;
@@ -390,7 +394,12 @@ test('a failed case API request is visible and retry recovers from the real API'
       await route.abort('failed');
       return;
     }
-    await route.fallback();
+
+    const target = new URL(request.url());
+    target.port = '8001';
+    target.pathname = target.pathname.replace(/^\/api(?=\/|$)/, '');
+    const response = await route.fetch({ url: target.toString() });
+    await route.fulfill({ response });
   });
 
   const createResponsePromise = page.waitForResponse((response) => {
@@ -405,8 +414,7 @@ test('a failed case API request is visible and retry recovers from the real API'
   const caseId = new URL(page.url()).pathname.split('/').at(-1)!;
   expect(caseId).toBe(createdCase.id);
 
-  // Reload explicitly so this test exercises a genuine workspace restoration,
-  // rather than relying on an incidental request count during intake.
+  // Force a fresh workspace restore, then fail exactly its case read.
   failNextCaseRead = true;
   const failedReadRequest = page.waitForRequest((request) => {
     const requestUrl = new URL(request.url());
