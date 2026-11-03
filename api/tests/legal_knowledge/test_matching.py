@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 import unittest
+from datetime import datetime, timezone
 
 from app.engines.legal_knowledge.matching import build_law_matches
 from app.engines.legal_knowledge.models import (
@@ -11,6 +12,7 @@ from app.engines.legal_knowledge.models import (
     LegalProcedure,
     LegalSource,
 )
+from app.engines.legal_sources.governance_models import SourceFreshnessStatus
 from app.engines.legal_knowledge.seed import build_authoritative_legal_knowledge_seed
 from app.engines.legal_twin import EdgeType, NodeType, build_legal_twin
 from app.services.case_pipeline import CasePipelineRequest, run_case_pipeline
@@ -105,6 +107,34 @@ class LegalMatchTests(unittest.TestCase):
                 self.assertEqual(candidate["evidence_assessment"], "unclear")
                 self.assertIn("withdrawn", " ".join(candidate["assessment_rationale"]).casefold())
                 self.assertIn("catalog_record_status", candidate["assessment_factors"])
+
+    def test_stale_source_cannot_support_a_plausible_legal_match(self) -> None:
+        result = run_case_pipeline(CasePipelineRequest(
+            case_id="case-stale-source",
+            initial_statement="I bought a defective phone and the seller refused my refund.",
+            recorded_at="2026-10-10T04:00:00+00:00",
+        ))
+        seed = build_authoritative_legal_knowledge_seed()
+        provision = next(
+            item for item in seed.items
+            if isinstance(item, LegalProvision) and item.id == "provision-consumer-protection-2019-section-2-10"
+        )
+        reviewed_sources = tuple(
+            replace(
+                source,
+                freshness_status=SourceFreshnessStatus.STALE,
+                freshness_checked_at=datetime(2026, 10, 11, 12, 0, tzinfo=timezone.utc),
+                freshness_evidence="Compared the official publication and identified a newer version.",
+            ) if source.source_id == provision.source else source
+            for source in result.legal_knowledge.governed_sources
+        )
+        candidate = next(
+            item for item in build_law_matches(result.case_state, seed.items, reviewed_sources)
+            if item["candidate_id"] == provision.id
+        )
+        self.assertEqual(candidate["evidence_assessment"], "unclear")
+        self.assertEqual(candidate["assessment_factors"]["source_freshness"], "stale")
+        self.assertIn("not established as current", " ".join(candidate["assessment_rationale"]))
 
     def test_procedural_steps_are_withheld_until_the_linked_source_is_current(self) -> None:
         result = run_case_pipeline(CasePipelineRequest(
