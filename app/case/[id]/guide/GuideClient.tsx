@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   ArrowUpRight,
   BookOpenCheck,
@@ -22,7 +23,7 @@ import { type CaseState, type JourneySummary } from '@/lib/api';
 import { useCaseState } from '../CaseStateProvider';
 import { guidePresenceStateFromSnapshot, guideStateLabel, useGuideRuntime } from '@/components/guide-runtime';
 import type { GuideAction } from '@/components/guide-runtime';
-import { GUIDE_PRESENCE_LABELS, GuidePresence } from '@/components/guide-presence';
+import { GUIDE_PRESENCE_LABELS, GuideConversationPanel, GuidePresence } from '@/components/guide-presence';
 import { TrustNotice } from '@/components/TrustNotice';
 import './GuideClient.css';
 
@@ -272,6 +273,7 @@ function RoomError({ id, title, message, onRetry }: { id: string; title: string;
 }
 
 export default function GuidePage({ id }: { id: string }) {
+  const router = useRouter();
   const { caseState: caseData, loading, error, refreshCaseState } = useCaseState();
   const {
     snapshot,
@@ -373,7 +375,7 @@ export default function GuidePage({ id }: { id: string }) {
                 <CameraOffIndicator />
                 <GuidePresence
                   state={presenceState}
-                  size="compact"
+                  size="hero"
                   accessibleLabel={`Guide state: ${presenceLabel}`}
                   speechState={snapshot.speechState}
                 />
@@ -400,10 +402,10 @@ export default function GuidePage({ id }: { id: string }) {
                   <span>Speak</span>
                   <small>Open voice capture</small>
                 </button>
-                <Link href={`${base}/voice#voice-transcript`} className={"ls-guide-room__controlButton"}>
+                <Link href="#guide-conversation" className={"ls-guide-room__controlButton"}>
                   <span className={"ls-guide-room__controlIcon"} aria-hidden="true">T</span>
-                  <span>Type</span>
-                  <small>Review before saving</small>
+                  <span>Text chat</span>
+                  <small>Continue in this workspace</small>
                 </Link>
                 <Link href={`${base}#upload-heading`} className={"ls-guide-room__controlButton"}>
                   <FileText aria-hidden="true" />
@@ -437,6 +439,14 @@ export default function GuidePage({ id }: { id: string }) {
               </div>
               <p className={"ls-guide-room__cameraNotice"}>Camera stays off. This room does not request camera access.</p>
             </div>
+
+            <section id="guide-conversation" className={"ls-guide-room__conversationWorkspace"} aria-label="Shared Guide conversation">
+              <GuideConversationPanel
+                caseId={id}
+                variant="workspace"
+                onOpenVoice={() => router.push(`${base}/voice#voice-transcript`)}
+              />
+            </section>
 
             <section className={"ls-guide-room__activityCard"} aria-labelledby="room-activity-heading">
               <div className={"ls-guide-room__activityHeading"}>
