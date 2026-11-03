@@ -77,7 +77,14 @@ function formatRecordedDateTime(value: string): string {
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime())
     ? value
-    : parsed.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short', timeZoneName: 'short' });
+    : parsed.toLocaleString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZoneName: 'short',
+    });
 }
 
 function getRequestedSupportCategories(caseState: CaseState): string[] {
