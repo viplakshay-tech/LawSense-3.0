@@ -273,6 +273,8 @@ export interface LegalKnowledgeRecordSummary {
   provenance: LegalKnowledgeProvenance[];
   sourceVerificationStatus?: string | null;
   sourceFreshnessStatus?: string | null;
+  sourceFreshnessCheckedAt?: string | null;
+  sourceFreshnessEvidence?: string | null;
   sourceApplicabilityStatus?: string | null;
   jurisdictionLabel?: string | null;
   jurisdictionMatchStatus?: 'matched' | 'mismatch' | 'unknown' | 'source_jurisdiction_unmapped';
