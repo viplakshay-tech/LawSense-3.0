@@ -17,6 +17,7 @@ const callCss = await readFile(new URL('../../app/case/[id]/voice/VoiceCaseClien
 const voicePage = await readFile(new URL('../../app/case/[id]/voice/page.tsx', import.meta.url), 'utf8');
 const guideRuntimeProvider = await readFile(new URL('../../components/guide-runtime/GuideRuntimeProvider.tsx', import.meta.url), 'utf8');
 const legalSourceCandidates = await readFile(new URL('../../components/LegalSourceCandidates.tsx', import.meta.url), 'utf8');
+const persistentLegalAdvisorySource = await readFile(new URL('../../components/case-shell/PersistentLegalAdvisory.tsx', import.meta.url), 'utf8');
 
 test('voice milestones present the state reported by the call flow', () => {
   const started = guideVoiceSnapshotForEvent({ type: 'capture_started', draftId: 'd', captureId: 'c', provider: 'browser', language: 'english' }, 'IDLE', 'idle');
@@ -183,4 +184,15 @@ test('Guide legal-grounding actions open only a source record returned for the a
   assert.match(guideRuntimeProvider, /caseState\.analysis\?\.legalKnowledge\.records\.some/);
   assert.match(guideRuntimeProvider, /#legal-record-\$\{encodeURIComponent\(recordId\)\}/);
   assert.match(legalSourceCandidates, /id=\{\x60legal-record-\$\{encodeURIComponent\(record\.id\)\}\x60\}/);
+});
+
+
+test('Legal Advisory distinguishes catalog record status from source verification and freshness', () => {
+  assert.match(persistentLegalAdvisorySource, /sourceVerificationStatus/);
+  assert.match(persistentLegalAdvisorySource, /sourceFreshnessStatus/);
+  assert.match(persistentLegalAdvisorySource, /sourceApplicabilityStatus/);
+  assert.match(persistentLegalAdvisorySource, /jurisdictionMatchStatus/);
+  assert.match(persistentLegalAdvisorySource, /Source verification and freshness/);
+  assert.match(persistentLegalAdvisorySource, /Knowledge-record status:/);
+  assert.match(persistentLegalAdvisorySource, /sourceGovernanceNeedsAttention/);
 });
