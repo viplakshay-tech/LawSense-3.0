@@ -132,6 +132,14 @@ def build_law_matches(
         verification_status = (
             governed.verification_status.value if governed is not None else "unverified"
         )
+        catalog_statuses = {
+            "provision": provision.status.value,
+            "document": doc.status.value if doc is not None else "missing",
+            "source": law_source.status.value if law_source is not None else "missing",
+        }
+        catalog_records_verified = all(
+            status == "verified" for status in catalog_statuses.values()
+        )
         freshness_status = (
             governed.freshness_status.value if governed is not None else "unknown"
         )
@@ -141,13 +149,14 @@ def build_law_matches(
         if (
             "evidence_supported" in fact_statuses
             and verification_status == "verified"
+            and catalog_records_verified
             and freshness_current
             and jurisdiction_match == "matched"
             and incident_temporal_status == "supported"
             and not conflict_present
         ):
             evidence_assessment = "supported"
-        elif matched_cues and verification_status == "verified" and freshness_current and jurisdiction_match != "mismatch":
+        elif matched_cues and verification_status == "verified" and catalog_records_verified and freshness_current and jurisdiction_match != "mismatch":
             evidence_assessment = "plausible"
         else:
             evidence_assessment = "unclear"
@@ -159,6 +168,9 @@ def build_law_matches(
             "jurisdiction": jurisdiction_match,
             "temporal_applicability": incident_temporal_status,
             "source_verification": verification_status,
+            "catalog_record_status": ",".join(
+                f"{name}={status}" for name, status in catalog_statuses.items()
+            ),
             "source_freshness": freshness_status,
         }
         assessment_rationale = [
@@ -177,6 +189,11 @@ def build_law_matches(
                 else "Source freshness is not established as current; this remains a research lead only."
             ),
         ]
+        if not catalog_records_verified:
+            if any(status in {"superseded", "withdrawn"} for status in catalog_statuses.values()):
+                assessment_rationale.append("A linked provision, document, or source catalog record is superseded or withdrawn; it cannot support a current legal conclusion.")
+            else:
+                assessment_rationale.append("Verification is not established for every linked provision, document, and source catalog record.")
         if conflict_present:
             assessment_rationale.append("Conflicting information is recorded and remains unresolved.")
         if not matched_cues:
@@ -192,6 +209,8 @@ def build_law_matches(
         limitations = [jurisdiction_limit, temporal_limit]
         if not freshness_current:
             limitations.append("Source freshness has not been established as current; this candidate cannot support a current legal conclusion.")
+        if not catalog_records_verified:
+            limitations.append("A linked provision, document, or source catalog record is not verified as current catalog material.")
         limitations.append("A candidate match is not a determination that the provision applies.")
         procedure_summary = _procedure_guidance(
             linked_procedures,
@@ -461,9 +480,14 @@ def _procedure_guidance(
     filing_links: list[dict[str, str]] = []
     for procedure in procedures:
         source = sources.get(procedure.source or "")
+        authority = authorities.get(procedure.authority or "")
         governed = governance.get(procedure.source or "")
         verified = bool(
             procedure.status.value == "verified"
+            and source is not None
+            and source.status.value == "verified"
+            and authority is not None
+            and authority.status.value == "verified"
             and governed is not None
             and governed.verification_status.value == "verified"
             and governed.freshness_status.value == "current"
@@ -477,7 +501,6 @@ def _procedure_guidance(
             "freshness_status": governed.freshness_status.value if governed else "unknown",
             "source_url": procedure.source_url,
         })
-        authority = authorities.get(procedure.authority or "")
         if authority is not None:
             authority_items.append({
                 "name": authority.title,
