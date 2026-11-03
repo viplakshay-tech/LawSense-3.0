@@ -23,6 +23,7 @@ export interface GuideSessionSnapshot {
 export interface GuideSessionRequestToken {
   generation: number;
   sequence: number;
+  signal: AbortSignal;
 }
 
 const EMPTY_SNAPSHOT: GuideSessionSnapshot = Object.freeze({
@@ -36,6 +37,7 @@ const MAX_VISIBLE_TURNS = 20;
 const MAX_HISTORY_TURNS = 8;
 const sessions = new Map<string, GuideSessionSnapshot>();
 const listeners = new Map<string, Set<() => void>>();
+const pendingRequests = new Map<string, AbortController>();
 
 function storageKey(caseId: string): string {
   return `lawsense:guide-session:v1:${caseId}`;
@@ -125,12 +127,17 @@ export function isGuideSessionGenerationCurrent(caseId: string, generation: numb
  */
 export function beginGuideSessionRequest(caseId: string): GuideSessionRequestToken {
   const current = readSession(caseId);
-  if (!caseId) return { generation: current.generation, sequence: current.requestSequence };
+  if (!caseId) {
+    return { generation: current.generation, sequence: current.requestSequence, signal: new AbortController().signal };
+  }
+  pendingRequests.get(caseId)?.abort();
+  const controller = new AbortController();
+  pendingRequests.set(caseId, controller);
   const wraps = current.requestSequence >= Number.MAX_SAFE_INTEGER;
   const generation = wraps ? current.generation + 1 : current.generation;
   const sequence = wraps ? 1 : current.requestSequence + 1;
   publish(caseId, { ...current, generation, requestSequence: sequence });
-  return { generation, sequence };
+  return { generation, sequence, signal: controller.signal };
 }
 
 export function isGuideSessionRequestCurrent(
@@ -141,7 +148,17 @@ export function isGuideSessionRequestCurrent(
   return Number.isSafeInteger(request.generation)
     && Number.isSafeInteger(request.sequence)
     && current.generation === request.generation
-    && current.requestSequence === request.sequence;
+    && current.requestSequence === request.sequence
+    && !request.signal.aborted;
+}
+
+export function finishGuideSessionRequest(
+  caseId: string,
+  request: GuideSessionRequestToken,
+): void {
+  if (pendingRequests.get(caseId)?.signal === request.signal) {
+    pendingRequests.delete(caseId);
+  }
 }
 
 export function appendGuideSessionTurn(caseId: string, turn: GuideSessionTurn): void {
@@ -170,6 +187,8 @@ export function setGuideSessionLanguage(caseId: string, language: GuideChatLangu
 
 export function clearGuideSession(caseId: string): void {
   const current = readSession(caseId);
+  pendingRequests.get(caseId)?.abort();
+  pendingRequests.delete(caseId);
   publish(caseId, {
     turns: [],
     language: 'english',
