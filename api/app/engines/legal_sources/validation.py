@@ -18,6 +18,7 @@ from app.engines.legal_knowledge.validation import (
 )
 
 from app.engines.legal_sources.models import RegistrySourceVersion, SourceType
+from app.engines.legal_sources.governance_models import SourceFreshnessStatus
 
 
 class SourceRegistryValidationError(LegalKnowledgeValidationError):
