@@ -15,7 +15,7 @@ from app.engines.legal_knowledge.models import (
     SourceVersion,
 )
 from app.engines.legal_knowledge.seed import build_authoritative_legal_knowledge_seed
-from app.engines.legal_sources import LegalSourceRegistry
+from app.engines.legal_sources import LegalSourceRegistry, SourceFreshnessStatus
 from app.services.legal_knowledge_service import search_legal_knowledge
 
 
@@ -102,6 +102,9 @@ class AuthoritativeLegalKnowledgeSeedTests(unittest.TestCase):
                 self.assertIsNotNone(version.authority_tier)
                 self.assertTrue(version.canonical_reference)
                 self.assertTrue(version.provenance)
+                self.assertEqual(version.freshness_status, SourceFreshnessStatus.UNKNOWN)
+                self.assertIsNone(version.freshness_checked_at)
+                self.assertIsNone(version.freshness_evidence)
                 entry = registry.get(version.source)
                 self.assertIsNotNone(entry)
                 self.assertTrue(entry.canonical_reference)
