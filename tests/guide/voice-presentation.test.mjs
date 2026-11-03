@@ -229,4 +229,6 @@ test('Legal Advisory distinguishes catalog record status from source verificatio
   assert.match(persistentLegalAdvisorySource, /Source verification and freshness/);
   assert.match(persistentLegalAdvisorySource, /Knowledge-record status:/);
   assert.match(persistentLegalAdvisorySource, /sourceGovernanceNeedsAttention/);
+  assert.match(persistentLegalAdvisorySource, /Candidate records present · source review incomplete/);
+  assert.match(persistentLegalAdvisorySource, /legal_document/);
 });
