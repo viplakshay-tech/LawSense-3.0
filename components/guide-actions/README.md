@@ -5,7 +5,7 @@ The bridge is the typed boundary between Guide intents and case-workspace handle
 ## Connected Guide actions
 
 - `ASK_CLARIFICATION` opens the case clarification panel. The panel fetches its real open-question IDs and owns the existing answer/save flow.
-- `SHOW_EVIDENCE` opens the document and evidence workspace.
+- `SHOW_EVIDENCE` opens the document/evidence workspace and focuses a single known evidence record when that target is unambiguous; if exactly one document is referenced with no evidence IDs, it opens that saved document. Record IDs are checked against the active `CaseState` before routing. Ambiguous targets open the workspace without pretending a particular item was selected.
 - `SHOW_LEGAL_GROUNDING` opens the Legal Guide page.
 - `OPEN_JOURNEY` moves to the Journey section in the case overview.
 - `SHOW_TWIN` and `OPEN_SAFETY` open their existing case pages.
@@ -13,6 +13,6 @@ The bridge is the typed boundary between Guide intents and case-workspace handle
 - `SPEAK_RESPONSE` uses the browser speech engine when available and reports unsupported or failed playback as unavailable/error.
 - `NAVIGATE` maps the typed route to a fixed case-workspace path, encoding the case ID as one segment.
 
-The runtime does not surface document selection, finding highlighting, Twin node selection, or timeline control because those pages do not yet expose Guide callbacks. Bridge commands without connected handlers return `unavailable`. The Guide does not send arbitrary events or call legal/document services directly.
+The runtime now supports the document workspace's existing `?evidenceId=` and `?documentId=` selection contract. Finding highlighting, Twin node selection, and timeline control still return `unavailable` because their end-to-end page callbacks have not been connected. Bridge commands without connected handlers return `unavailable`. The Guide does not send arbitrary events or call legal/document services directly.
 
 `createGuideActionBridge(adapter).dispatch(command)` is typed for application code and revalidates the closed command shape. `dispatchUntrusted(input)` is available for untyped input boundaries. `createRecordingGuideActionAdapter()` remains a test-only adapter and is not mounted in the application.

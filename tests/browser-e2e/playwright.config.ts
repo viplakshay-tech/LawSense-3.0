@@ -2,7 +2,6 @@ import { defineConfig, devices } from '@playwright/test';
 import path from 'node:path';
 
 const repoRoot = path.resolve(__dirname, '../..');
-const webRoot = repoRoot;
 const webPort = process.env.LAWSENSE_E2E_WEB_PORT ?? '3012';
 const webUrl = `http://127.0.0.1:${webPort}`;
 const apiRoot = process.env.LAWSENSE_API_ROOT ?? path.resolve(repoRoot, '..', '..', 'apps', 'api');

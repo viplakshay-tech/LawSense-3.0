@@ -1148,7 +1148,7 @@ export default function LegalTwinClient({ id }: { id: string }) {
     : datedMilestones.find((milestone) => milestone.at > selectedTimestamp) ?? null;
 
   return (
-    <div className="min-h-screen bg-[#0e1321] text-[#dee2f6]">
+    <div className="min-h-screen w-full min-w-0 overflow-x-clip bg-[#0e1321] text-[#dee2f6]">
       <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-[#0e1321]/90 shadow-[0_1px_8px_rgba(0,0,0,0.35)] backdrop-blur-xl">
         <div className="mx-auto max-w-[1440px] px-4 sm:px-6">
           <div className="flex min-h-[72px] items-center justify-between gap-3">
@@ -1185,7 +1185,7 @@ export default function LegalTwinClient({ id }: { id: string }) {
         </div>
       </header>
 
-      <main className="mx-auto flex w-full max-w-[1440px] flex-col gap-4 px-4 pb-12 pt-4 sm:gap-5 sm:px-6 sm:pt-6">
+      <main className="mx-auto flex w-full min-w-0 max-w-[1440px] flex-col gap-4 px-4 pb-12 pt-4 sm:gap-5 sm:px-6 sm:pt-6">
         <TrustNotice variant="dark" />
         {caseError && (
           <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300/15 bg-amber-300/[0.04] px-4 py-3 text-xs leading-5 text-amber-100">
@@ -1222,7 +1222,7 @@ export default function LegalTwinClient({ id }: { id: string }) {
           </div>
         </div>
 
-        <section id="legal-twin-graph" className="scroll-mt-32 space-y-4 rounded-xl border border-white/[0.06] bg-[#161b2a] p-4 shadow-[0_10px_28px_rgba(0,0,0,0.18)] sm:p-5">
+        <section id="legal-twin-graph" className="scroll-mt-32 w-full min-w-0 max-w-full space-y-4 rounded-xl border border-white/[0.06] bg-[#161b2a] p-4 shadow-[0_10px_28px_rgba(0,0,0,0.18)] sm:p-5">
           {focusNotice && (
             <p role="status" className="rounded-lg border border-amber-300/15 bg-amber-300/[0.04] px-3 py-2 text-xs leading-5 text-amber-100/80">
               {focusNotice}
@@ -1254,12 +1254,12 @@ export default function LegalTwinClient({ id }: { id: string }) {
             </div>
           </div>
 
-          <div className={showGuide ? 'grid gap-3 xl:grid-cols-[minmax(0,1fr)_18rem]' : ''}>
+          <div className={`min-w-0 max-w-full ${showGuide ? 'grid gap-3 xl:grid-cols-[minmax(0,1fr)_18rem]' : ''}`}>
           <div
             role="region"
             aria-label="Living Legal Twin CaseState projection"
             aria-busy={!snapshotMatchesDate}
-            className="relative overflow-hidden rounded-2xl border border-cyan-100/[0.08] bg-[#070b13] shadow-[0_22px_70px_rgba(0,0,0,0.32)]"
+            className="relative min-w-0 max-w-full overflow-hidden rounded-2xl border border-cyan-100/[0.08] bg-[#070b13] shadow-[0_22px_70px_rgba(0,0,0,0.32)]"
           >
             <div aria-hidden={!snapshotMatchesDate} inert={!snapshotMatchesDate}>
               <TwinCanvas
@@ -1383,7 +1383,7 @@ export default function LegalTwinClient({ id }: { id: string }) {
               Relationship selected · {nodeById.get(selectedTwinEdge.source)?.title ?? 'Record'} {selectedTwinEdge.relation} {nodeById.get(selectedTwinEdge.target)?.title ?? 'record'} · {STATUS_LABELS[selectedTwinEdge.status]}
             </p>
           )}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1">
+          <div className="flex w-full min-w-0 max-w-full items-center gap-2 overflow-x-auto pb-1">
             <button
               type="button"
               aria-pressed={filter === 'all'}
@@ -1569,7 +1569,7 @@ export default function LegalTwinClient({ id }: { id: string }) {
                 <div className="relative h-1.5 overflow-hidden rounded-full bg-[#303444]">
                   <div className="h-full rounded-full bg-gradient-to-r from-[#bcc7de] to-[#f59e0b] transition-[width] duration-300" style={{ width: `${activeProgress}%` }} />
                 </div>
-                <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
+                <div className="mt-2 flex w-full min-w-0 max-w-full gap-2 overflow-x-auto pb-1">
                   {datedMilestones.map((milestone) => {
                     const { event } = milestone;
                     const eventTime = milestone.at;

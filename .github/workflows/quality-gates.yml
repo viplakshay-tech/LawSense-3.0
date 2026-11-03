@@ -1,0 +1,123 @@
+name: LawSense quality gates
+
+on:
+  pull_request:
+    branches:
+      - lawsense-3-integration
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Frontend lint, tests and production build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test legal knowledge client
+        run: npm run test:api
+
+      - name: Test official resource presentation
+        run: npm run test:resources
+
+      - name: Test Guide voice/presentation
+        run: npm run test:guide
+
+      - name: Test case session restoration
+        run: npm run test:session-restoration
+
+      - name: Build production frontend
+        run: npm run build
+
+  browser-e2e:
+    name: Playwright browser flows against a disposable local API
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Install API dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -r api/requirements.txt
+
+      - name: Install isolated Playwright harness
+        run: npm ci
+        working-directory: tests/browser-e2e
+
+      - name: Install Chromium and Linux browser dependencies
+        run: npx playwright install --with-deps chromium
+        working-directory: tests/browser-e2e
+
+      - name: Configure disposable API source and request boundary
+        shell: bash
+        run: |
+          echo "LAWSENSE_API_ROOT=$GITHUB_WORKSPACE/api" >> "$GITHUB_ENV"
+          echo "LAWSENSE_PYTHON=$(python -c 'import sys; print(sys.executable)')" >> "$GITHUB_ENV"
+          echo "LAWSENSE_E2E_ALLOW_LOCAL_API=1" >> "$GITHUB_ENV"
+          echo "LAWSENSE_ALLOWED_API_HOSTS=127.0.0.1:8001" >> "$GITHUB_ENV"
+          echo "LAWSENSE_ALLOWED_API_ORIGINS=http://127.0.0.1:3012" >> "$GITHUB_ENV"
+
+      - name: Run real browser journeys
+        run: npm test
+        working-directory: tests/browser-e2e
+        env:
+          LAWSENSE_AUTH_TEST_BYPASS: "1"
+
+  backend:
+    name: Python backend tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: api/requirements.txt
+
+      - name: Install backend dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -r requirements.txt
+
+      - name: Run backend unit and integration tests
+        run: python -m unittest discover -s tests -p "test_*.py" -v
+        env:
+          LAWSENSE_AUTH_TEST_BYPASS: "1"

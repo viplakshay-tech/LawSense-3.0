@@ -33,6 +33,7 @@ import {
 } from '@/lib/case-journey';
 import { useCaseState } from '../../app/case/[id]/CaseStateProvider';
 import { GuideControlSurface } from '@/components/guide-presence';
+import { PersistentLegalAdvisory } from '@/components/case-shell/PersistentLegalAdvisory';
 import { StatusPill, type StatusTone } from '@/components/design-system/StatusPill';
 import { CaseContextPanel } from './CaseContextPanel';
 
@@ -535,6 +536,7 @@ export function CaseShell({ caseId, children }: { caseId: string; children: Reac
         </span>
       )}
       <GuideControlSurface />
+      <PersistentLegalAdvisory caseId={caseId} />
       <Suspense fallback={null}><CaseContextPanel caseId={caseId} /></Suspense>
     </div>
   );

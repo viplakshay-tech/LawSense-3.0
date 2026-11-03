@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { getSessionCaseIds, rememberSessionCase } from '../lib/case-continuity.ts';
+import { forgetSessionCase, getSessionCaseIds, rememberSessionCase } from '../lib/case-continuity.ts';
 import { restoreSessionCases } from '../lib/session-case-restoration.ts';
 
 const sessionCasesKey = 'lawsense:case-continuity:v1';
@@ -28,6 +28,31 @@ test('malformed session IDs are ignored by the reader and writer', () => {
   rememberSessionCase(malformedCaseId);
   assert.deepEqual(getSessionCaseIds(), [caseId]);
   assert.deepEqual(JSON.parse(values.get(sessionCasesKey)), [caseId]);
+});
+
+test('forgetting a deleted case preserves other valid session cases', () => {
+  const secondCaseId = 'f6359b0d-72f2-4f95-98d5-e5b9872ad1e1';
+  const values = setSessionStorage({
+    [sessionCasesKey]: JSON.stringify([caseId, secondCaseId]),
+  });
+
+  forgetSessionCase(caseId);
+
+  assert.deepEqual(getSessionCaseIds(), [secondCaseId]);
+  assert.deepEqual(JSON.parse(values.get(sessionCasesKey)), [secondCaseId]);
+});
+
+test('forgetting the last session case clears only the continuity index', () => {
+  const values = setSessionStorage({
+    [sessionCasesKey]: JSON.stringify([caseId]),
+    unrelated: 'keep',
+  });
+
+  forgetSessionCase(caseId);
+
+  assert.deepEqual(getSessionCaseIds(), []);
+  assert.equal(values.has(sessionCasesKey), false);
+  assert.equal(values.get('unrelated'), 'keep');
 });
 
 test('malformed stored IDs never reach the case API', async () => {

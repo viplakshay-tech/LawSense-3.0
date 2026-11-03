@@ -383,6 +383,7 @@ export default function VoiceCaseClient({ id }: { id: string }) {
 
               <GuideConversation
                 draftId={draftId}
+                caseId={caseData.id}
                 language={language}
                 openQuestions={caseData.unknowns}
                 hasDraft={Boolean(transcript.trim())}

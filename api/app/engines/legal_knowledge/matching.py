@@ -579,7 +579,7 @@ def _verified_official_url(
     host = (parsed.hostname or "").casefold().removeprefix("www.")
     if parsed.scheme not in {"http", "https"} or host not in {
         "indiacode.gov.in", "indiacode.nic.in", "egazette.gov.in", "egazette.nic.in", "nalsa.gov.in",
-        "112.gov.in", "gov.in", "nic.in",
+        "112.gov.in", "gov.in", "nic.in", "udd.uk.gov.in", "cdnbbsr.s3waas.gov.in",
     }:
         return None
     return value

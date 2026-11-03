@@ -304,15 +304,17 @@ export function getCaseJourneyStageAssessment(
   if (stage.id === 'twin') {
     return { status: getTwinStatus(caseState), blockers, unknowns };
   }
-  // Monitoring and adding updates remain available for every saved case. The
-  // stage is complete only when the case service records its follow-up action.
+  // Monitoring and adding updates must remain available for every saved case
+  // so users can resolve blockers. The stage is complete only when the case
+  // service records its follow-up action; an active follow-up stays in progress.
   if (stage.id === 'monitor_update') {
     const executionStatus = getExplicitExecutionStatus(stage, execution);
-    return {
-      status: executionStatus ?? (caseState ? 'Available' : 'Unknown'),
-      blockers,
-      unknowns,
-    };
+    const status = !caseState
+      ? 'Unknown'
+      : executionStatus === 'Complete' || executionStatus === 'In progress'
+        ? executionStatus
+        : 'Available';
+    return { status, blockers, unknowns };
   }
 
   const executionStatus = getExplicitExecutionStatus(stage, execution);

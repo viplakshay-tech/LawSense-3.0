@@ -7,8 +7,12 @@ The shell asks for an HTTPS origin such as `https://192.168.1.25:3000`, checks `
 ## Local run requirements
 
 1. Keep the computer and phone on the same trusted Wi-Fi network.
-2. Run the FastAPI service on the computer at port `8000`.
+2. From the `api` directory, run FastAPI bound to loopback: `uvicorn app.main:app --host 127.0.0.1 --port 8000`. The API rejects non-loopback clients by default even if the process is accidentally bound to a LAN interface. The phone should reach the app through the HTTPS Next.js server on port `3000`, not by connecting directly to port `8000`.
 3. Set `NEXT_PUBLIC_API_URL` for the Next.js process to the desired API upstream. The default `http://127.0.0.1:8000` means the API on the same computer as Next.js.
+
+The local API boundary checks the connecting address, `Host`, and any browser `Origin`. The default allows the documented localhost development origins and an HTTPS private-IP Next.js frontend on port `3000` for Android development. This is exposure reduction, not authentication or case ownership authorization.
+
+If a trusted reverse proxy must call FastAPI from a non-loopback address, configure all of the following deliberately: `LAWSENSE_ALLOW_REMOTE_API=true`, `LAWSENSE_ALLOWED_API_HOSTS` with the exact expected API host(s), and `LAWSENSE_ALLOWED_API_ORIGINS` with the exact trusted browser origin(s). Use comma-separated values for multiple entries. Add proper authentication/authorization and firewall rules at the proxy/network layer first; these environment values do not provide those protections. Do not allow arbitrary hostnames or origins.
 4. Serve the Next.js app on the computer's LAN interface over HTTPS on port `3000`. Use a certificate the Android WebView trusts. The app accepts system certificates and user-installed certificate authorities for HTTPS; do not bypass certificate validation. The app will not accept plain HTTP.
 5. In the APK's connection screen, enter the computer's HTTPS address and press **Check connection**. The check calls `/api/health` and confirms the expected API service before opening the frontend.
 

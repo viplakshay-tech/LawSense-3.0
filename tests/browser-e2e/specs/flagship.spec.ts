@@ -141,6 +141,39 @@ async function enterCase(page: Page): Promise<void> {
   await expect(page).toHaveURL(/\/case\/[^/]+$/);
 }
 
+test('case workspace exposes persistent Legal Advisory and case-aware Guide chat', async ({ page }) => {
+  await enterCase(page);
+  const caseIdMatch = page.url().match(/\/case\/([^/]+)$/);
+  expect(caseIdMatch).toBeTruthy();
+  const advisory = page.getByRole('button', {
+    name: 'Open Legal Advisory based on information recorded so far',
+  });
+  await expect(advisory).toBeVisible();
+
+  const reasoningResponsePromise = page.waitForResponse((response) => {
+    const requestUrl = new URL(response.url());
+    return response.request().method() === 'GET'
+      && requestUrl.pathname.endsWith('/legal-reasoning')
+      && requestUrl.pathname.includes(`/cases/${caseIdMatch?.[1]}/`);
+  });
+  await advisory.click();
+  const reasoningResponse = await reasoningResponsePromise;
+  expect(reasoningResponse.status()).toBe(200);
+
+  const dialog = page.getByRole('dialog', { name: 'Legal Advisory' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText(/This is a provisional, source-aware case review/)).toBeVisible();
+  await expect(dialog.getByRole('heading', { name: 'Suggested next steps' })).toBeVisible();
+  await dialog.getByRole('button', { name: 'Close legal advisory' }).click();
+  await expect(dialog).toBeHidden();
+
+  await page.getByRole('button', { name: 'Expand Guide control surface' }).click();
+  await expect(page.getByRole('heading', { name: 'Talk to your Guide' })).toBeVisible();
+  await expect(page.getByLabel('Guide reply language')).toHaveValue('english');
+  await expect(page.getByLabel('Message your Guide')).toBeVisible();
+  await expect(page.getByText(/This chat is not saved to the case/)).toBeVisible();
+});
+
 test('real landlord-deposit flow refreshes CaseState and the Living Twin timeline', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
 
@@ -345,21 +378,28 @@ test('a malformed 200 case response exits loading into recovery actions', async 
 });
 
 test('a failed case API request is visible and retry recovers from the real API', async ({ page }) => {
-  let caseReadCount = 0;
-  let failedWorkspaceRead = false;
+  // Replace the shared beforeEach proxy so this test owns one deterministic
+  // interception chain; otherwise the general proxy can fulfill first.
+  await page.unroute('**/api/**');
+  let failNextCaseRead = false;
   let failedCaseReadPath: string | null = null;
-  await page.route('**/api/cases/**', async (route: Route) => {
-    const requestUrl = new URL(route.request().url());
-    const isCaseRead = route.request().method() === 'GET'
+  await page.route('**/api/**', async (route: Route) => {
+    const request = route.request();
+    const requestUrl = new URL(request.url());
+    const isCaseRead = request.method() === 'GET'
       && /^\/api\/cases\/[^/]+$/.test(requestUrl.pathname);
-    if (isCaseRead) caseReadCount += 1;
-    if (isCaseRead && caseReadCount === 2 && !failedWorkspaceRead) {
-      failedWorkspaceRead = true;
+    if (failNextCaseRead && isCaseRead) {
+      failNextCaseRead = false;
       failedCaseReadPath = requestUrl.pathname;
       await route.abort('failed');
       return;
     }
-    await route.fallback();
+
+    const target = new URL(request.url());
+    target.port = '8001';
+    target.pathname = target.pathname.replace(/^\/api(?=\/|$)/, '');
+    const response = await route.fetch({ url: target.toString() });
+    await route.fulfill({ response });
   });
 
   const createResponsePromise = page.waitForResponse((response) => {
@@ -373,8 +413,18 @@ test('a failed case API request is visible and retry recovers from the real API'
   await expect(page).toHaveURL(/\/case\/[^/]+$/);
   const caseId = new URL(page.url()).pathname.split('/').at(-1)!;
   expect(caseId).toBe(createdCase.id);
-  expect(failedCaseReadPath).toBe(`/api/cases/${caseId}`);
+
+  // Force a fresh workspace restore, then fail exactly its case read.
+  failNextCaseRead = true;
+  const failedReadRequest = page.waitForRequest((request) => {
+    const requestUrl = new URL(request.url());
+    return request.method() === 'GET' && requestUrl.pathname === `/api/cases/${caseId}`;
+  });
+  await page.reload();
+  await failedReadRequest;
   await expect(page.getByRole('heading', { name: 'This case could not be reopened' })).toBeVisible();
+  // The request event fires before the route callback finishes aborting it.
+  await expect.poll(() => failedCaseReadPath).toBe(`/api/cases/${caseId}`);
   await expect(page.getByText('Failed to fetch')).toBeVisible();
 
   const retryResponsePromise = page.waitForResponse((response) => {
