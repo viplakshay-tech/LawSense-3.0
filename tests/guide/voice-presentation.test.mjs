@@ -180,7 +180,7 @@ test('Guide bridge forwards the finding and case document IDs to its validated a
 
 test('Guide legal-grounding actions open only a source record returned for the active case', () => {
   assert.match(guideRuntimeProvider, /recordIds\.length === 1/);
-  assert.match(guideRuntimeProvider, /caseState\?\.analysis\?\.legalKnowledge\.records\.some/);
+  assert.match(guideRuntimeProvider, /caseState\.analysis\?\.legalKnowledge\.records\.some/);
   assert.match(guideRuntimeProvider, /#legal-record-\$\{encodeURIComponent\(recordId\)\}/);
   assert.match(legalSourceCandidates, /id=\{\x60legal-record-\$\{encodeURIComponent\(record\.id\)\}\x60\}/);
 });
