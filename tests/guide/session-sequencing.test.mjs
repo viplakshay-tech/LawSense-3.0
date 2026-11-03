@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { readFile } from 'node:fs/promises';
 
 import {
   beginGuideSessionRequest,
@@ -36,4 +37,12 @@ test('clearing the Guide session invalidates its current pending request', () =>
   assert.equal(request.signal.aborted, true);
   assert.equal(isGuideSessionRequestCurrent(caseId, request), false);
   assert.deepEqual(getGuideSessionSnapshot(caseId).turns, []);
+});
+
+test('Guide API forwards shared session cancellation to its fetch request', async () => {
+  const apiSource = await readFile(new URL('../../lib/api.ts', import.meta.url), 'utf8');
+  assert.match(apiSource, /sessionSignal\?: AbortSignal/);
+  assert.match(apiSource, /sessionSignal\?\.addEventListener\('abort', abortFromSession/);
+  assert.match(apiSource, /signal: controller\.signal/);
+  assert.match(apiSource, /sessionSignal\?\.removeEventListener\('abort', abortFromSession\)/);
 });
