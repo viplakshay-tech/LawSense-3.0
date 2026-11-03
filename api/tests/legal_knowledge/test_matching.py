@@ -8,9 +8,8 @@ from app.engines.legal_knowledge.models import (
     KnowledgeStatus,
     LegalDocument,
     LegalProvision,
-    LegalSource,
     LegalProcedure,
-    SourceReference,
+    LegalSource,
 )
 from app.engines.legal_knowledge.seed import build_authoritative_legal_knowledge_seed
 from app.engines.legal_twin import EdgeType, NodeType, build_legal_twin
