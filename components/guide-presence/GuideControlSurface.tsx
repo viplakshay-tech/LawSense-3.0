@@ -5,7 +5,7 @@ import type { FormEvent, KeyboardEvent } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Activity, ArrowLeft, ChevronDown, ChevronUp, CircleHelp, Loader2, MessageCircle, Mic2, Radio, Send, ShieldAlert, Trash2, Volume2, VolumeX } from 'lucide-react';
 import { guidePresenceStateFromSnapshot, useGuideRuntime } from '@/components/guide-runtime';
-import { sendGuideMessage, type GuideActionName } from '@/lib/api';
+import { sendGuideMessage, type GuideActionName, type GuideChatLanguage } from '@/lib/api';
 import { useGuideSession } from '@/lib/guide-session';
 import type { GuideAction } from '@/components/guide-runtime/types';
 import { GuidePresence } from './GuidePresence';
@@ -116,7 +116,7 @@ function GuideConversationPanel({
         content: response.reply,
         inputMode: 'text',
         status: response.status,
-        ...(proposedAction ? { proposedAction: proposedAction.type } : {}),
+        ...(proposedAction && response.proposed_action ? { proposedAction: response.proposed_action } : {}),
       });
     } catch {
       if (requestToken === chatRequestSequenceRef.current) {
