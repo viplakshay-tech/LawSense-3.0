@@ -21,6 +21,8 @@ class LegalMatchTests(unittest.TestCase):
         self.assertIn(match.evidence_assessment, {"plausible", "unclear"})
         self.assertIn("user_reported", {fact.status for fact in match.supporting_facts})
         self.assertEqual(match.source["verification_status"], "verified")
+        self.assertEqual(match.source["freshness_status"], "unknown")
+        self.assertTrue(any("not established as current" in item for item in match.assessment_rationale))
         self.assertTrue(match.source["url"].startswith((
             "https://indiacode.gov.in/",
             "https://www.indiacode.nic.in/",
@@ -43,7 +45,8 @@ class LegalMatchTests(unittest.TestCase):
         self.assertTrue(analysis.legal_knowledge.law_matches)
         candidate = analysis.legal_knowledge.law_matches[0]
         self.assertEqual(candidate.jurisdiction["match_status"], "unknown")
-        self.assertEqual(candidate.evidence_assessment, "plausible")
+        self.assertEqual(candidate.evidence_assessment, "unclear")
+        self.assertEqual(candidate.assessment_factors["source_freshness"], "unknown")
 
         result.case_state.analysis = analysis
         twin = build_legal_twin(result.case_state)
@@ -68,7 +71,8 @@ class LegalMatchTests(unittest.TestCase):
             item for item in result.case_analysis.legal_knowledge.law_matches
             if item.candidate_id == "provision-code-on-wages-2019-section-17"
         )
-        self.assertEqual(match.evidence_assessment, "plausible")
+        self.assertEqual(match.evidence_assessment, "unclear")
+        self.assertEqual(match.assessment_factors["source_freshness"], "unknown")
         self.assertIn("21 November 2025", match.temporal_limitation)
         self.assertIn("section 69", match.temporal_limitation)
         self.assertIn("S.O. 5322(E)", match.temporal_limitation)
