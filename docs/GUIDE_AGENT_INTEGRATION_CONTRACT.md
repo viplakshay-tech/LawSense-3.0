@@ -27,14 +27,14 @@ The integration branch already provides useful foundations:
 - `/guide/chat` can call a configured loopback Ollama service. It has no cloud fallback and receives a bounded case context.
 - Guide chat may propose only actions supplied by the frontend allowlist. The user must click to execute a proposal.
 - The voice route has its own conversation, capture, review, confirmation and playback flow.
-- `OPEN_DRAFTING` opens the active case's existing document studio only after user approval.
+- `OPEN_DRAFTING` opens the active case's existing document studio only after user approval.\n- The case-level Guide action adapter supports read-only Legal Twin node focus and timeline snapshot navigation through validated `?focus=` and `?at=` deep links. The Twin checks the requested node against the returned projection and keeps snapshot loading on its existing API path.
 
 Important gaps confirmed by the current code:
 
 1. The floating Guide chat and the dedicated voice conversation keep separate in-memory conversation histories. Switching routes/modes does not yet provide one shared session.
 2. The floating chat is temporary UI state; a page refresh loses its messages. It is not a canonical case record.
 3. Voice capture, transcript review and case mutation are implemented as a separate workflow. They are not yet a mode adapter over the same agent turn/session.
-4. The current action registry is primarily navigation and presentation. It does not constitute unrestricted app control or permission to change facts, evidence, documents or case records.
+4. The current action registry is primarily navigation and read-only inspection. It now includes validated Legal Twin node/time deep links, but it does not constitute unrestricted app control or permission to change facts, evidence, documents or case records.
 5. The local assistant is an optional laptop/Ollama integration. It is not an embedded Android model or a standalone phone runtime.
 6. The current Capacitor APK is a connection shell that relies on a computer-hosted frontend/API. It is not the requested standalone, cable-free Android application.
 

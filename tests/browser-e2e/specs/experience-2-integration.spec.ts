@@ -331,3 +331,35 @@ test('a case update marks a saved draft stale and blocks old fact reuse until so
   await expect(page.getByText('0 selected · unchecked details stay out of the draft')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Download .txt' })).toBeDisabled();
 });
+
+
+test('Guide deep links open the requested Legal Twin time state and focus a returned node', async ({ page }) => {
+  const caseId = await enterCase(page);
+  const twinResponsePromise = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return url.pathname === `/api/cases/${caseId}/twin` && response.request().method() === 'GET';
+  });
+  await page.goto(`/case/${caseId}/twin`);
+  const twinResponse = await twinResponsePromise;
+  expect(twinResponse.ok()).toBe(true);
+  const twin = await twinResponse.json() as {
+    snapshot?: { asOf?: string; nodes?: Array<{ id: string; label: string }> };
+  };
+  const asOf = twin.snapshot?.asOf;
+  const node = twin.snapshot?.nodes?.[0];
+  expect(typeof asOf).toBe('string');
+  expect(node?.id).toBeTruthy();
+  expect(node?.label).toBeTruthy();
+
+  const snapshotResponsePromise = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return url.pathname === `/api/cases/${caseId}/twin/snapshot`;
+  });
+  await page.goto(
+    `/case/${caseId}/twin?at=${encodeURIComponent(asOf!)}&focus=${encodeURIComponent(node!.id)}`,
+  );
+  const snapshotResponse = await snapshotResponsePromise;
+  expect(snapshotResponse.ok()).toBe(true);
+  expect(new URL(snapshotResponse.url()).searchParams.get('as_of')).toBe(asOf);
+  await expect(page.locator('#legal-twin-graph [role="button"][aria-pressed="true"]')).toHaveCount(1);
+});
