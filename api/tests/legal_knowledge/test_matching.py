@@ -27,7 +27,11 @@ class LegalMatchTests(unittest.TestCase):
         consumer = [item for item in summary.law_matches if item.jurisdiction["classification"] == "central"]
         self.assertTrue(consumer)
         match = next(item for item in consumer if item.provision_reference == "Section 2(10)")
-        self.assertIn(match.evidence_assessment, {"plausible", "unclear"})
+        self.assertEqual(match.evidence_assessment, "unclear")
+        self.assertEqual(
+            match.assessment_factors["catalog_record_status"],
+            "provision=verified,document=verified,source=verified",
+        )
         self.assertIn("user_reported", {fact.status for fact in match.supporting_facts})
         self.assertEqual(match.source["verification_status"], "verified")
         self.assertEqual(match.source["freshness_status"], "unknown")
