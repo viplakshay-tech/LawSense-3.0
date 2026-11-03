@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import type { GuideActionName, GuideChatLanguage, GuideConversationTurn } from './api';
 
 export interface GuideSessionTurn {
@@ -38,6 +38,7 @@ const MAX_HISTORY_TURNS = 8;
 const sessions = new Map<string, GuideSessionSnapshot>();
 const listeners = new Map<string, Set<() => void>>();
 const pendingRequests = new Map<string, AbortController>();
+let activeCaseId: string | null = null;
 
 function storageKey(caseId: string): string {
   return `lawsense:guide-session:v1:${caseId}`;
@@ -224,13 +225,13 @@ export function getGuideConversationHistory(caseId: string): GuideConversationTu
 }
 
 export function useGuideSession(caseId: string) {
-  const previousCaseIdRef = useRef(caseId);
   useEffect(() => {
-    const previousCaseId = previousCaseIdRef.current;
-    if (previousCaseId && previousCaseId !== caseId) {
-      invalidateGuideSessionRequest(previousCaseId);
+    if (!caseId) return;
+    const previousActiveCaseId = activeCaseId;
+    if (previousActiveCaseId && previousActiveCaseId !== caseId) {
+      invalidateGuideSessionRequest(previousActiveCaseId);
     }
-    previousCaseIdRef.current = caseId;
+    activeCaseId = caseId;
   }, [caseId]);
 
   const snapshot = useSyncExternalStore(
