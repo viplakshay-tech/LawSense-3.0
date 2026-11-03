@@ -157,6 +157,18 @@ class SourceRegistryEntry:
         return self.current_version.verification_status
 
     @property
+    def freshness_status(self) -> SourceFreshnessStatus:
+        return self.current_version.freshness_status
+
+    @property
+    def freshness_checked_at(self) -> datetime | None:
+        return self.current_version.freshness_checked_at
+
+    @property
+    def freshness_evidence(self) -> str | None:
+        return self.current_version.freshness_evidence
+
+    @property
     def authority_tier(self) -> SourceAuthorityTier | None:
         return self.current_version.authority_tier
 
