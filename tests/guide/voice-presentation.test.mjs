@@ -122,3 +122,23 @@ test('the call layout has a stacked narrow viewport treatment', () => {
 test('the entire voice workspace remounts per case so transcript and conversation state cannot bleed', () => {
   assert.match(voicePage, /<VoiceCaseClient\s+key=\{id\}\s+id=\{id\}\s*\/>/);
 });
+
+
+test('Guide Twin commands accept bounded identifiers and valid timestamps only', () => {
+  assert.deepEqual(
+    validateGuideActionCommand({ type: 'selectTwinNode', nodeId: 'fact:deposit-1', ignored: true }),
+    { ok: true, command: { type: 'selectTwinNode', nodeId: 'fact:deposit-1' } },
+  );
+  assert.deepEqual(
+    validateGuideActionCommand({ type: 'selectTimeline', timestamp: '2026-10-08T10:00:00+05:30' }),
+    { ok: true, command: { type: 'selectTimeline', timestamp: '2026-10-08T10:00:00+05:30' } },
+  );
+  assert.deepEqual(
+    validateGuideActionCommand({ type: 'selectTimeline', timestamp: 1791433800000 }),
+    { ok: true, command: { type: 'selectTimeline', timestamp: 1791433800000 } },
+  );
+  assert.equal(validateGuideActionCommand({ type: 'selectTwinNode', nodeId: '   ' }).ok, false);
+  assert.equal(validateGuideActionCommand({ type: 'selectTwinNode', nodeId: 'x'.repeat(513) }).ok, false);
+  assert.equal(validateGuideActionCommand({ type: 'selectTimeline', timestamp: 'not-a-date' }).ok, false);
+  assert.equal(validateGuideActionCommand({ type: 'selectTimeline', timestamp: Number.NaN }).ok, false);
+});
