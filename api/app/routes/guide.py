@@ -13,6 +13,18 @@ from app.services.case_service import get_case_state
 from app.services.local_assistant import AssistantResult, chat_with_local_model
 
 
+GuideActionName = Literal[
+    "ASK_CLARIFICATION",
+    "SHOW_EVIDENCE",
+    "SHOW_LEGAL_GROUNDING",
+    "OPEN_JOURNEY",
+    "SHOW_TWIN",
+    "START_VOICE",
+    "OPEN_SAFETY",
+    "NAVIGATE",
+]
+
+
 router = APIRouter(prefix="/guide", tags=["guide"])
 
 
@@ -41,6 +53,7 @@ class GuideChatRequest(BaseModel):
     # as authoritative legal source material.
     verified_material: list[VerifiedMaterial] = Field(default_factory=list, max_length=10)
     conversation_history: list[GuideConversationTurn] = Field(default_factory=list, max_length=8)
+    available_actions: list[GuideActionName] = Field(default_factory=list, max_length=8)
 
     @model_validator(mode="after")
     def check_material_size(self) -> "GuideChatRequest":
@@ -61,6 +74,7 @@ class GuideChatResponse(BaseModel):
     reply: str = Field(min_length=1, max_length=6_000)
     status: Literal["ok", "unavailable"]
     model: str = Field(min_length=1, max_length=128)
+    proposed_action: GuideActionName | None = None
 
 
 def _case_context(case_state: CaseState) -> list[dict[str, str]]:
@@ -110,7 +124,7 @@ def _case_context(case_state: CaseState) -> list[dict[str, str]]:
     return bounded
 
 
-@router.post("/chat", response_model=GuideChatResponse)
+@router.post("/chat", response_model=GuideChatResponse, response_model_exclude_none=True)
 def guide_chat(payload: GuideChatRequest) -> GuideChatResponse:
     """Return one optional local-language reply without changing case state."""
     case_context: list[dict[str, str]] = []
@@ -126,5 +140,11 @@ def guide_chat(payload: GuideChatRequest) -> GuideChatResponse:
         verified_material=[item.model_dump() for item in payload.verified_material],
         case_context=case_context,
         conversation_history=[turn.model_dump() for turn in payload.conversation_history],
+        available_actions=list(payload.available_actions),
     )
-    return GuideChatResponse(reply=result.reply, status=result.status, model=result.model)
+    return GuideChatResponse(
+        reply=result.reply,
+        status=result.status,
+        model=result.model,
+        proposed_action=result.proposed_action,
+    )

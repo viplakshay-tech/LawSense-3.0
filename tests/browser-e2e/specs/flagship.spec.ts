@@ -416,15 +416,15 @@ test('a failed case API request is visible and retry recovers from the real API'
 
   // Force a fresh workspace restore, then fail exactly its case read.
   failNextCaseRead = true;
-  const failedReadRequest = page.waitForRequest((request) => {
+  const failedReadRequest = page.waitForEvent('requestfailed', (request) => {
     const requestUrl = new URL(request.url());
     return request.method() === 'GET' && requestUrl.pathname === `/api/cases/${caseId}`;
   });
   await page.reload();
+  // Wait for the abort to finish, not merely for the request to be observed.
   await failedReadRequest;
-  await expect(page.getByRole('heading', { name: 'This case could not be reopened' })).toBeVisible();
-  // The request event fires before the route callback finishes aborting it.
   await expect.poll(() => failedCaseReadPath).toBe(`/api/cases/${caseId}`);
+  await expect(page.getByRole('heading', { name: 'This case could not be reopened' })).toBeVisible();
   await expect(page.getByText('Failed to fetch')).toBeVisible();
 
   const retryResponsePromise = page.waitForResponse((response) => {

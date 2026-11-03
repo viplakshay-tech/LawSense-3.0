@@ -1075,6 +1075,16 @@ export async function healthCheck(): Promise<boolean> {
 
 export type GuideChatLanguage = 'english' | 'hindi' | 'hinglish';
 
+export type GuideActionName =
+  | 'ASK_CLARIFICATION'
+  | 'SHOW_EVIDENCE'
+  | 'SHOW_LEGAL_GROUNDING'
+  | 'OPEN_JOURNEY'
+  | 'SHOW_TWIN'
+  | 'START_VOICE'
+  | 'OPEN_SAFETY'
+  | 'NAVIGATE';
+
 export interface GuideConversationTurn {
   role: 'user' | 'assistant';
   content: string;
@@ -1084,6 +1094,7 @@ export interface GuideChatResponse {
   reply: string;
   status: 'ok' | 'unavailable';
   model: string;
+  proposed_action?: GuideActionName | null;
 }
 
 /** Sends a reviewed text turn to the same-origin LawSense backend for local Guide assistance. */
@@ -1092,6 +1103,7 @@ export async function sendGuideMessage(
   language: GuideChatLanguage,
   caseId?: string,
   conversationHistory: GuideConversationTurn[] = [],
+  availableActions: GuideActionName[] = [],
 ): Promise<GuideChatResponse> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 52_000);
@@ -1114,6 +1126,7 @@ export async function sendGuideMessage(
         message,
         language,
         conversation_history: boundedHistory,
+        available_actions: availableActions,
         ...(caseId ? { case_id: caseId } : {}),
       }),
       signal: controller.signal,
@@ -1129,6 +1142,18 @@ export async function sendGuideMessage(
       || !body.reply.trim()
       || !['ok', 'unavailable'].includes(body.status)
       || typeof body.model !== 'string'
+      || (body.proposed_action !== undefined
+        && body.proposed_action !== null
+        && ![
+          'ASK_CLARIFICATION',
+          'SHOW_EVIDENCE',
+          'SHOW_LEGAL_GROUNDING',
+          'OPEN_JOURNEY',
+          'SHOW_TWIN',
+          'START_VOICE',
+          'OPEN_SAFETY',
+          'NAVIGATE',
+        ].includes(body.proposed_action))
     ) {
       throw new Error('Guide service returned an invalid response.');
     }
