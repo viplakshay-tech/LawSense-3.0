@@ -86,7 +86,9 @@ function commandForAction(action: GuideAction): GuideActionCommand {
       return { type: 'openEvidence' };
     }
     case 'SHOW_LEGAL_GROUNDING':
-      return { type: 'navigate', route: { kind: 'guide', caseId: action.payload.caseId } };
+      return action.payload.recordIds.length === 1
+        ? { type: 'openLegalGrounding', recordId: action.payload.recordIds[0] }
+        : { type: 'navigate', route: { kind: 'guide', caseId: action.payload.caseId } };
     case 'OPEN_JOURNEY':
       return { type: 'openJourney' };
     case 'SHOW_TWIN':
@@ -218,7 +220,13 @@ export function GuideRuntimeProvider({ caseId, children }: { caseId: string; chi
         }
         push(`${base}/documents?documentId=${encodeURIComponent(documentId)}&findingId=${encodeURIComponent(findingId)}#document-preview`);
       },
-      openLegalGrounding: () => push(`${base}#analysis`),
+      openLegalGrounding: (recordId) => {
+        if (!caseState || caseState.id !== caseId
+          || !caseState.analysis?.legalKnowledge.records.some((record) => record.id === recordId)) {
+          return { status: 'unavailable', reason: 'The requested legal source is not present in the active case.' };
+        }
+        push(`${base}#legal-record-${encodeURIComponent(recordId)}`);
+      },
       openJourney: () => push(`${base}#journey`),
       openTwin: () => push(`${base}/twin`),
       selectTwinNode: (nodeId) => {
