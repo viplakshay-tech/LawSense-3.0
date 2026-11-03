@@ -1,10 +1,15 @@
 from __future__ import annotations
 
-import unittest
 from dataclasses import replace
+import unittest
 
 from app.engines.legal_knowledge.matching import build_law_matches
-from app.engines.legal_knowledge.models import KnowledgeStatus, LegalProvision, LegalDocument, LegalSource
+from app.engines.legal_knowledge.models import (
+    KnowledgeStatus,
+    LegalDocument,
+    LegalProvision,
+    LegalSource,
+)
 from app.engines.legal_knowledge.seed import build_authoritative_legal_knowledge_seed
 from app.engines.legal_twin import EdgeType, NodeType, build_legal_twin
 from app.services.case_pipeline import CasePipelineRequest, run_case_pipeline
