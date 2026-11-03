@@ -9,6 +9,8 @@ from app.engines.legal_knowledge.models import (
     LegalDocument,
     LegalProvision,
     LegalSource,
+    LegalProcedure,
+    SourceReference,
 )
 from app.engines.legal_knowledge.seed import build_authoritative_legal_knowledge_seed
 from app.engines.legal_twin import EdgeType, NodeType, build_legal_twin
@@ -104,6 +106,44 @@ class LegalMatchTests(unittest.TestCase):
                 self.assertEqual(candidate["evidence_assessment"], "unclear")
                 self.assertIn("withdrawn", " ".join(candidate["assessment_rationale"]).casefold())
                 self.assertIn("catalog_record_status", candidate["assessment_factors"])
+
+    def test_procedural_steps_are_withheld_until_the_linked_source_is_current(self) -> None:
+        result = run_case_pipeline(CasePipelineRequest(
+            case_id="case-procedure-freshness",
+            initial_statement="I bought a defective phone and the seller refused my refund.",
+            recorded_at="2026-10-10T04:00:00+00:00",
+        ))
+        seed = build_authoritative_legal_knowledge_seed()
+        records = list(seed.items)
+        provision = next(
+            item for item in records
+            if isinstance(item, LegalProvision) and item.id == "provision-consumer-protection-2019-section-2-10"
+        )
+        procedure = LegalProcedure(
+            id="procedure-freshness-test",
+            title="Illustrative complaint procedure",
+            jurisdiction=provision.jurisdiction,
+            authority=provision.authority,
+            source=provision.source,
+            version=provision.version,
+            status=KnowledgeStatus.VERIFIED,
+            related_provision_ids=(provision.id,),
+            steps=("Submit the prescribed complaint form.",),
+            provenance=provision.provenance,
+        )
+        candidate = next(
+            item for item in build_law_matches(
+                result.case_state,
+                (*records, procedure),
+                result.legal_knowledge.governed_sources,
+            )
+            if item["candidate_id"] == provision.id
+        )
+        procedure_item = candidate["procedures"]["items"][0]
+        self.assertEqual(procedure_item["verification_status"], "unverified")
+        self.assertEqual(procedure_item["freshness_status"], "unknown")
+        self.assertEqual(procedure_item["guidance_status"], "not_established_as_current")
+        self.assertEqual(procedure_item["steps"], [])
 
     def test_wage_candidate_surfaces_gazette_transition_caution_without_date(self) -> None:
         result = run_case_pipeline(CasePipelineRequest(
