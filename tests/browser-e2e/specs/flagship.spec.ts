@@ -377,16 +377,12 @@ test('a malformed 200 case response exits loading into recovery actions', async 
   await expect(page.getByRole('button', { name: 'Try again' })).toBeVisible();
 });
 
-test('a failed case API request is visible and retry recovers from the real API', async ({ page }) => {
+test('a transient case API failure is visible and retry recovers from the real API', async ({ page }) => {
   // Replace the shared beforeEach proxy so this test owns one deterministic
   // interception chain; otherwise the general proxy can fulfill first.
   await page.unroute('**/api/**');
   let failNextCaseRead = false;
   let failedCaseReadPath: string | null = null;
-  let resolveFailedCaseRead!: () => void;
-  const failedCaseRead = new Promise<void>((resolve) => {
-    resolveFailedCaseRead = resolve;
-  });
   await page.route('**/api/**', async (route: Route) => {
     const request = route.request();
     const requestUrl = new URL(request.url());
@@ -395,11 +391,11 @@ test('a failed case API request is visible and retry recovers from the real API'
     if (failNextCaseRead && isCaseRead) {
       failNextCaseRead = false;
       failedCaseReadPath = requestUrl.pathname;
-      try {
-        await route.abort('failed');
-      } finally {
-        resolveFailedCaseRead();
-      }
+      await route.fulfill({
+        status: 503,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Temporary test outage' }),
+      });
       return;
     }
 
@@ -422,15 +418,13 @@ test('a failed case API request is visible and retry recovers from the real API'
   const caseId = new URL(page.url()).pathname.split('/').at(-1)!;
   expect(caseId).toBe(createdCase.id);
 
-  // Force a fresh workspace restore, then fail exactly its case read.
+  // Force a fresh workspace restore, then return one controlled transient
+  // service failure for the case read. The retry goes to the real API.
   failNextCaseRead = true;
   await page.reload();
-  // Resolve directly from the interception after route.abort() completes. This
-  // avoids depending on the browser's requestfailed event timing.
-  await failedCaseRead;
   await expect.poll(() => failedCaseReadPath).toBe(`/api/cases/${caseId}`);
   await expect(page.getByRole('heading', { name: 'This case could not be reopened' })).toBeVisible();
-  await expect(page.getByText('Failed to fetch')).toBeVisible();
+  await expect(page.getByText('Failed to retrieve case: Temporary test outage')).toBeVisible();
 
   const retryResponsePromise = page.waitForResponse((response) => {
     const requestUrl = new URL(response.url());
