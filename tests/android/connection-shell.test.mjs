@@ -37,5 +37,5 @@ const debugNetworkSecurity = await readFile(
 test('Android debug network security XML has a valid declaration at the start of the file', () => {
   assert.ok(debugNetworkSecurity.startsWith('<?xml version="1.0" encoding="utf-8"?>'));
   assert.match(debugNetworkSecurity, /<network-security-config>/);
-  assert.match(debugNetworkSecurity, /<base-config cleartextTrafficPermitted="true"\s*\/>/);
+  assert.match(debugNetworkSecurity, /<base-config cleartextTrafficPermitted="false"\s*\/>/);
 });
