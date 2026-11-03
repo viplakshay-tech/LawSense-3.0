@@ -560,6 +560,7 @@ class CasePipelineTests(unittest.TestCase):
             id="source-consumer",
             title="Fixture source",
             authority=authority.id,
+            jurisdiction=jurisdiction.id,
             authority_tier=SourceAuthorityTier.TIER_1_PRIMARY_OFFICIAL,
             source_url="https://sources.example.invalid/consumer-act",
             status=KnowledgeStatus.VERIFIED,
