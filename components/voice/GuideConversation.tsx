@@ -7,6 +7,7 @@ import type { RecognitionLanguage } from './VoiceCapture';
 import { sendGuideMessage, type GuideActionName } from '@/lib/api';
 import {
   beginGuideSessionRequest,
+  finishGuideSessionRequest,
   getGuideConversationHistory,
   isGuideSessionRequestCurrent,
   useGuideSession,
@@ -438,6 +439,7 @@ export default function GuideConversation({
         caseId,
         previousHistory,
         allowedActions,
+        sessionRequest.signal,
       );
       responseText = result.reply;
       responseStatus = result.status;
@@ -451,6 +453,8 @@ export default function GuideConversation({
           : 'The local Guide service is unavailable right now. ';
       responseText = `${localUnavailable}${createGuideConversationResponse(statement, question, languageRef.current)}`;
       proposedAction = undefined;
+    } finally {
+      finishGuideSessionRequest(caseId, sessionRequest);
     }
     if (!mountedRef.current) return;
     if (!isGuideSessionRequestCurrent(caseId, sessionRequest)) {
