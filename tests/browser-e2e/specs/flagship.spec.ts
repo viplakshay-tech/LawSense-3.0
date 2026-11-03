@@ -386,8 +386,11 @@ test('a transient case API failure is visible and retry recovers from the real A
   await page.route('**/api/**', async (route: Route) => {
     const request = route.request();
     const requestUrl = new URL(request.url());
+    const pathSegments = requestUrl.pathname.split('/').filter(Boolean);
     const isCaseRead = request.method() === 'GET'
-      && /^\/api\/cases\/[^/]+$/.test(requestUrl.pathname);
+      && pathSegments.length === 3
+      && pathSegments[0] === 'api'
+      && pathSegments[1] === 'cases';
     if (failNextCaseRead && isCaseRead) {
       failNextCaseRead = false;
       failedCaseReadPath = requestUrl.pathname;
