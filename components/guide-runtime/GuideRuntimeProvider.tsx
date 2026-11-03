@@ -212,8 +212,19 @@ export function GuideRuntimeProvider({ caseId, children }: { caseId: string; chi
       openLegalGrounding: () => push(`${base}#analysis`),
       openJourney: () => push(`${base}#journey`),
       openTwin: () => push(`${base}/twin`),
-      selectTwinNode: () => ({ status: 'unavailable', reason: 'The Twin does not expose a Guide node-selection callback.' }),
-      selectTimeline: () => ({ status: 'unavailable', reason: 'The Twin does not expose a Guide timeline-selection callback.' }),
+      selectTwinNode: (nodeId) => {
+        if (!nodeId.trim() || nodeId.length > 512) {
+          return { status: 'unavailable', reason: 'The requested Twin node identifier is invalid.' };
+        }
+        push(`${base}/twin?focus=${encodeURIComponent(nodeId)}`);
+      },
+      selectTimeline: (timestamp) => {
+        const date = typeof timestamp === 'number' ? new Date(timestamp) : new Date(timestamp);
+        if (!Number.isFinite(date.getTime())) {
+          return { status: 'unavailable', reason: 'The requested timeline date is invalid.' };
+        }
+        push(`${base}/twin?at=${encodeURIComponent(date.toISOString())}`);
+      },
       startVoice: () => push(`${base}/voice`),
       speak: (text) => {
         if (typeof window === 'undefined' || !('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') {
