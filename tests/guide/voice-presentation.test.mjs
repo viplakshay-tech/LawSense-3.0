@@ -224,6 +224,10 @@ test('voice conversation preserves an unavailable local assistant response statu
 test('Legal Advisory distinguishes catalog record status from source verification and freshness', () => {
   assert.match(persistentLegalAdvisorySource, /sourceVerificationStatus/);
   assert.match(persistentLegalAdvisorySource, /sourceFreshnessStatus/);
+  assert.match(persistentLegalAdvisorySource, /sourceFreshnessCheckedAt/);
+  assert.match(persistentLegalAdvisorySource, /sourceFreshnessEvidence/);
+  assert.match(persistentLegalAdvisorySource, /Freshness review recorded/);
+  assert.match(persistentLegalAdvisorySource, /Review evidence:/);
   assert.match(persistentLegalAdvisorySource, /sourceApplicabilityStatus/);
   assert.match(persistentLegalAdvisorySource, /jurisdictionMatchStatus/);
   assert.match(persistentLegalAdvisorySource, /Source verification and freshness/);
