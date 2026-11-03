@@ -628,12 +628,12 @@ export function DocumentReviewWorkspace({ caseId, embedded = false, focusRequest
       return;
     }
     requestedFindingHandledRef.current = requestKey;
-    setActiveFindingId(finding.id);
     const source = finding.provenance.find((item) =>
       item.source === 'document' && item.documentId === selectedDocument.id,
     );
-    if (source?.pageNumber != null) setCurrentPage(source.pageNumber);
     window.requestAnimationFrame(() => {
+      setActiveFindingId(finding.id);
+      if (source?.pageNumber != null) setCurrentPage(source.pageNumber);
       document.getElementById('document-preview')?.scrollIntoView({
         behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
         block: 'center',
