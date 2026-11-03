@@ -73,6 +73,13 @@ function humanize(value: string): string {
   return value.replace(/[_-]+/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+function formatRecordedDateTime(value: string): string {
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime())
+    ? value
+    : parsed.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short', timeZoneName: 'short' });
+}
+
 function getRequestedSupportCategories(caseState: CaseState): string[] {
   const issues = caseState.legalIssues
     .map((issue) => `${issue.category} ${issue.subcategory ?? ''}`)
@@ -374,6 +381,8 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
                         <div className="mt-3 space-y-2">
                           {sourceReviewRecords.slice(0, 8).map((record, index) => {
                             const sourceUrl = recordedHttpsUrl(record);
+                            const freshnessCheckedAt = textValue(record.sourceFreshnessCheckedAt);
+                            const freshnessEvidence = textValue(record.sourceFreshnessEvidence);
                             return (
                               <article key={textValue(record.id, 'source-record-' + index)} className="rounded-lg border border-white/[0.07] bg-black/10 p-3">
                                 <p className="text-xs font-semibold text-slate-100">{textValue(record.title, 'Legal source record')}</p>
@@ -394,7 +403,17 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
                                     <dt className="text-slate-500">Jurisdiction match</dt>
                                     <dd className="mt-0.5 text-slate-200">{humanize(textValue(record.jurisdictionMatchStatus, 'unknown'))}</dd>
                                   </div>
+                                  <div className="col-span-2">
+                                    <dt className="text-slate-500">Freshness review recorded</dt>
+                                    <dd className="mt-0.5 text-slate-200">
+                                      {freshnessCheckedAt ? formatRecordedDateTime(freshnessCheckedAt) : 'Not recorded'}
+                                    </dd>
+                                  </div>
                                 </dl>
+                                <p className="mt-2 text-xs leading-5 text-slate-400">
+                                  <span className="font-semibold text-slate-300">Review evidence:</span>{' '}
+                                  {freshnessEvidence || 'No freshness review evidence recorded.'}
+                                </p>
                                 {sourceUrl && (
                                   <a href={sourceUrl} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex min-h-8 items-center text-xs font-semibold text-[#f2dfb9] underline decoration-[#d9bd8c]/30 underline-offset-4">
                                     Open recorded official source
