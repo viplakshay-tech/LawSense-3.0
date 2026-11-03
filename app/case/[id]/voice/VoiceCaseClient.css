@@ -384,6 +384,24 @@
   font-size:.68rem;
   line-height:1.55
 }
+.ls-guide-call__proposedActionButton {
+  display:inline-flex;
+  align-items:center;
+  min-height:2rem;
+  margin-top:.5rem;
+  padding:.35rem .65rem;
+  color:#f1d6a6;
+  background:#caa56a12;
+  border:1px solid #caa56a4d;
+  border-radius:.6rem;
+  font:inherit;
+  font-size:.6rem;
+  font-weight:700;
+  cursor:pointer
+}
+.ls-guide-call__proposedActionButton:hover { background:#caa56a20; border-color:#caa56a80 }
+.ls-guide-call__proposedActionButton:focus-visible { outline:2px solid #e9bd7b; outline-offset:2px }
+.ls-guide-call__proposedActionButton:disabled { opacity:.5; cursor:not-allowed }
 .ls-guide-call__turnAudio {
   color:#88939d;
   margin:.28rem 0 0;
