@@ -6,7 +6,7 @@ The bridge is the typed boundary between Guide intents and case-workspace handle
 
 - `ASK_CLARIFICATION` opens the case clarification panel. The panel fetches its real open-question IDs and owns the existing answer/save flow.
 - `SHOW_EVIDENCE` opens the document/evidence workspace and focuses a single known evidence record when that target is unambiguous; if exactly one document is referenced with no evidence IDs, it opens that saved document. Record IDs are checked against the active `CaseState` before routing. Ambiguous targets open the workspace without pretending a particular item was selected.
-- `SHOW_LEGAL_GROUNDING` opens the Legal Guide page.
+- `SHOW_LEGAL_GROUNDING` focuses the exact returned source when there is one unambiguous record; otherwise it opens the persistent, current-case Legal Advisory dialog. The advisory still reports missing or unverified sources instead of inventing a conclusion.
 - `OPEN_JOURNEY` moves to the Journey section in the case overview.
 - `SHOW_TWIN` and `OPEN_SAFETY` open their existing case pages.
 - `START_VOICE` opens voice capture. The user must still start the microphone on that page.
