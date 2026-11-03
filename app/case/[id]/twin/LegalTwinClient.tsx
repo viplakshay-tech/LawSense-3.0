@@ -768,8 +768,10 @@ export default function LegalTwinClient({ id }: { id: string }) {
     const controller = new AbortController();
     const previousTwin = legalTwinRef.current;
     const previousSelection = selectedAsOfRef.current;
-    const followsLatest = !previousTwin || previousSelection === null ||
-      timestamp(previousSelection) === timestamp(previousTwin.snapshot.asOf);
+    const requestedTime = new URLSearchParams(window.location.search).get('at');
+    const requestedTimestamp = requestedTime && timestamp(requestedTime) !== null ? requestedTime : null;
+    const followsLatest = !requestedTimestamp && (!previousTwin || previousSelection === null ||
+      timestamp(previousSelection) === timestamp(previousTwin.snapshot.asOf));
     void getLegalTwin(id, controller.signal)
       .then((twin) => {
         if (!mounted || controller.signal.aborted) return;
@@ -777,7 +779,10 @@ export default function LegalTwinClient({ id }: { id: string }) {
         setTwinError(null);
         setSnapshotError(null);
         setLegalTwin(twin);
-        if (followsLatest) {
+        if (requestedTimestamp) {
+          setSnapshot(null);
+          setSelectedAsOf(requestedTimestamp);
+        } else if (followsLatest) {
           acceptProjection(twin.snapshot, revision);
           reconcileSelectionWithProjection(twin.snapshot, true);
           setSnapshot(twin.snapshot);
