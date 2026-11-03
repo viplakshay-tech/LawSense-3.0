@@ -34,6 +34,9 @@ from app.engines.legal_knowledge.models import (
     Jurisdiction as KnowledgeJurisdiction,
     KnowledgeItem,
     KnowledgeRelationship,
+    LegalDocument,
+    LegalProvision,
+    LegalRule,
     LegalProcedure,
 )
 from app.engines.legal_knowledge.store import LegalKnowledgeRepository
@@ -47,6 +50,7 @@ from app.engines.legal_sources import (
     SourceVerificationStatus,
 )
 from app.engines.legal_reasoning import ReasoningResult, reason_about_case
+from app.engines.legal_reasoning.models import BlockedConclusion, ReasoningStep
 from app.engines.legal_twin import TimelineEvent, TimelineSnapshot, build_legal_twin, generate_timeline, snapshot_at
 from app.engines.safety_support import (
     ImmediateDangerAnswer,
@@ -337,13 +341,16 @@ def run_case_pipeline(
     legal_knowledge = knowledge_retriever(case_state, knowledge_repository)
     stages.append("LEGAL_KNOWLEDGE_RETRIEVAL")
 
-    legal_reasoning = deps.legal_reasoner(
-        case_state,
-        legal_knowledge_records=legal_knowledge.records,
-        procedure_records=legal_knowledge.procedures,
-        authority_records=legal_knowledge.authorities,
-        jurisdiction_records=legal_knowledge.jurisdictions,
-        relationships=legal_knowledge.relationships,
+    legal_reasoning = _apply_source_governance_gate(
+        deps.legal_reasoner(
+            case_state,
+            legal_knowledge_records=legal_knowledge.records,
+            procedure_records=legal_knowledge.procedures,
+            authority_records=legal_knowledge.authorities,
+            jurisdiction_records=legal_knowledge.jurisdictions,
+            relationships=legal_knowledge.relationships,
+        ),
+        legal_knowledge,
     )
     stages.append("LEGAL_REASONING")
 
@@ -445,16 +452,19 @@ def run_persisted_case_pipeline(
     legal_knowledge = knowledge_retriever(case_state, knowledge_repository)
     stages.append("LEGAL_KNOWLEDGE_RETRIEVAL")
 
-    legal_reasoning = deps.legal_reasoner(
-        case_state,
-        legal_knowledge_records=legal_knowledge.records,
-        procedure_records=legal_knowledge.procedures,
-        authority_records=legal_knowledge.authorities,
-        jurisdiction_records=legal_knowledge.jurisdictions,
-        relationships=legal_knowledge.relationships,
-        unknowns=case_state.unknowns,
-        assumptions=case_state.assumptions,
-        conflicts=case_state.conflicts,
+    legal_reasoning = _apply_source_governance_gate(
+        deps.legal_reasoner(
+            case_state,
+            legal_knowledge_records=legal_knowledge.records,
+            procedure_records=legal_knowledge.procedures,
+            authority_records=legal_knowledge.authorities,
+            jurisdiction_records=legal_knowledge.jurisdictions,
+            relationships=legal_knowledge.relationships,
+            unknowns=case_state.unknowns,
+            assumptions=case_state.assumptions,
+            conflicts=case_state.conflicts,
+        ),
+        legal_knowledge,
     )
     stages.append("LEGAL_REASONING")
 
@@ -1096,6 +1106,103 @@ def retrieve_legal_knowledge(
         relationships=relevant_relationships,
         governed_sources=_govern_sources(records, repository),
         analysis_records=tuple(analysis_records[key] for key in sorted(analysis_records)),
+    )
+
+
+def _apply_source_governance_gate(
+    reasoning: ReasoningResult,
+    knowledge: LegalKnowledgeContext,
+) -> ReasoningResult:
+    """Keep candidate legal text visible without calling unreviewed sources current grounding."""
+    source_ids = {
+        item.source
+        for item in knowledge.records
+        if isinstance(item, (LegalDocument, LegalProvision, LegalRule, LegalProcedure))
+        and item.source
+    }
+    if not source_ids:
+        return reasoning
+
+    governed_by_id = {item.source_id: item for item in knowledge.governed_sources}
+    blockers_by_source: dict[str, tuple[str, ...]] = {}
+    all_blockers: list[str] = []
+    for source_id in sorted(source_ids):
+        governed = governed_by_id.get(source_id)
+        codes: list[str] = []
+        if governed is None:
+            codes.append("SOURCE_GOVERNANCE_UNAVAILABLE")
+        else:
+            if governed.verification_status != SourceVerificationStatus.VERIFIED:
+                codes.append("SOURCE_VERIFICATION_NOT_CONFIRMED")
+            if governed.freshness_status != SourceFreshnessStatus.CURRENT:
+                codes.append("SOURCE_FRESHNESS_NOT_CURRENT")
+        if codes:
+            blockers_by_source[source_id] = tuple(codes)
+            all_blockers.extend(codes)
+
+    unique_blockers = tuple(dict.fromkeys(all_blockers))
+    if not unique_blockers:
+        return reasoning
+
+    source_by_record = {
+        item.id: item.source
+        for item in knowledge.records
+        if isinstance(item, (LegalDocument, LegalProvision, LegalRule, LegalProcedure))
+    }
+    statements = tuple(
+        replace(
+            statement,
+            reason_codes=tuple(dict.fromkeys((
+                *statement.reason_codes,
+                *blockers_by_source.get(source_by_record.get(statement.record_id, "") or "", ()),
+            ))),
+        )
+        for statement in reasoning.grounded_legal_statements
+    )
+    paths = tuple(
+        replace(
+            path,
+            blocked_reason_codes=tuple(dict.fromkeys((
+                *path.blocked_reason_codes,
+                *blockers_by_source.get(source_by_record.get(path.procedure_record_id, "") or "", ()),
+            ))),
+        )
+        for path in reasoning.possible_procedural_paths
+    )
+    governance_step = ReasoningStep(
+        id=f"source-governance-review:{reasoning.case_id}",
+        text=(
+            "One or more candidate legal sources do not have both verified source identity "
+            "and a current freshness assessment. They remain research leads and are not "
+            "treated as current legal grounding."
+        ),
+        reason_codes=unique_blockers,
+        source_references=(),
+    )
+    blocked_conclusion = BlockedConclusion(
+        id=f"blocked-current-source-use:{reasoning.case_id}",
+        subject="current_legal_source_use",
+        explanation=(
+            "Current legal source use is blocked until source identity and freshness are "
+            "verified against the original official publication."
+        ),
+        reason_codes=unique_blockers,
+        source_references=(),
+    )
+    uncertainty = replace(
+        reasoning.uncertainty,
+        level="high",
+        reason_codes=tuple(dict.fromkeys((*reasoning.uncertainty.reason_codes, *unique_blockers))),
+    )
+    return replace(
+        reasoning,
+        legal_knowledge_status="insufficient_or_blocked",
+        reasoning_steps=(*reasoning.reasoning_steps, governance_step),
+        grounded_legal_statements=statements,
+        possible_procedural_paths=paths,
+        blocked_conclusions=(*reasoning.blocked_conclusions, blocked_conclusion),
+        uncertainty=uncertainty,
+        reason_codes=tuple(dict.fromkeys((*reasoning.reason_codes, *unique_blockers))),
     )
 
 
