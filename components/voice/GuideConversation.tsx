@@ -4,7 +4,8 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { Mic, MicOff, RotateCcw, Send } from 'lucide-react';
 import type { GuideVoiceEvent, VoiceLanguage } from '@/components/guide-runtime/voice-adapter/events';
 import type { RecognitionLanguage } from './VoiceCapture';
-import { sendGuideMessage, type GuideActionName, type GuideConversationTurn } from '@/lib/api';
+import { sendGuideMessage, type GuideActionName } from '@/lib/api';
+import { getGuideConversationHistory, useGuideSession, type GuideSessionTurn } from '@/lib/guide-session';
 import type { GuideAction } from '@/components/guide-runtime/types';
 import {
   requestNativeGuideAudio,
@@ -55,15 +56,6 @@ interface RecognitionWindow extends Window {
   SpeechRecognition?: new () => BrowserSpeechRecognition;
   webkitSpeechRecognition?: new () => BrowserSpeechRecognition;
 }
-
-type ConversationTurn = {
-  id: string;
-  speaker: 'you' | 'guide';
-  text: string;
-  source?: 'voice' | 'text';
-  audio?: 'queued' | 'speaking' | 'spoken' | 'unavailable' | 'failed';
-  proposedAction?: GuideActionName;
-};
 
 interface GuideConversationProps {
   draftId: string;
@@ -129,7 +121,7 @@ export default function GuideConversation({
   onActiveChange,
 }: GuideConversationProps) {
   const [presentation, setPresentation] = useState(() => guideConversationPresentation('idle'));
-  const [turns, setTurns] = useState<ConversationTurn[]>([]);
+  const { turns, appendTurn, updateTurn } = useGuideSession(caseId);
   const [callActive, setCallActive] = useState(false);
   const [lastResponse, setLastResponse] = useState<{ id: string; text: string } | null>(null);
   const [interimTranscript, setInterimTranscript] = useState('');
@@ -152,7 +144,6 @@ export default function GuideConversation({
   const currentCaptureIdRef = useRef('');
   const questionIndexRef = useRef(0);
   const questionsRef = useRef(openQuestions);
-  const conversationHistoryRef = useRef<GuideConversationTurn[]>([]);
   const hasDraftRef = useRef(hasDraft);
   const draftIdRef = useRef(draftId);
   const languageRef = useRef(language);
@@ -168,7 +159,6 @@ export default function GuideConversation({
 
   useEffect(() => { disabledRef.current = disabled; }, [disabled]);
   useEffect(() => { questionsRef.current = openQuestions; }, [openQuestions]);
-  useEffect(() => { conversationHistoryRef.current = []; }, [caseId]);
   useEffect(() => { hasDraftRef.current = hasDraft; }, [hasDraft]);
   useEffect(() => { draftIdRef.current = draftId; }, [draftId]);
   useEffect(() => { languageRef.current = language; }, [language]);
@@ -183,9 +173,9 @@ export default function GuideConversation({
     onStateChangeRef.current?.(next);
   }, []);
 
-  const updateGuideAudio = useCallback((turnId: string, audio: NonNullable<ConversationTurn['audio']>) => {
-    setTurns((current) => current.map((turn) => turn.id === turnId ? { ...turn, audio } : turn));
-  }, []);
+  const updateGuideAudio = useCallback((turnId: string, audio: NonNullable<GuideSessionTurn['audio']>) => {
+    updateTurn(turnId, { audio });
+  }, [updateTurn]);
 
   const updateTranscriptDraft = useCallback((transcript: string) => {
     transcriptDraftRef.current = transcript;
@@ -287,15 +277,11 @@ export default function GuideConversation({
     streamRef.current = null;
   }, []);
 
-  const addTurn = useCallback((turn: ConversationTurn) => {
-    setTurns((current) => [...current, turn]);
-  }, []);
-
   const appendUserTurn = useCallback((statement: string, inputMethod: 'voice' | 'text') => {
     if (!statement.trim()) return;
-    addTurn({ id: createId('turn'), speaker: 'you', text: statement.trim(), source: inputMethod });
+    appendTurn({ id: createId('turn'), role: 'user', content: statement.trim(), inputMode: inputMethod });
     onUserTurnRef.current(statement.trim(), inputMethod);
-  }, [addTurn]);
+  }, [appendTurn]);
 
   const speakResponse = useCallback((
     text: string,
@@ -422,9 +408,7 @@ export default function GuideConversation({
     const statement = text.trim();
     if (!statement) return;
 
-    const previousHistory = conversationHistoryRef.current.slice(-8);
-    const userTurn: GuideConversationTurn = { role: 'user', content: statement };
-    conversationHistoryRef.current = [...previousHistory, userTurn].slice(-8);
+    const previousHistory = getGuideConversationHistory(caseId);
     appendUserTurn(statement, inputMethod);
 
     const questions = questionsRef.current;
@@ -435,6 +419,7 @@ export default function GuideConversation({
     transition('processing', 'Preparing a response from the local LawSense Guide.');
     let responseText: string;
     let proposedAction: GuideActionName | undefined;
+    let responseStatus: 'ok' | 'unavailable' = 'ok';
     const allowedActions = availableActions.reduce<GuideActionName[]>((items, action) => {
       if (action.type !== 'SPEAK_RESPONSE') items.push(action.type);
       return items;
@@ -450,6 +435,7 @@ export default function GuideConversation({
       responseText = result.reply;
       proposedAction = result.status === 'ok' ? result.proposed_action ?? undefined : undefined;
     } catch {
+      responseStatus = 'unavailable';
       const localUnavailable = languageRef.current === 'Hindi'
         ? 'स्थानीय Guide सेवा अभी उपलब्ध नहीं है। '
         : languageRef.current === 'Hinglish'
@@ -459,13 +445,11 @@ export default function GuideConversation({
       proposedAction = undefined;
     }
     if (!mountedRef.current) return;
-    const assistantTurn: GuideConversationTurn = { role: 'assistant', content: responseText };
-    conversationHistoryRef.current = [...conversationHistoryRef.current, assistantTurn].slice(-8);
     const responseId = createId('response');
+    appendTurn({ id: responseId, role: 'assistant', content: responseText, inputMode: inputMethod, status: responseStatus, ...(proposedAction ? { proposedAction } : {}), audio: 'queued' });
     const response = { id: responseId, text: responseText };
     lastResponseRef.current = response;
     setLastResponse(response);
-    addTurn({ id: responseId, speaker: 'guide', text: responseText, audio: 'queued', ...(proposedAction ? { proposedAction } : {}) });
 
     const finishTurn = () => {
       utteranceRef.current = null;
@@ -477,7 +461,7 @@ export default function GuideConversation({
       );
     };
     speakResponse(responseText, responseId, finishTurn);
-  }, [addTurn, appendUserTurn, availableActions, caseId, speakResponse, transition]);
+  }, [appendTurn, appendUserTurn, availableActions, caseId, speakResponse, transition]);
 
   const startListening = useCallback(async () => {
     if (!callActiveRef.current || !shouldListenRef.current || disabledRef.current) return;
@@ -863,10 +847,10 @@ export default function GuideConversation({
             ? resolveGuideActionProposal(turn.proposedAction, availableActions)
             : undefined;
           return (
-            <article className="ls-guide-call__conversationTurn" key={turn.id} data-speaker={turn.speaker}>
-              <p className="ls-guide-call__turnSpeaker">{turn.speaker === 'you' ? (turn.source === 'voice' ? 'You · recognized speech' : 'You · typed') : 'LawSense Guide'}</p>
-              <p className="ls-guide-call__turnText">{turn.text}</p>
-              {turn.speaker === 'guide' && (
+            <article className="ls-guide-call__conversationTurn" key={turn.id} data-speaker={turn.role === 'user' ? 'you' : 'guide'}>
+              <p className="ls-guide-call__turnSpeaker">{turn.role === 'user' ? (turn.inputMode === 'voice' ? 'You · recognized speech' : 'You · typed') : 'LawSense Guide'}</p>
+              <p className="ls-guide-call__turnText">{turn.content}</p>
+              {turn.role === 'assistant' && (
                 <p className="ls-guide-call__turnAudio" role="status">
                   {turn.audio === 'spoken' ? 'Spoken aloud' : turn.audio === 'speaking' ? 'Speaking now' : turn.audio === 'queued' ? 'Preparing spoken reply' : turn.audio === 'failed' ? 'Could not play aloud · text remains available' : turn.audio === 'unavailable' ? 'Speech output unavailable · text remains available' : ''}
                 </p>

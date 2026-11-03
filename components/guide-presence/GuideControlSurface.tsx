@@ -5,7 +5,8 @@ import type { FormEvent, KeyboardEvent } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Activity, ArrowLeft, ChevronDown, ChevronUp, CircleHelp, Loader2, MessageCircle, Mic2, Radio, Send, ShieldAlert, Trash2, Volume2, VolumeX } from 'lucide-react';
 import { guidePresenceStateFromSnapshot, useGuideRuntime } from '@/components/guide-runtime';
-import { sendGuideMessage, type GuideActionName, type GuideChatLanguage, type GuideConversationTurn } from '@/lib/api';
+import { sendGuideMessage, type GuideActionName, type GuideChatLanguage } from '@/lib/api';
+import { useGuideSession } from '@/lib/guide-session';
 import type { GuideAction } from '@/components/guide-runtime/types';
 import { GuidePresence } from './GuidePresence';
 import { GUIDE_PRESENCE_LABELS } from './types';
@@ -51,13 +52,18 @@ function GuideConversationPanel({
   onOpenVoice: () => void;
 }) {
   const { snapshot, dispatch, runAction, actionRunning } = useGuideRuntime();
-  const [chatEntries, setChatEntries] = useState<GuideChatEntry[]>([]);
+  const { turns, language: chatLanguage, history, appendTurn, setLanguage: setChatLanguage, clear: clearSession } = useGuideSession(caseId ?? '');
+  const chatEntries: GuideChatEntry[] = turns.map((turn) => ({
+    id: turn.id,
+    role: turn.role === 'user' ? 'you' : 'guide',
+    text: turn.content,
+    status: turn.status,
+    ...(turn.proposedAction ? { proposedAction: snapshot.availableActions.find((action) => action.type === turn.proposedAction) } : {}),
+  }));
   const [chatDraft, setChatDraft] = useState('');
-  const [chatLanguage, setChatLanguage] = useState<GuideChatLanguage>('english');
   const [chatSending, setChatSending] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
   const chatRequestSequenceRef = useRef(0);
-  const chatEntrySequenceRef = useRef(0);
   const chatInFlightRef = useRef(false);
 
   async function handleChatSubmit(event: FormEvent<HTMLFormElement>) {
@@ -70,23 +76,16 @@ function GuideConversationPanel({
     setChatDraft('');
     setChatSending(true);
     setChatError(null);
-    const userEntry: GuideChatEntry = {
-      id: `guide-chat-${++chatEntrySequenceRef.current}`,
-      role: 'you',
-      text: message,
-    };
-    setChatEntries((current) => [...current.slice(-9), userEntry]);
+    appendTurn({
+      id: `guide-chat-${Date.now()}-${requestToken}-user`,
+      role: 'user',
+      content: message,
+      inputMode: 'text',
+    });
     dispatch({ type: 'GUIDE_USER_INPUT_STARTED' });
     dispatch({ type: 'GUIDE_PROCESSING_STARTED' });
 
     try {
-      const conversationHistory = chatEntries
-        .slice(-8)
-        .filter((entry) => entry.role === 'you' || entry.status !== 'unavailable')
-        .map<GuideConversationTurn>((entry) => ({
-          role: entry.role === 'you' ? 'user' : 'assistant',
-          content: entry.text,
-        }));
       const availableActions = snapshot.availableActions
         .filter((action) => action.type !== 'SPEAK_RESPONSE')
         .map((action) => action.type as GuideActionName);
@@ -94,7 +93,7 @@ function GuideConversationPanel({
         message,
         chatLanguage,
         caseId,
-        conversationHistory,
+        history,
         availableActions,
       );
       if (requestToken !== chatRequestSequenceRef.current) return;
@@ -111,14 +110,14 @@ function GuideConversationPanel({
       const proposedAction = response.proposed_action
         ? snapshot.availableActions.find((action) => action.type === response.proposed_action)
         : undefined;
-      const guideEntry: GuideChatEntry = {
-        id: `guide-chat-${++chatEntrySequenceRef.current}`,
-        role: 'guide',
-        text: response.reply,
+      appendTurn({
+        id: `guide-chat-${Date.now()}-${requestToken}-assistant`,
+        role: 'assistant',
+        content: response.reply,
+        inputMode: 'text',
         status: response.status,
-        ...(proposedAction ? { proposedAction } : {}),
-      };
-      setChatEntries((current) => [...current.slice(-9), guideEntry]);
+        ...(proposedAction && response.proposed_action ? { proposedAction: response.proposed_action } : {}),
+      });
     } catch {
       if (requestToken === chatRequestSequenceRef.current) {
         dispatch({
@@ -139,7 +138,7 @@ function GuideConversationPanel({
     chatRequestSequenceRef.current += 1;
     dispatch({ type: 'GUIDE_RESET' });
     chatInFlightRef.current = false;
-    setChatEntries([]);
+    clearSession();
     setChatDraft('');
     setChatSending(false);
     setChatError(null);
