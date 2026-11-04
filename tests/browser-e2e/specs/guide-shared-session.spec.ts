@@ -46,6 +46,12 @@ test('Guide text and voice modes share the same case-scoped conversation across 
   await expect(guidePanel.getByRole('log', { name: 'Guide conversation' })).toContainText('Help me understand what information is missing.');
   await expect(guidePanel.getByRole('log', { name: 'Guide conversation' })).toContainText('When was the first salary payment due?');
 
+  const advisoryShortcut = guidePanel.getByRole('button', { name: 'Get Legal Advisory using current case information' });
+  await expect(advisoryShortcut).toBeVisible();
+  await advisoryShortcut.click();
+  await expect(page.getByRole('heading', { name: 'Legal Advisory' })).toBeVisible();
+  await page.getByRole('button', { name: 'Close', exact: true }).click();
+
   await guidePanel.getByRole('button', { name: 'Voice' }).last().click();
   await expect(page).toHaveURL(`/case/${caseId}/voice`);
 
