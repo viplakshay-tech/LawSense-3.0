@@ -206,3 +206,8 @@ This contract does not authorize:
 - Claiming the current Capacitor shell is a standalone Android app.
 
 Every release note must separate implemented, tested, experimental and planned capabilities.
+
+
+## Persisted conversation boundary validation
+
+The case-scoped browser session is untrusted persistence, not an authorization source. On both restore and append, turns are accepted only when they have a bounded non-empty identifier and body, a supported user/assistant role and input mode, and recognized optional status, audio, and proposed-action values. Unknown action names are discarded rather than reinterpreted. Invalid turns are excluded from the visible transcript and from model conversation history. The backend remains authoritative for legal facts, case updates, source access, and every consequential action; client-side action names never grant permission.
