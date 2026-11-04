@@ -17,7 +17,9 @@ from urllib.request import ProxyHandler, Request, build_opener
 DEFAULT_OLLAMA_BASE_URL = "http://127.0.0.1:11434"
 DEFAULT_OLLAMA_MODEL = "qwen3.5:4b-q4_K_M"
 OLLAMA_TIMEOUT_SECONDS = 45
+OLLAMA_STATUS_TIMEOUT_SECONDS = 3
 MAX_OLLAMA_RESPONSE_BYTES = 1_000_000
+MAX_OLLAMA_TAGS_BYTES = 256_000
 MAX_REPLY_CHARS = 6_000
 
 GUIDE_ACTION_TYPES = frozenset({
@@ -79,15 +81,16 @@ def _configured_model() -> str:
     return value
 
 
-def _local_chat_url() -> str:
+def _local_ollama_base_url() -> str:
     """Return the configured local Ollama URL, rejecting non-loopback hosts."""
     configured = os.getenv("OLLAMA_BASE_URL", DEFAULT_OLLAMA_BASE_URL).strip()
     try:
         parsed = urlsplit(configured)
         hostname = parsed.hostname
+        port = parsed.port
         if parsed.scheme not in {"http", "https"} or not hostname or parsed.username or parsed.password:
             raise ValueError
-        if parsed.query or parsed.fragment:
+        if parsed.query or parsed.fragment or port not in (None, 11434):
             raise ValueError
         is_localhost = hostname.casefold() == "localhost"
         try:
@@ -96,9 +99,17 @@ def _local_chat_url() -> str:
             is_loopback = False
         if not (is_localhost or is_loopback):
             raise ValueError
-        return f"{configured.rstrip('/')}/api/chat"
+        return configured.rstrip("/")
     except (ValueError, TypeError):
         raise ValueError("OLLAMA_BASE_URL must point to a loopback Ollama service") from None
+
+
+def _local_chat_url() -> str:
+    return f"{_local_ollama_base_url()}/api/chat"
+
+
+def _local_tags_url() -> str:
+    return f"{_local_ollama_base_url()}/api/tags"
 
 
 def _build_user_content(
@@ -157,10 +168,97 @@ def _unavailable_reply(model: str, reason: str) -> AssistantResult:
     return AssistantResult(reply=reason, status="unavailable", model=model)
 
 
+@dataclass(frozen=True)
+class LocalModelStatus:
+    status: Literal["available", "model_missing", "unavailable", "misconfigured"]
+    model: str
+    reachable: bool
+    model_available: bool
+    message: str
+
+
 def _open_local_request(request: Request, *, timeout: int):
     """Send directly to loopback, ignoring HTTP(S)_PROXY and ALL_PROXY settings."""
     opener = build_opener(ProxyHandler({}))
     return opener.open(request, timeout=timeout)
+
+
+def check_local_model_status() -> LocalModelStatus:
+    """Check whether the configured model is installed on the private Ollama service.
+
+    This only reads /api/tags; it does not send a prompt, load a model, or use a
+    remote provider. A reachable server with an installed model is reported as
+    available, not as proof that inference latency or output quality is ready.
+    """
+    model = _configured_model()
+    try:
+        endpoint = _local_tags_url()
+    except ValueError:
+        return LocalModelStatus(
+            status="misconfigured",
+            model=model,
+            reachable=False,
+            model_available=False,
+            message="The local Ollama address is not configured for a private laptop connection.",
+        )
+
+    request = Request(endpoint, headers={"Accept": "application/json"}, method="GET")
+    try:
+        with _open_local_request(request, timeout=OLLAMA_STATUS_TIMEOUT_SECONDS) as response:
+            raw = response.read(MAX_OLLAMA_TAGS_BYTES + 1)
+        if len(raw) > MAX_OLLAMA_TAGS_BYTES:
+            raise ValueError("oversized model list")
+        payload = json.loads(raw.decode("utf-8"))
+        models = payload.get("models") if isinstance(payload, dict) else None
+        if not isinstance(models, list):
+            raise ValueError("invalid model list")
+        installed = any(
+            isinstance(item, dict)
+            and model in {
+                item.get("name"),
+                item.get("model"),
+            }
+            for item in models
+        )
+        if installed:
+            return LocalModelStatus(
+                status="available",
+                model=model,
+                reachable=True,
+                model_available=True,
+                message="The configured local model is installed and Ollama is reachable. Its first reply may take longer while it loads.",
+            )
+        return LocalModelStatus(
+            status="model_missing",
+            model=model,
+            reachable=True,
+            model_available=False,
+            message=f"The local model '{model}' is not installed. Run: ollama pull {model}",
+        )
+    except HTTPError:
+        return LocalModelStatus(
+            status="unavailable",
+            model=model,
+            reachable=False,
+            model_available=False,
+            message="The local service did not return an Ollama model list. Check that Ollama is running.",
+        )
+    except (URLError, TimeoutError, socket.timeout, OSError):
+        return LocalModelStatus(
+            status="unavailable",
+            model=model,
+            reachable=False,
+            model_available=False,
+            message="Ollama is not reachable on this laptop. Start the Ollama app or run ollama serve.",
+        )
+    except (UnicodeDecodeError, json.JSONDecodeError, ValueError, AttributeError):
+        return LocalModelStatus(
+            status="unavailable",
+            model=model,
+            reachable=True,
+            model_available=False,
+            message="Ollama returned an invalid model-list response. Check its local API, then try again.",
+        )
 
 
 def chat_with_local_model(
