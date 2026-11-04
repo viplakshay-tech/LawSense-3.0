@@ -197,10 +197,26 @@ export function GuideRuntimeProvider({ caseId, children }: { caseId: string; chi
   const adapter = useMemo<GuideActionAdapter>(() => {
     const base = `/case/${encodeURIComponent(caseId)}`;
     const push = (path: string) => router.push(path);
+    const activeCaseUnavailable = () => (
+      caseState && caseState.id === caseId
+        ? null
+        : { status: 'unavailable' as const, reason: 'The active case is still loading or no longer matches this Guide session.' }
+    );
     return {
-      navigate: (route) => push(pathForRoute(route)),
+      navigate: (route) => {
+        if (route.kind !== 'home') {
+          const unavailable = activeCaseUnavailable();
+          if (unavailable) return unavailable;
+          if (route.caseId !== caseId) {
+            return { status: 'unavailable', reason: 'This navigation target belongs to a different case.' };
+          }
+        }
+        push(pathForRoute(route));
+      },
       openEvidence: (evidenceId) => {
-        if (evidenceId && !caseState?.evidence.some((item) => item.id === evidenceId)) {
+        const unavailable = activeCaseUnavailable();
+        if (unavailable) return unavailable;
+        if (evidenceId && !caseState.evidence.some((item) => item.id === evidenceId)) {
           return { status: 'unavailable', reason: 'The requested evidence item is not present in the current CaseState.' };
         }
         push(`${base}/documents${evidenceId ? `?evidenceId=${encodeURIComponent(evidenceId)}` : ''}`);
@@ -222,6 +238,8 @@ export function GuideRuntimeProvider({ caseId, children }: { caseId: string; chi
         push(`${base}/documents?documentId=${encodeURIComponent(documentId)}&findingId=${encodeURIComponent(findingId)}#document-preview`);
       },
       openLegalAdvisory: () => {
+        const unavailable = activeCaseUnavailable();
+        if (unavailable) return unavailable;
         if (typeof window === 'undefined') {
           return { status: 'unavailable', reason: 'Legal Advisory can only be opened in the active browser session.' };
         }
@@ -234,22 +252,38 @@ export function GuideRuntimeProvider({ caseId, children }: { caseId: string; chi
         }
         push(`${base}#legal-record-${encodeURIComponent(recordId)}`);
       },
-      openJourney: () => push(`${base}#journey`),
-      openTwin: () => push(`${base}/twin`),
+      openJourney: () => {
+        const unavailable = activeCaseUnavailable();
+        if (unavailable) return unavailable;
+        push(`${base}#journey`);
+      },
+      openTwin: () => {
+        const unavailable = activeCaseUnavailable();
+        if (unavailable) return unavailable;
+        push(`${base}/twin`);
+      },
       selectTwinNode: (nodeId) => {
+        const unavailable = activeCaseUnavailable();
+        if (unavailable) return unavailable;
         if (!nodeId.trim() || nodeId.length > 512) {
           return { status: 'unavailable', reason: 'The requested Twin node identifier is invalid.' };
         }
         push(`${base}/twin?focus=${encodeURIComponent(nodeId)}`);
       },
       selectTimeline: (timestamp) => {
+        const unavailable = activeCaseUnavailable();
+        if (unavailable) return unavailable;
         const date = typeof timestamp === 'number' ? new Date(timestamp) : new Date(timestamp);
         if (!Number.isFinite(date.getTime())) {
           return { status: 'unavailable', reason: 'The requested timeline date is invalid.' };
         }
         push(`${base}/twin?at=${encodeURIComponent(date.toISOString())}`);
       },
-      startVoice: () => push(`${base}/voice`),
+      startVoice: () => {
+        const unavailable = activeCaseUnavailable();
+        if (unavailable) return unavailable;
+        push(`${base}/voice`);
+      },
       speak: (text) => {
         if (typeof window === 'undefined' || !('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') {
           return { status: 'unavailable', reason: 'Speech playback is not supported in this browser.' };
@@ -294,8 +328,16 @@ export function GuideRuntimeProvider({ caseId, children }: { caseId: string; chi
           window.speechSynthesis.speak(utterance);
         });
       },
-      openSafety: () => push(`${base}/safety`),
-      openClarification: () => push(`${base}#clarification`),
+      openSafety: () => {
+        const unavailable = activeCaseUnavailable();
+        if (unavailable) return unavailable;
+        push(`${base}/safety`);
+      },
+      openClarification: () => {
+        const unavailable = activeCaseUnavailable();
+        if (unavailable) return unavailable;
+        push(`${base}#clarification`);
+      },
     };
   }, [caseId, caseState, dispatch, router]);
 
