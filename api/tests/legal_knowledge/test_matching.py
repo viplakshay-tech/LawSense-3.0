@@ -185,7 +185,9 @@ class LegalMatchTests(unittest.TestCase):
             if item.candidate_id == "provision-code-on-wages-2019-section-17"
         )
         self.assertEqual(match.evidence_assessment, "unclear")
-        self.assertEqual(match.assessment_factors["source_freshness"], "unknown")
+        self.assertEqual(match.assessment_factors["source_freshness"], "stale")
+        self.assertEqual(match.source["freshness_status"], "stale")
+        self.assertIn("S.O. 454(E)", match.source["freshness_evidence"])
         self.assertIn("21 November 2025", match.temporal_limitation)
         self.assertIn("section 69", match.temporal_limitation.casefold())
         self.assertIn("S.O. 5322(E)", match.temporal_limitation)
