@@ -29,6 +29,7 @@ const persistentLegalAdvisorySource = await readFile(new URL('../../components/c
 const guideSessionSource = await readFile(new URL('../../lib/guide-session.ts', import.meta.url), 'utf8');
 const guideApiSource = await readFile(new URL('../../lib/api.ts', import.meta.url), 'utf8');
 const voiceConversationSource = await readFile(new URL('../../components/voice/GuideConversation.tsx', import.meta.url), 'utf8');
+const voiceCaseClientSource = await readFile(new URL('../../app/case/[id]/voice/VoiceCaseClient.tsx', import.meta.url), 'utf8');
 const guideControlSurfaceSource = await readFile(new URL('../../components/guide-presence/GuideControlSurface.tsx', import.meta.url), 'utf8');
 const persistentLegalAdvisory = await readFile(new URL('../../components/case-shell/PersistentLegalAdvisory.tsx', import.meta.url), 'utf8');
 const guideModelStatusBanner = await readFile(new URL('../../components/guide-presence/GuideModelStatusBanner.tsx', import.meta.url), 'utf8');
@@ -393,4 +394,22 @@ test('shared Guide session deduplicates turn IDs and excludes unavailable assist
   const cleared = getGuideSessionSnapshot(caseId);
   assert.equal(cleared.turns.length, 0);
   assert.ok(cleared.generation > initialGeneration);
+});
+
+
+test('dedicated voice statement drafts enter shared Guide history only after successful explicit confirmation', () => {
+  const commitStart = voiceCaseClientSource.indexOf('const commitTranscript = async () =>');
+  const acceptedIndex = voiceCaseClientSource.indexOf('const accepted = replaceCaseState(response.caseState);', commitStart);
+  const rejectionIndex = voiceCaseClientSource.indexOf('if (!accepted)', acceptedIndex);
+  const appendIndex = voiceCaseClientSource.indexOf("appendTurn({", rejectionIndex);
+  const pendingCommitIndex = voiceCaseClientSource.indexOf('setPendingCommit({', appendIndex);
+
+  assert.ok(commitStart >= 0);
+  assert.ok(acceptedIndex > commitStart);
+  assert.ok(rejectionIndex > acceptedIndex);
+  assert.ok(appendIndex > rejectionIndex);
+  assert.ok(pendingCommitIndex > appendIndex);
+  assert.match(voiceCaseClientSource, /role: 'user',[\s\S]*?content: committedTranscript\.trim\(\),[\s\S]*?inputMode,/);
+  assert.match(voiceCaseClientSource, /role: 'assistant',[\s\S]*?I have added this statement to the case after your confirmation/);
+  assert.match(voiceCaseClientSource, /const \{ language: sessionLanguage, setLanguage: setSessionLanguage, appendTurn \} = useGuideSession\(id\)/);
 });
