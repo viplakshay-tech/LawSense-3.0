@@ -100,7 +100,7 @@ def validate_governed_source(source: GovernedLegalSource) -> None:
         _optional_text(getattr(source, field_name), field_name)
     _validate_url(source.source_url)
 
-    for field_name in ("publication_date", "effective_date"):
+    for field_name in ("publication_date", "effective_date", "verification_date"):
         value = getattr(source, field_name)
         if value is not None and (
             not isinstance(value, date) or isinstance(value, datetime)

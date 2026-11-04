@@ -56,6 +56,7 @@ class GovernedLegalSource:
     publication_date: date | None = None
     effective_date: date | None = None
     retrieved_at: datetime | None = None
+    verification_date: date | None = None
     verification_status: SourceVerificationStatus = SourceVerificationStatus.UNVERIFIED
     verification_evidence: str | None = None
     freshness_status: SourceFreshnessStatus = SourceFreshnessStatus.UNKNOWN

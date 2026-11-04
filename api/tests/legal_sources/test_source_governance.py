@@ -35,6 +35,7 @@ def make_verified_source(**overrides: object) -> GovernedLegalSource:
         "publication_date": date(2026, 1, 2),
         "effective_date": date(2026, 2, 1),
         "retrieved_at": RETRIEVED_AT,
+        "verification_date": date(2026, 10, 8),
         "verification_status": SourceVerificationStatus.VERIFIED,
         "verification_evidence": "Manually matched title and citation to the official record.",
     }
@@ -51,6 +52,7 @@ class SourceGovernanceTests(unittest.TestCase):
 
         self.assertIs(registry.get(source.source_id), source)
         self.assertEqual(source.verification_status, SourceVerificationStatus.VERIFIED)
+        self.assertEqual(source.verification_date, date(2026, 10, 8))
         self.assertEqual(source.source_url, "https://sources.example.invalid/acts/fixture-1")
 
     def test_unverified_is_the_default_and_is_registerable(self) -> None:
@@ -126,6 +128,10 @@ class SourceGovernanceTests(unittest.TestCase):
     def test_verification_requires_evidence_even_when_other_metadata_is_complete(self) -> None:
         with self.assertRaisesRegex(SourceGovernanceValidationError, "verification_evidence"):
             validate_governed_source(make_verified_source(verification_evidence=None))
+
+    def test_verification_date_must_be_a_calendar_date(self) -> None:
+        with self.assertRaisesRegex(SourceGovernanceValidationError, "verification_date must be a date"):
+            validate_governed_source(make_verified_source(verification_date=RETRIEVED_AT))
 
     def test_jurisdiction_mismatch_is_rejected_without_inference(self) -> None:
         source = make_verified_source(jurisdiction="IN-KA")

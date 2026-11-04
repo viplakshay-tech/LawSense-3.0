@@ -271,9 +271,13 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
     };
   }, [open]);
 
-  const sourceReviewRecords = rows(caseState?.analysis?.legalKnowledge?.records).filter((record) =>
-    ['legal_document', 'legal_provision', 'legal_rule', 'legal_procedure'].includes(textValue(record.type).toLowerCase()),
-  );
+  const sourceReviewRecords = Array.from(new Map(
+    rows(caseState?.analysis?.legalKnowledge?.records)
+      .filter((record) =>
+        ['legal_document', 'legal_provision', 'legal_rule', 'legal_procedure'].includes(textValue(record.type).toLowerCase()),
+      )
+      .map((record) => [textValue(record.source, textValue(record.id)), record]),
+  ).values());
   const sourceGovernanceNeedsAttention = sourceReviewRecords.some((record) =>
     textValue(record.sourceVerificationStatus, 'unverified') !== 'verified'
     || textValue(record.sourceFreshnessStatus, 'unknown') !== 'current'
@@ -437,6 +441,7 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
                         <div className="mt-3 space-y-2">
                           {sourceReviewRecords.slice(0, 8).map((record, index) => {
                             const sourceUrl = recordedHttpsUrl(record);
+                            const verificationDate = textValue(record.sourceVerificationDate);
                             const verificationEvidence = textValue(record.sourceVerificationEvidence);
                             const freshnessCheckedAt = textValue(record.sourceFreshnessCheckedAt);
                             const freshnessEvidence = textValue(record.sourceFreshnessEvidence);
@@ -447,6 +452,10 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
                                   <div>
                                     <dt className="text-slate-500">Source identity</dt>
                                     <dd className="mt-0.5 text-slate-200">{humanize(textValue(record.sourceVerificationStatus, 'unverified'))}</dd>
+                                  </div>
+                                  <div>
+                                    <dt className="text-slate-500">Identity verification date</dt>
+                                    <dd className="mt-0.5 text-slate-200">{verificationDate || 'Not recorded'}</dd>
                                   </div>
                                   <div>
                                     <dt className="text-slate-500">Freshness</dt>

@@ -634,6 +634,7 @@ class CasePipelineTests(unittest.TestCase):
             source_type=SourceType.LEGISLATION,
             canonical_reference="Fixture Consumer Protection Act, 2019",
             publication_date=date(2019, 8, 9),
+            verification_date=date(2026, 10, 8),
             publisher_name="Fixture publisher",
             authority_tier=SourceAuthorityTier.TIER_1_PRIMARY_OFFICIAL,
             verification_evidence="Matched the fixture Act number and title against the supplied official source snapshot.",
@@ -664,6 +665,7 @@ class CasePipelineTests(unittest.TestCase):
         self.assertIn("Compared the current official publication", governed.freshness_evidence or "")
         summary = next(item for item in result.case_analysis.legal_knowledge.records if item.id == provision.id)
         self.assertEqual(summary.source_verification_status, "verified")
+        self.assertEqual(summary.source_verification_date, date(2026, 10, 8).isoformat())
         self.assertIn("Matched the fixture Act number", summary.source_verification_evidence or "")
         self.assertEqual(summary.source_freshness_status, SourceFreshnessStatus.CURRENT.value)
         self.assertEqual(summary.source_freshness_checked_at, governed.freshness_checked_at.isoformat())
