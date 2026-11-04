@@ -416,6 +416,10 @@ The frontend should be available at http://localhost:3000. `next.config.ts` uses
 
 This is a development-only HTTP setup. Do not expose the development server or the backend port to the public internet.
 
+### Optional local Guide model
+
+For local-language Guide replies using Ollama, follow [Local Guide model setup](docs/LOCAL_GUIDE_MODEL_SETUP.md). Ollama is optional; the Guide has no cloud fallback, and its replies are not legal advice.
+
 ## Android development
 
 The repository contains a Capacitor Android project. Android builds depend on the locally installed Android SDK, JDK/Gradle compatibility and a valid Capacitor configuration.
