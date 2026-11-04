@@ -185,6 +185,12 @@ test('Guide bridge forwards the finding and case document IDs to its validated a
 });
 
 
+test('case-bound Guide actions reject stale or mismatched active case state', () => {
+  assert.match(guideRuntimeProvider, /caseState && caseState\.id === caseId/);
+  assert.match(guideRuntimeProvider, /route\.caseId !== caseId/);
+  assert.ok((guideRuntimeProvider.match(/activeCaseUnavailable\(\)/g) ?? []).length >= 8);
+});
+
 test('Guide legal-grounding actions open only a source record returned for the active case', () => {
   assert.match(guideRuntimeProvider, /recordIds\.length === 1/);
   assert.match(guideRuntimeProvider, /caseState\.analysis\?\.legalKnowledge\.records\.some/);
