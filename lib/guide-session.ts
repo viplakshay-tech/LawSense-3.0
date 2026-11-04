@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import type { GuideActionName, GuideChatLanguage, GuideConversationTurn } from './api';
 
 export interface GuideSessionTurn {
@@ -17,18 +17,28 @@ export interface GuideSessionSnapshot {
   turns: GuideSessionTurn[];
   language: GuideChatLanguage;
   generation: number;
+  requestSequence: number;
+}
+
+export interface GuideSessionRequestToken {
+  generation: number;
+  sequence: number;
+  signal: AbortSignal;
 }
 
 const EMPTY_SNAPSHOT: GuideSessionSnapshot = Object.freeze({
   turns: [],
   language: 'english',
   generation: 0,
+  requestSequence: 0,
 });
 
 const MAX_VISIBLE_TURNS = 20;
 const MAX_HISTORY_TURNS = 8;
 const sessions = new Map<string, GuideSessionSnapshot>();
 const listeners = new Map<string, Set<() => void>>();
+const pendingRequests = new Map<string, AbortController>();
+let activeCaseId: string | null = null;
 
 function storageKey(caseId: string): string {
   return `lawsense:guide-session:v1:${caseId}`;
@@ -61,6 +71,9 @@ function readSession(caseId: string): GuideSessionSnapshot {
           language,
           generation: Number.isSafeInteger(parsed.generation) && (parsed.generation ?? 0) >= 0
             ? parsed.generation as number
+            : 0,
+          requestSequence: Number.isSafeInteger(parsed.requestSequence) && (parsed.requestSequence ?? 0) >= 0
+            ? parsed.requestSequence as number
             : 0,
         };
       }
@@ -109,6 +122,50 @@ export function isGuideSessionGenerationCurrent(caseId: string, generation: numb
   return Number.isSafeInteger(generation) && getGuideSessionGeneration(caseId) === generation;
 }
 
+/** Start a case-scoped turn and cancel any older text or voice request. */
+export function beginGuideSessionRequest(caseId: string): GuideSessionRequestToken {
+  const current = readSession(caseId);
+  if (!caseId) {
+    return { generation: current.generation, sequence: current.requestSequence, signal: new AbortController().signal };
+  }
+  pendingRequests.get(caseId)?.abort();
+  const controller = new AbortController();
+  pendingRequests.set(caseId, controller);
+  const wraps = current.requestSequence >= Number.MAX_SAFE_INTEGER;
+  const generation = wraps ? current.generation + 1 : current.generation;
+  const sequence = wraps ? 1 : current.requestSequence + 1;
+  publish(caseId, { ...current, generation, requestSequence: sequence });
+  return { generation, sequence, signal: controller.signal };
+}
+
+export function isGuideSessionRequestCurrent(
+  caseId: string,
+  request: GuideSessionRequestToken,
+): boolean {
+  const current = readSession(caseId);
+  return Number.isSafeInteger(request.generation)
+    && Number.isSafeInteger(request.sequence)
+    && current.generation === request.generation
+    && current.requestSequence === request.sequence
+    && !request.signal.aborted;
+}
+
+export function finishGuideSessionRequest(caseId: string, request: GuideSessionRequestToken): void {
+  if (pendingRequests.get(caseId)?.signal === request.signal) pendingRequests.delete(caseId);
+}
+
+/** Invalidate a pending request without clearing the visible conversation. */
+export function invalidateGuideSessionRequest(caseId: string): void {
+  if (!caseId) return;
+  const current = readSession(caseId);
+  pendingRequests.get(caseId)?.abort();
+  pendingRequests.delete(caseId);
+  publish(caseId, {
+    ...current,
+    requestSequence: current.requestSequence >= Number.MAX_SAFE_INTEGER ? 0 : current.requestSequence + 1,
+  });
+}
+
 export function appendGuideSessionTurn(caseId: string, turn: GuideSessionTurn): void {
   const current = readSession(caseId);
   publish(caseId, { ...current, turns: [...current.turns, turn].slice(-MAX_VISIBLE_TURNS) });
@@ -135,10 +192,13 @@ export function setGuideSessionLanguage(caseId: string, language: GuideChatLangu
 
 export function clearGuideSession(caseId: string): void {
   const current = readSession(caseId);
+  pendingRequests.get(caseId)?.abort();
+  pendingRequests.delete(caseId);
   publish(caseId, {
     turns: [],
     language: 'english',
     generation: current.generation + 1,
+    requestSequence: current.requestSequence >= Number.MAX_SAFE_INTEGER ? 0 : current.requestSequence + 1,
   });
 }
 
@@ -153,6 +213,15 @@ export function getGuideConversationHistory(caseId: string): GuideConversationTu
 }
 
 export function useGuideSession(caseId: string) {
+  useEffect(() => {
+    if (!caseId) return;
+    const previousActiveCaseId = activeCaseId;
+    if (previousActiveCaseId && previousActiveCaseId !== caseId) {
+      invalidateGuideSessionRequest(previousActiveCaseId);
+    }
+    activeCaseId = caseId;
+  }, [caseId]);
+
   const snapshot = useSyncExternalStore(
     useCallback((listener) => subscribe(caseId, listener), [caseId]),
     useCallback(() => readSession(caseId), [caseId]),
