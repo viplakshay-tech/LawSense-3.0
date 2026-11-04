@@ -338,6 +338,81 @@ class DocumentCompilerTests(unittest.TestCase):
                 legal_source_ids={"legal_text": "legal-source-unreviewed"},
             )
 
+    def test_legal_wording_rejects_stale_or_unreviewed_source_freshness(self) -> None:
+        for freshness_status, checked_at, evidence in (
+            ("stale", "2026-11-04T00:00:00+00:00", "Reviewed and found stale."),
+            ("unknown", None, None),
+            ("current", None, None),
+            ("current", "2026-11-04T00:00:00+00:00", None),
+        ):
+            with self.subTest(freshness_status=freshness_status, checked_at=checked_at, evidence=evidence):
+                case_state = make_case()
+                case_state.analysis = CaseAnalysis(
+                    safetyContext=SafetyContextSummary(context="none", confidence="high", urgency="none"),
+                    legalKnowledge=LegalKnowledgeSummary(status="records_found", records=[LegalKnowledgeRecordSummary(
+                        id="legal-source-freshness",
+                        title="Official Act source",
+                        type="legal_document",
+                        status="verified",
+                        reference="Act No. 12 of 2025, section 4",
+                        sourceUrl="https://example.gov/act",
+                        sourceVerificationStatus="verified",
+                        sourceFreshnessStatus=freshness_status,
+                        sourceFreshnessCheckedAt=checked_at,
+                        sourceFreshnessEvidence=evidence,
+                        jurisdictionMatchStatus="matched",
+                    )]),
+                    journey=JourneySummary(
+                        id="journey-1",
+                        caseId=case_state.id,
+                        currentSituation="Recorded dispute",
+                        jurisdictionStatus="known",
+                        legalKnowledgeStatus="available",
+                    ),
+                )
+
+                with self.assertRaisesRegex(ValueError, "current-source freshness review"):
+                    create_document_draft(
+                        case_state,
+                        "complaint-draft",
+                        field_values={"legal_text": "A provision applies."},
+                        legal_source_ids={"legal_text": "legal-source-freshness"},
+                    )
+
+    def test_legal_wording_rejects_unmatched_source_jurisdiction(self) -> None:
+        case_state = make_case()
+        case_state.analysis = CaseAnalysis(
+            safetyContext=SafetyContextSummary(context="none", confidence="high", urgency="none"),
+            legalKnowledge=LegalKnowledgeSummary(status="records_found", records=[LegalKnowledgeRecordSummary(
+                id="legal-source-wrong-jurisdiction",
+                title="State-specific Act source",
+                type="legal_document",
+                status="verified",
+                reference="Act No. 12 of 2025, section 4",
+                sourceUrl="https://example.gov/act",
+                sourceVerificationStatus="verified",
+                sourceFreshnessStatus="current",
+                sourceFreshnessCheckedAt="2026-11-04T00:00:00+00:00",
+                sourceFreshnessEvidence="Checked against the current official publication.",
+                jurisdictionMatchStatus="mismatch",
+            )]),
+            journey=JourneySummary(
+                id="journey-1",
+                caseId=case_state.id,
+                currentSituation="Recorded dispute",
+                jurisdictionStatus="known",
+                legalKnowledgeStatus="available",
+            ),
+        )
+
+        with self.assertRaisesRegex(ValueError, "source jurisdiction match"):
+            create_document_draft(
+                case_state,
+                "complaint-draft",
+                field_values={"legal_text": "A provision applies."},
+                legal_source_ids={"legal_text": "legal-source-wrong-jurisdiction"},
+            )
+
     def test_legal_wording_keeps_verified_source_provenance(self) -> None:
         case_state = make_case()
         case_state.analysis = CaseAnalysis(
@@ -350,6 +425,10 @@ class DocumentCompilerTests(unittest.TestCase):
                 reference="Act No. 12 of 2025, section 4",
                 sourceUrl="https://example.gov/act",
                 sourceVerificationStatus="verified",
+                sourceFreshnessStatus="current",
+                sourceFreshnessCheckedAt="2026-11-04T00:00:00+00:00",
+                sourceFreshnessEvidence="Checked against the current official publication for this regression fixture.",
+                jurisdictionMatchStatus="matched",
             )]),
             journey=JourneySummary(
                 id="journey-1",
