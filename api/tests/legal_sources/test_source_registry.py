@@ -101,6 +101,7 @@ def make_version(
         publication_date=date(2025, 12, 15),
         publisher_name="Fixture publisher",
         authority_tier=authority_tier or source.authority_tier,
+        verification_date=date(2026, 10, 8) if status is KnowledgeStatus.VERIFIED else None,
         verification_evidence=verification_evidence,
         freshness_status=freshness_status,
         freshness_checked_at=freshness_checked_at,
@@ -149,6 +150,7 @@ class LegalSourceRegistryTests(unittest.TestCase):
         )
 
         self.assertEqual(entry.source_type, SourceType.LEGISLATION)
+        self.assertEqual(entry.current_version.verification_date, date(2026, 10, 8))
         self.assertEqual(entry.title, "Fixture Act")
         self.assertEqual(entry.publisher_name, "Fixture publisher")
         self.assertEqual(entry.canonical_reference, "Fixture Act, section 1")
