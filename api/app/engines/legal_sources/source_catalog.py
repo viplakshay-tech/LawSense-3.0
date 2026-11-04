@@ -78,9 +78,26 @@ def _parse_record(raw: Any) -> SourceCatalogRecord:
         raise SourceCatalogError(f"{source_id}: title is required.")
     if not isinstance(official_url, str) or not official_url.strip():
         raise SourceCatalogError(f"{source_id}: officialUrl is required.")
-    parsed_url = urlsplit(official_url)
-    if parsed_url.scheme != "https" or not parsed_url.netloc:
-        raise SourceCatalogError(f"{source_id}: officialUrl must be an absolute HTTPS URL.")
+    try:
+        parsed_url = urlsplit(official_url)
+        host = parsed_url.hostname
+        port = parsed_url.port
+    except ValueError as exc:
+        raise SourceCatalogError(f"{source_id}: officialUrl is malformed.") from exc
+    official_host = bool(host) and (
+        host.casefold().endswith((".gov.in", ".nic.in", ".gov"))
+    )
+    if (
+        parsed_url.scheme != "https"
+        or not parsed_url.netloc
+        or not official_host
+        or parsed_url.username
+        or parsed_url.password
+        or port not in (None, 443)
+    ):
+        raise SourceCatalogError(
+            f"{source_id}: officialUrl must be HTTPS on an official government domain."
+        )
     if not isinstance(version, str) or not version.strip():
         raise SourceCatalogError(f"{source_id}: version is required.")
 
