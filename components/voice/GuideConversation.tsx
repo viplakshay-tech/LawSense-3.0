@@ -454,7 +454,7 @@ export default function GuideConversation({
     }
     if (!mountedRef.current) return;
     if (!isGuideTurnCurrent(caseId, turnToken)) {
-      transition('paused', 'A newer text or voice turn started. This older reply was discarded.');
+      transition('paused', 'The Guide session changed. This older reply was discarded.');
       return;
     }
     const responseId = createId('response');
