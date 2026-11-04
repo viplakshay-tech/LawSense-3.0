@@ -214,10 +214,7 @@ def check_local_model_status() -> LocalModelStatus:
             raise ValueError("invalid model list")
         installed = any(
             isinstance(item, dict)
-            and model in {
-                item.get("name"),
-                item.get("model"),
-            }
+            and (item.get("name") == model or item.get("model") == model)
             for item in models
         )
         if installed:
