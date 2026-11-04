@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
 import { validateGuideActionCommand } from '../../components/guide-actions/validation.ts';
 import { createGuideActionBridge } from '../../components/guide-actions/bridge.ts';
-import { beginGuideTurn, clearGuideSession, isGuideTurnCurrent } from '../../lib/guide-session.ts';
+import { beginGuideTurn, clearGuideSession, finishGuideTurn, getGuideSessionSnapshot, invalidateGuideTurn, isGuideTurnCurrent } from '../../lib/guide-session.ts';
 import { guideVoiceSnapshotForEvent } from '../../components/guide-runtime/voice-adapter/visual-state.ts';
 import {
   createGuideConversationResponse,
@@ -22,6 +22,7 @@ const legalSourceCandidates = await readFile(new URL('../../components/LegalSour
 const draftingStudio = await readFile(new URL('../../components/drafting/DraftingStudio.tsx', import.meta.url), 'utf8');
 const persistentLegalAdvisorySource = await readFile(new URL('../../components/case-shell/PersistentLegalAdvisory.tsx', import.meta.url), 'utf8');
 const guideSessionSource = await readFile(new URL('../../lib/guide-session.ts', import.meta.url), 'utf8');
+const guideApiSource = await readFile(new URL('../../lib/api.ts', import.meta.url), 'utf8');
 const voiceConversationSource = await readFile(new URL('../../components/voice/GuideConversation.tsx', import.meta.url), 'utf8');
 const guideControlSurfaceSource = await readFile(new URL('../../components/guide-presence/GuideControlSurface.tsx', import.meta.url), 'utf8');
 const persistentLegalAdvisory = await readFile(new URL('../../components/case-shell/PersistentLegalAdvisory.tsx', import.meta.url), 'utf8');
@@ -219,26 +220,46 @@ test('Guide opens Legal Advisory when there is no single source record to focus'
 });
 
 
-test('a newer Guide turn supersedes older in-flight replies across text and voice modes', () => {
+test('a newer Guide turn aborts older text and voice requests without crossing case boundaries', () => {
   const caseId = 'guide-turn-ordering-test';
   const otherCaseId = 'guide-turn-ordering-other-case';
+  clearGuideSession(caseId);
+  clearGuideSession(otherCaseId);
   const first = beginGuideTurn(caseId);
   const independent = beginGuideTurn(otherCaseId);
   const second = beginGuideTurn(caseId);
 
+  assert.equal(first.signal.aborted, true);
   assert.equal(isGuideTurnCurrent(caseId, first), false);
   assert.equal(isGuideTurnCurrent(caseId, second), true);
   assert.equal(isGuideTurnCurrent(otherCaseId, independent), true);
+  assert.equal(independent.signal.aborted, false);
+  assert.equal(getGuideSessionSnapshot(caseId).requestSequence, second.sequence);
+  finishGuideTurn(caseId, second);
+  assert.equal(second.signal.aborted, false);
+  const pendingAtClear = beginGuideTurn(caseId);
   clearGuideSession(caseId);
-  assert.equal(isGuideTurnCurrent(caseId, second), false);
+  assert.equal(pendingAtClear.signal.aborted, true);
+  assert.equal(isGuideTurnCurrent(caseId, pendingAtClear), false);
+
+  const switchedCaseRequest = beginGuideTurn(otherCaseId);
+  invalidateGuideTurn(otherCaseId);
+  assert.equal(switchedCaseRequest.signal.aborted, true);
+  assert.equal(isGuideTurnCurrent(otherCaseId, switchedCaseRequest), false);
 
   assert.match(guideSessionSource, /export function beginGuideTurn/);
-  assert.match(guideSessionSource, /export function isGuideTurnCurrent/);
-  assert.match(guideSessionSource, /turnSequences\.set\(caseId, 0\)/);
+  assert.match(guideSessionSource, /export function finishGuideTurn/);
+  assert.match(guideSessionSource, /export function invalidateGuideTurn/);
+  assert.match(guideSessionSource, /pendingTurnRequests\.get\(caseId\)\?\.abort\(\)/);
   assert.match(voiceConversationSource, /const turnToken = beginGuideTurn\(caseId\)/);
-  assert.match(voiceConversationSource, /!isGuideTurnCurrent\(caseId, turnToken\)/);
+  assert.match(voiceConversationSource, /turnToken\.signal/);
+  assert.match(voiceConversationSource, /finishGuideTurn\(caseId, turnToken\)/);
   assert.match(guideControlSurfaceSource, /const turnToken = beginGuideTurn\(caseId\)/);
-  assert.match(guideControlSurfaceSource, /!isGuideTurnCurrent\(caseId, turnToken\)/);
+  assert.match(guideControlSurfaceSource, /turnToken\.signal/);
+  assert.match(guideControlSurfaceSource, /finishGuideTurn\(caseId, turnToken\)/);
+  assert.match(guideControlSurfaceSource, /observedSessionRequestSequenceRef\.current === sessionRequestSequence/);
+  assert.match(guideApiSource, /sessionSignal\?: AbortSignal/);
+  assert.match(guideApiSource, /sessionSignal\?\.addEventListener\('abort', abortFromSession/);
 });
 
 test('voice conversation preserves an unavailable local assistant response status', () => {
@@ -266,11 +287,13 @@ test('Legal Advisory distinguishes catalog record status from source verificatio
   assert.match(persistentLegalAdvisorySource, /sourceApplicabilityStatus, 'applicability_not_established'\) !== 'potentially_relevant'/);
 });
 
-test('clearing the shared case session invalidates pending text Guide replies across routes', () => {
-  assert.match(guideControlSurfaceSource, /generation: sessionGeneration/);
+test('clearing the shared case session resets pending text Guide UI across routes', () => {
+  assert.match(guideControlSurfaceSource, /requestSequence: sessionRequestSequence/);
   assert.match(guideControlSurfaceSource, /beginGuideTurn\(caseId\)/);
   assert.match(guideControlSurfaceSource, /isGuideTurnCurrent\(caseId, turnToken\)/);
-  assert.match(guideControlSurfaceSource, /observedSessionGenerationRef\.current === sessionGeneration/);
+  assert.match(guideControlSurfaceSource, /observedSessionRequestSequenceRef\.current === sessionRequestSequence/);
+  assert.match(guideControlSurfaceSource, /activeSessionRequestRef\.current === sessionRequestSequence/);
+  assert.match(guideControlSurfaceSource, /clearSession\(\)/);
 });
 
 test('Guide workspace always exposes Legal Advisory based on information so far', () => {

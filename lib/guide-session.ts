@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import type { GuideActionName, GuideChatLanguage, GuideConversationTurn } from './api';
 
 export interface GuideSessionTurn {
@@ -17,12 +17,14 @@ export interface GuideSessionSnapshot {
   turns: GuideSessionTurn[];
   language: GuideChatLanguage;
   generation: number;
+  requestSequence: number;
 }
 
 const EMPTY_SNAPSHOT: GuideSessionSnapshot = Object.freeze({
   turns: [],
   language: 'english',
   generation: 0,
+  requestSequence: 0,
 });
 
 const MAX_VISIBLE_TURNS = 20;
@@ -30,6 +32,8 @@ const MAX_HISTORY_TURNS = 8;
 const sessions = new Map<string, GuideSessionSnapshot>();
 const listeners = new Map<string, Set<() => void>>();
 const turnSequences = new Map<string, number>();
+const pendingTurnRequests = new Map<string, AbortController>();
+let activeCaseId: string | null = null;
 
 function storageKey(caseId: string): string {
   return `lawsense:guide-session:v1:${caseId}`;
@@ -62,6 +66,9 @@ function readSession(caseId: string): GuideSessionSnapshot {
           language,
           generation: Number.isSafeInteger(parsed.generation) && (parsed.generation ?? 0) >= 0
             ? parsed.generation as number
+            : 0,
+          requestSequence: Number.isSafeInteger(parsed.requestSequence) && (parsed.requestSequence ?? 0) >= 0
+            ? parsed.requestSequence as number
             : 0,
         };
       }
@@ -113,21 +120,53 @@ export function isGuideSessionGenerationCurrent(caseId: string, generation: numb
 export interface GuideTurnToken {
   generation: number;
   sequence: number;
+  signal: AbortSignal;
 }
 
-/** A newer text or voice turn supersedes every older in-flight response for this case. */
+/** A newer text or voice turn supersedes and aborts every older request for this case. */
 export function beginGuideTurn(caseId: string): GuideTurnToken {
-  const sequence = (turnSequences.get(caseId) ?? 0) + 1;
+  const current = readSession(caseId);
+  if (!caseId) {
+    return { generation: current.generation, sequence: current.requestSequence, signal: new AbortController().signal };
+  }
+  pendingTurnRequests.get(caseId)?.abort();
+  const controller = new AbortController();
+  pendingTurnRequests.set(caseId, controller);
+  const previousSequence = Math.max(turnSequences.get(caseId) ?? 0, current.requestSequence);
+  const wraps = previousSequence >= Number.MAX_SAFE_INTEGER;
+  const generation = wraps ? current.generation + 1 : current.generation;
+  const sequence = wraps ? 1 : previousSequence + 1;
   turnSequences.set(caseId, sequence);
-  return { generation: getGuideSessionGeneration(caseId), sequence };
+  publish(caseId, { ...current, generation, requestSequence: sequence });
+  return { generation, sequence, signal: controller.signal };
 }
 
 export function isGuideTurnCurrent(caseId: string, token: GuideTurnToken): boolean {
+  const current = readSession(caseId);
   return Boolean(caseId)
     && Number.isSafeInteger(token.sequence)
     && token.sequence > 0
-    && token.generation === getGuideSessionGeneration(caseId)
-    && token.sequence === (turnSequences.get(caseId) ?? 0);
+    && token.generation === current.generation
+    && token.sequence === (turnSequences.get(caseId) ?? current.requestSequence)
+    && current.requestSequence === token.sequence
+    && !token.signal.aborted;
+}
+
+export function finishGuideTurn(caseId: string, token: GuideTurnToken): void {
+  if (pendingTurnRequests.get(caseId)?.signal === token.signal) {
+    pendingTurnRequests.delete(caseId);
+  }
+}
+
+/** Invalidate pending work when the active case changes without clearing its turns. */
+export function invalidateGuideTurn(caseId: string): void {
+  if (!caseId) return;
+  const current = readSession(caseId);
+  pendingTurnRequests.get(caseId)?.abort();
+  pendingTurnRequests.delete(caseId);
+  const nextSequence = current.requestSequence >= Number.MAX_SAFE_INTEGER ? 0 : current.requestSequence + 1;
+  turnSequences.set(caseId, nextSequence);
+  publish(caseId, { ...current, requestSequence: nextSequence });
 }
 
 export function appendGuideSessionTurn(caseId: string, turn: GuideSessionTurn): void {
@@ -156,11 +195,15 @@ export function setGuideSessionLanguage(caseId: string, language: GuideChatLangu
 
 export function clearGuideSession(caseId: string): void {
   const current = readSession(caseId);
-  turnSequences.set(caseId, 0);
+  pendingTurnRequests.get(caseId)?.abort();
+  pendingTurnRequests.delete(caseId);
+  const nextSequence = current.requestSequence >= Number.MAX_SAFE_INTEGER ? 0 : current.requestSequence + 1;
+  turnSequences.set(caseId, nextSequence);
   publish(caseId, {
     turns: [],
     language: 'english',
     generation: current.generation + 1,
+    requestSequence: nextSequence,
   });
 }
 
@@ -175,6 +218,13 @@ export function getGuideConversationHistory(caseId: string): GuideConversationTu
 }
 
 export function useGuideSession(caseId: string) {
+  useEffect(() => {
+    if (!caseId) return;
+    const previousActiveCaseId = activeCaseId;
+    if (previousActiveCaseId && previousActiveCaseId !== caseId) invalidateGuideTurn(previousActiveCaseId);
+    activeCaseId = caseId;
+  }, [caseId]);
+
   const snapshot = useSyncExternalStore(
     useCallback((listener) => subscribe(caseId, listener), [caseId]),
     useCallback(() => readSession(caseId), [caseId]),
