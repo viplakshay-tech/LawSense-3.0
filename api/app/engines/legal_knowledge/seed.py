@@ -47,9 +47,9 @@ class _SourceSeed:
     source_url: str
     reference: str
     version: str
-    verification_evidence: str | None
     publication_date: date
     effective_date: date | None
+    verification_evidence: str | None = None
     status: KnowledgeStatus = KnowledgeStatus.VERIFIED
     authority_tier: SourceAuthorityTier = SourceAuthorityTier.TIER_1_PRIMARY_OFFICIAL
     source_type: SourceType = SourceType.LEGISLATION
