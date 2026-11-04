@@ -462,7 +462,7 @@ class ServiceIntegrationTests(unittest.TestCase):
                 self.assertEqual(record.jurisdiction_label, "India, Uttarakhand")
                 self.assertEqual(record.jurisdiction_match_status, "unknown")
                 self.assertEqual(record.source_verification_status, "verified")
-                self.assertEqual(record.source_freshness_status, "unknown")
+                self.assertEqual(record.source_freshness_status, "current")
                 self.assertEqual(record.source_applicability_status, "applicability_not_established")
                 self.assertTrue(any("commencement" in (item.page_section_reference or "") for item in record.provenance))
                 self.assertEqual(stored.analysis.journey.case_id, stored.id)
@@ -493,7 +493,7 @@ class ServiceIntegrationTests(unittest.TestCase):
         self.assertEqual(record.jurisdiction_match_status, "mismatch")
         self.assertEqual(record.status, "verified")
         self.assertEqual(record.source_verification_status, "verified")
-        self.assertEqual(record.source_freshness_status, "unknown")
+        self.assertEqual(record.source_freshness_status, "current")
         self.assertEqual(record.source_applicability_status, "applicability_not_established")
         self.assertTrue(any(
             item.subject == "jurisdiction_specific_conclusion"
