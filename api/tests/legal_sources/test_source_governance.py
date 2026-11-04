@@ -113,6 +113,7 @@ class SourceGovernanceTests(unittest.TestCase):
                 "source_type",
                 "official_reference or source_url or reference",
                 "retrieved_at",
+                "verification_date",
             ),
         )
 
@@ -123,6 +124,12 @@ class SourceGovernanceTests(unittest.TestCase):
                     verification_status=SourceVerificationStatus.VERIFIED,
                     verification_evidence="Reviewer supplied evidence",
                 )
+            )
+
+    def test_verified_source_requires_a_verification_date(self) -> None:
+        with self.assertRaisesRegex(SourceGovernanceValidationError, "verification_date"):
+            validate_governed_source(
+                make_verified_source(verification_date=None)
             )
 
     def test_verification_requires_evidence_even_when_other_metadata_is_complete(self) -> None:
