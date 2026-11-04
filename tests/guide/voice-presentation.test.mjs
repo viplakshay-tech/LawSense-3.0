@@ -301,6 +301,7 @@ test('Legal Advisory is a distinct always-available Guide action', () => {
   assert.match(guideRuntimeProvider, /case 'OPEN_LEGAL_ADVISORY':\s*return \{ type: 'openLegalAdvisory' \}/);
   assert.match(guideClientSource, /case 'OPEN_LEGAL_ADVISORY'/);
   assert.match(guideControlSurfaceSource, /case 'OPEN_LEGAL_ADVISORY'/);
+  assert.match(voiceConversationSource, /proposedAction\.type === 'OPEN_LEGAL_ADVISORY' \? 'Legal Advisory'/);
   assert.match(localAssistantSource, /OPEN_LEGAL_ADVISORY/);
   assert.match(guideRouteSource, /OPEN_LEGAL_ADVISORY/);
   assert.match(apiClientSource, /'OPEN_LEGAL_ADVISORY'/);
