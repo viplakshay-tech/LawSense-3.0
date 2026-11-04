@@ -68,7 +68,7 @@ The backend exposes `GET /guide/status`. It checks the loopback Ollama `/api/tag
 - `available` means the Ollama API responds and the configured model is installed; the first chat response may still take longer while the model loads.
 - `model_missing` includes the exact `ollama pull` command for the configured model.
 
-## 4. What happens when the model is unavailable
+## 5. What happens when the model is unavailable
 
 - The Guide reports that the local assistant is unavailable.
 - It does not silently fall back to a cloud model.
