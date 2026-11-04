@@ -409,7 +409,7 @@ test('dedicated voice statement drafts enter shared Guide history only after suc
   assert.ok(rejectionIndex > acceptedIndex);
   assert.ok(appendIndex > rejectionIndex);
   assert.ok(pendingCommitIndex > appendIndex);
-  assert.match(voiceCaseClientSource, /role: 'user',[\s\S]*?content: committedTranscript\.trim\(\),[\s\S]*?inputMode,/);
+  assert.match(voiceCaseClientSource, /role: 'user',[\s\S]*?content: committedTranscript\.trim\(\),[\s\S]*?inputMode: 'voice'/);
   assert.match(voiceCaseClientSource, /role: 'assistant',[\s\S]*?I have added this statement to the case after your confirmation/);
   assert.match(voiceCaseClientSource, /const \{ language: sessionLanguage, setLanguage: setSessionLanguage, appendTurn \} = useGuideSession\(id\)/);
 });
