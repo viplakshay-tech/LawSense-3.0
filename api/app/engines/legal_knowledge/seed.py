@@ -8,8 +8,9 @@ legal-source registry.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, datetime, timezone
+from pathlib import Path
 
 from app.engines.legal_knowledge.models import (
     Authority,
@@ -25,6 +26,7 @@ from app.engines.legal_knowledge.models import (
 )
 from app.engines.legal_knowledge.store import InMemoryLegalKnowledgeStore
 from app.engines.legal_sources import LegalSourceRegistry, RegistrySourceVersion, SourceFreshnessStatus, SourceType
+from app.engines.legal_sources.source_catalog import SourceCatalogError, SourceCatalogRecord, load_source_catalog
 
 
 _VERIFIED_AT = datetime(2026, 10, 7, 21, 1, 55, tzinfo=timezone.utc)
@@ -45,9 +47,10 @@ class _SourceSeed:
     source_url: str
     reference: str
     version: str
-    verification_evidence: str
+    verification_evidence: str | None
     publication_date: date
     effective_date: date | None
+    status: KnowledgeStatus = KnowledgeStatus.VERIFIED
     authority_tier: SourceAuthorityTier = SourceAuthorityTier.TIER_1_PRIMARY_OFFICIAL
     source_type: SourceType = SourceType.LEGISLATION
     jurisdiction_id: str = _INDIA_JURISDICTION_ID
@@ -368,13 +371,46 @@ _PROVISIONS = (
 )
 
 
-def build_authoritative_legal_knowledge_seed() -> InMemoryLegalKnowledgeStore:
-    """Create a fresh deterministic repository containing the verified seed."""
+def _apply_source_catalog_record(
+    spec: _SourceSeed,
+    record: SourceCatalogRecord | None,
+) -> _SourceSeed:
+    if record is None:
+        raise SourceCatalogError(f"Seed source is missing from the source catalog: {spec.id}")
+    if record.title != spec.title:
+        raise SourceCatalogError(f"{spec.id}: catalog title does not match the curated source.")
+    if record.official_url != spec.source_url:
+        raise SourceCatalogError(f"{spec.id}: catalog officialUrl does not match the curated source.")
+    status = (
+        KnowledgeStatus.VERIFIED
+        if record.verification_status == "verified_official"
+        else KnowledgeStatus.UNVERIFIED
+    )
+    return replace(
+        spec,
+        status=status,
+        verification_evidence=record.verification_evidence,
+        retrieved_at=record.retrieved_at or spec.retrieved_at or _VERIFIED_AT,
+        freshness_status=record.freshness_status,
+        freshness_checked_at=record.freshness_checked_at,
+        freshness_evidence=record.freshness_evidence,
+    )
 
-    source_by_id = {source.id: source for source in _SOURCES}
+
+def build_authoritative_legal_knowledge_seed(
+    source_catalog_path: Path | None = None,
+) -> InMemoryLegalKnowledgeStore:
+    """Create a deterministic repository whose governance state comes from the reviewed catalog."""
+
+    catalog = load_source_catalog(source_catalog_path)
+    effective_sources = tuple(
+        _apply_source_catalog_record(spec, catalog.get(spec.id))
+        for spec in effective_sources
+    )
+    source_by_id = {source.id: source for source in effective_sources}
     authority_source_refs: dict[str, list[SourceReference]] = {}
     jurisdiction_refs = []
-    for spec in _SOURCES:
+    for spec in effective_sources:
         retrieved_at = spec.retrieved_at or _VERIFIED_AT
         reference = SourceReference(
             source_id=spec.id,
@@ -423,7 +459,7 @@ def build_authoritative_legal_knowledge_seed() -> InMemoryLegalKnowledgeStore:
         ),
         status=KnowledgeStatus.VERIFIED,
         provenance=tuple(
-            reference for spec, reference in zip(_SOURCES, jurisdiction_refs)
+            reference for spec, reference in zip(effective_sources, jurisdiction_refs)
             if spec.jurisdiction_id == _INDIA_JURISDICTION_ID
         ),
     )
@@ -439,7 +475,7 @@ def build_authoritative_legal_knowledge_seed() -> InMemoryLegalKnowledgeStore:
         ),
         status=KnowledgeStatus.UNVERIFIED,
         provenance=tuple(
-            reference for spec, reference in zip(_SOURCES, jurisdiction_refs)
+            reference for spec, reference in zip(effective_sources, jurisdiction_refs)
             if spec.jurisdiction_id == _UTTARAKHAND_JURISDICTION_ID
         ),
     )
@@ -448,7 +484,7 @@ def build_authoritative_legal_knowledge_seed() -> InMemoryLegalKnowledgeStore:
     store.add_many((parliament, uttarakhand_assembly, pib, labour_ministry, india, uttarakhand))
     registry = LegalSourceRegistry(store)
 
-    for spec in _SOURCES:
+    for spec in effective_sources:
         retrieved_at = spec.retrieved_at or _VERIFIED_AT
         source_reference = SourceReference(
             source_id=spec.id,
@@ -465,7 +501,7 @@ def build_authoritative_legal_knowledge_seed() -> InMemoryLegalKnowledgeStore:
             version=spec.version,
             effective_from=spec.effective_date,
             retrieved_at=retrieved_at,
-            status=KnowledgeStatus.VERIFIED,
+            status=spec.status,
             provenance=(source_reference,),
             authority_tier=spec.authority_tier,
             publisher_name=spec.publisher_name,
@@ -482,7 +518,7 @@ def build_authoritative_legal_knowledge_seed() -> InMemoryLegalKnowledgeStore:
                 version=spec.version,
                 effective_from=spec.effective_date,
                 retrieved_at=retrieved_at,
-                status=KnowledgeStatus.VERIFIED,
+                status=spec.status,
                 provenance=(source_reference,),
                 source_type=spec.source_type,
                 canonical_reference=spec.reference,
@@ -497,7 +533,7 @@ def build_authoritative_legal_knowledge_seed() -> InMemoryLegalKnowledgeStore:
         )
 
     document_by_source: dict[str, LegalDocument] = {}
-    for spec in _SOURCES:
+    for spec in effective_sources:
         retrieved_at = spec.retrieved_at or _VERIFIED_AT
         document_id = f"document-{spec.id.removeprefix('source-')}"
         document_by_source[spec.id] = LegalDocument(
@@ -510,7 +546,7 @@ def build_authoritative_legal_knowledge_seed() -> InMemoryLegalKnowledgeStore:
             version=spec.version,
             effective_from=spec.effective_date,
             retrieved_at=retrieved_at,
-            status=KnowledgeStatus.VERIFIED,
+            status=spec.status,
             search_text=f"{spec.title} {spec.reference} {spec.version}",
             document_kind=(
                 "official legislation"
@@ -584,7 +620,7 @@ def build_authoritative_legal_knowledge_seed() -> InMemoryLegalKnowledgeStore:
             version=source.version,
             effective_from=source.effective_date,
             retrieved_at=source_retrieved_at,
-            status=KnowledgeStatus.VERIFIED,
+            status=source.status,
             search_text=spec.search_text,
             document_id=document.id,
             provision_reference=spec.reference,
