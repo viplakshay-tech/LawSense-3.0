@@ -105,9 +105,15 @@ class AuthoritativeLegalKnowledgeSeedTests(unittest.TestCase):
                 self.assertIsNotNone(version.authority_tier)
                 self.assertTrue(version.canonical_reference)
                 self.assertTrue(version.provenance)
-                self.assertEqual(version.freshness_status, SourceFreshnessStatus.UNKNOWN)
-                self.assertIsNone(version.freshness_checked_at)
-                self.assertIsNone(version.freshness_evidence)
+                if version.source == "source-india-code-code-on-wages-2019":
+                    self.assertEqual(version.freshness_status, SourceFreshnessStatus.STALE)
+                    self.assertIsNotNone(version.freshness_checked_at)
+                    self.assertIn("S.O. 454(E)", version.freshness_evidence or "")
+                    self.assertIn("https://egazette.gov.in/WriteReadData/2026/269705.pdf", version.freshness_evidence or "")
+                else:
+                    self.assertEqual(version.freshness_status, SourceFreshnessStatus.UNKNOWN)
+                    self.assertIsNone(version.freshness_checked_at)
+                    self.assertIsNone(version.freshness_evidence)
                 entry = registry.get(version.source)
                 self.assertIsNotNone(entry)
                 self.assertTrue(entry.canonical_reference)
@@ -175,6 +181,14 @@ class AuthoritativeLegalKnowledgeSeedTests(unittest.TestCase):
             and "S.O. 5322(E)" in (ref.page_section_reference or "")
             for ref in wages.provenance
         ))
+        wages_snapshot = next(
+            item for item in self.store.items
+            if isinstance(item, RegistrySourceVersion)
+            and item.source == "source-india-code-code-on-wages-2019"
+        )
+        self.assertIn("as on 2025-11-21", wages_snapshot.version)
+        self.assertEqual(wages_snapshot.freshness_status, SourceFreshnessStatus.STALE)
+        self.assertIn("S.O. 454(E)", wages_snapshot.freshness_evidence or "")
         housing_source = self.store.get("source-indiacode-uttarakhand-tenancy-act-2021")
         self.assertEqual(
             housing_source.source_url,
@@ -259,7 +273,18 @@ class AuthoritativeLegalKnowledgeSeedTests(unittest.TestCase):
                 source = sources[source_id]
                 self.assertEqual(source["verificationStatus"], "verified_official")
                 self.assertEqual(source["verificationDate"], "2026-11-04")
-                self.assertEqual(source["freshnessStatus"], "unknown")
+                expected_freshness = (
+                    "stale"
+                    if source_id == "source-india-code-code-on-wages-2019"
+                    else "unknown"
+                )
+                self.assertEqual(source["freshnessStatus"], expected_freshness)
+                if expected_freshness == "stale":
+                    self.assertEqual(source["freshnessCheckedAt"], "2026-11-04T13:20:08+05:30")
+                    self.assertIn("S.O. 454(E)", source["freshnessEvidence"])
+                else:
+                    self.assertIsNone(source["freshnessCheckedAt"])
+                    self.assertIsNone(source["freshnessEvidence"])
                 self.assertIn("matched", source["verificationNote"].lower())
 
 

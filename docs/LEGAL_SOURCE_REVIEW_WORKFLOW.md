@@ -48,6 +48,12 @@ python scripts/review_legal_source.py `
   --evidence "The official record includes a later amendment/notification not reflected in the local snapshot; the affected sections and commencement need to be reconciled."
 ```
 
+## Known stale snapshot (reviewed 2026-11-04)
+
+The catalog marks `source-india-code-code-on-wages-2019` as `stale`. The India Code consolidated PDF is labelled as on 21 November 2025 and still contains the ₹15,000/month wording in section 2(z)(d). Gazette S.O. 454(E), dated 30 January 2026, sets the supervisory-worker ceiling at ₹18,000/month. The exact Gazette PDF is recorded in the catalog's `freshnessEvidence`.
+
+Keep this source stale until the local consolidated snapshot and affected provision metadata are updated and reviewed against the official publication. Do not infer that the separate 2025 commencement Gazette is stale; it is a distinct source record.
+
 ## Reset to unknown
 
 If the review cannot be substantiated, clear the freshness review and keep the source unavailable for legal drafting:
