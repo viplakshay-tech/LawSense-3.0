@@ -239,7 +239,7 @@ def check_local_model_status() -> LocalModelStatus:
         return LocalModelStatus(
             status="unavailable",
             model=model,
-            reachable=False,
+            reachable=True,
             model_available=False,
             message="The local service did not return an Ollama model list. Check that Ollama is running.",
         )
