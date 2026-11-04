@@ -272,6 +272,7 @@ export interface LegalKnowledgeRecordSummary {
   authorityTier?: string | null;
   provenance: LegalKnowledgeProvenance[];
   sourceVerificationStatus?: string | null;
+  sourceVerificationDate?: string | null;
   sourceVerificationEvidence?: string | null;
   sourceFreshnessStatus?: string | null;
   sourceFreshnessCheckedAt?: string | null;
