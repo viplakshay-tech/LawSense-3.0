@@ -1,7 +1,7 @@
 """Persistent, human-reviewed legal source catalog metadata.
 
 This module never fetches or verifies a source over the network. It only
-validates and records review evidence supplied by an authorized maintainer.
+validates and records review evidence supplied by a maintainer.
 """
 
 from __future__ import annotations
