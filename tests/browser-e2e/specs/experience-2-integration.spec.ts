@@ -475,3 +475,34 @@ test('Guide workspace opens the current case Legal Advisory from its quick switc
   await expect(advisory.getByRole('heading', { name: 'Legal Advisory' })).toBeVisible();
   await expect(advisory).toContainText('Based on information recorded so far');
 });
+
+test('Legal Advisory traps keyboard focus and restores it to the opener', async ({ page }) => {
+  await enterCase(page);
+  const trigger = page.getByRole('button', {
+    name: 'Open Legal Advisory based on information recorded so far',
+  });
+  await trigger.focus();
+  await trigger.click();
+
+  const dialog = page.getByRole('dialog', { name: 'Legal Advisory' });
+  await expect(dialog).toBeVisible();
+  // The close control is a stable initial-focus target while refresh loads.
+  const close = dialog.getByRole('button', { name: 'Close legal advisory' });
+  await expect(close).toBeFocused();
+  await expect(dialog.getByRole('button', { name: 'Refresh legal advisory' })).toBeEnabled();
+  const focusable = dialog.locator(
+    'button:not([disabled]):visible, a[href]:visible, input:not([disabled]):visible, select:not([disabled]):visible, textarea:not([disabled]):visible, [tabindex]:not([tabindex="-1"]):visible',
+  );
+  const first = focusable.first();
+  const last = focusable.last();
+
+  await last.focus();
+  await page.keyboard.press('Tab');
+  await expect(first).toBeFocused();
+  await page.keyboard.press('Shift+Tab');
+  await expect(last).toBeFocused();
+
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await expect(trigger).toBeFocused();
+});
