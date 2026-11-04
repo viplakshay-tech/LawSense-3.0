@@ -7,8 +7,8 @@ import { Activity, ArrowLeft, ChevronDown, ChevronUp, CircleHelp, Loader2, Messa
 import { guidePresenceStateFromSnapshot, useGuideRuntime } from '@/components/guide-runtime';
 import { sendGuideMessage, type GuideActionName, type GuideChatLanguage } from '@/lib/api';
 import {
-  getGuideSessionGeneration,
-  isGuideSessionGenerationCurrent,
+  beginGuideTurn,
+  isGuideTurnCurrent,
   useGuideSession,
 } from '@/lib/guide-session';
 import type { GuideAction } from '@/components/guide-runtime/types';
@@ -103,7 +103,7 @@ export function GuideConversationPanel({
 
     chatInFlightRef.current = true;
     const requestToken = ++chatRequestSequenceRef.current;
-    const requestGeneration = getGuideSessionGeneration(caseId);
+    const turnToken = beginGuideTurn(caseId);
     setChatDraft('');
     setChatSending(true);
     setChatError(null);
@@ -127,10 +127,11 @@ export function GuideConversationPanel({
         history,
         availableActions,
       );
-      if (
-        requestToken !== chatRequestSequenceRef.current
-        || !isGuideSessionGenerationCurrent(caseId, requestGeneration)
-      ) return;
+      if (requestToken !== chatRequestSequenceRef.current) return;
+      if (!isGuideTurnCurrent(caseId, turnToken)) {
+        dispatch({ type: 'GUIDE_RESET' });
+        return;
+      }
 
       if (response.status === 'ok') {
         dispatch({
@@ -155,7 +156,7 @@ export function GuideConversationPanel({
     } catch {
       if (
         requestToken === chatRequestSequenceRef.current
-        && isGuideSessionGenerationCurrent(caseId, requestGeneration)
+        && isGuideTurnCurrent(caseId, turnToken)
       ) {
         dispatch({
           type: 'GUIDE_ERROR',

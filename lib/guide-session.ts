@@ -29,6 +29,7 @@ const MAX_VISIBLE_TURNS = 20;
 const MAX_HISTORY_TURNS = 8;
 const sessions = new Map<string, GuideSessionSnapshot>();
 const listeners = new Map<string, Set<() => void>>();
+const turnSequences = new Map<string, number>();
 
 function storageKey(caseId: string): string {
   return `lawsense:guide-session:v1:${caseId}`;
@@ -109,6 +110,26 @@ export function isGuideSessionGenerationCurrent(caseId: string, generation: numb
   return Number.isSafeInteger(generation) && getGuideSessionGeneration(caseId) === generation;
 }
 
+export interface GuideTurnToken {
+  generation: number;
+  sequence: number;
+}
+
+/** A newer text or voice turn supersedes every older in-flight response for this case. */
+export function beginGuideTurn(caseId: string): GuideTurnToken {
+  const sequence = (turnSequences.get(caseId) ?? 0) + 1;
+  turnSequences.set(caseId, sequence);
+  return { generation: getGuideSessionGeneration(caseId), sequence };
+}
+
+export function isGuideTurnCurrent(caseId: string, token: GuideTurnToken): boolean {
+  return Boolean(caseId)
+    && Number.isSafeInteger(token.sequence)
+    && token.sequence > 0
+    && token.generation === getGuideSessionGeneration(caseId)
+    && token.sequence === (turnSequences.get(caseId) ?? 0);
+}
+
 export function appendGuideSessionTurn(caseId: string, turn: GuideSessionTurn): void {
   const current = readSession(caseId);
   publish(caseId, { ...current, turns: [...current.turns, turn].slice(-MAX_VISIBLE_TURNS) });
@@ -135,6 +156,7 @@ export function setGuideSessionLanguage(caseId: string, language: GuideChatLangu
 
 export function clearGuideSession(caseId: string): void {
   const current = readSession(caseId);
+  turnSequences.set(caseId, 0);
   publish(caseId, {
     turns: [],
     language: 'english',
