@@ -220,7 +220,7 @@ test('Guide opens Legal Advisory when there is no single source record to focus'
   assert.equal(opened, 1);
   assert.match(guideRuntimeProvider, /recordIds\.length === 1[\s\S]*?openLegalGrounding[\s\S]*?: \{ type: 'openLegalAdvisory' \}/);
   assert.match(persistentLegalAdvisory, /addEventListener\(OPEN_LEGAL_ADVISORY_EVENT, openFromGuide\)/);
-  assert.match(persistentLegalAdvisory, /const openFromGuide = \(\) => \{\s*setOpen\(true\);\s*\};/);
+  assert.match(persistentLegalAdvisory, /const openFromGuide = \(\) => \{\s*if \(document\.activeElement instanceof HTMLElement\) \{\s*previousFocusRef\.current = document\.activeElement;\s*\}\s*setOpen\(true\);\s*\};/);
   assert.match(persistentLegalAdvisory, /if \(!open\) return;\s*const frame = window\.requestAnimationFrame\(\(\) => \{\s*void loadAdvisory\(\);/);
 });
 
