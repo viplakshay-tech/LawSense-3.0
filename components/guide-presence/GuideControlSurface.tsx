@@ -7,8 +7,9 @@ import { Activity, ArrowLeft, ChevronDown, ChevronUp, CircleHelp, Loader2, Messa
 import { guidePresenceStateFromSnapshot, useGuideRuntime } from '@/components/guide-runtime';
 import { sendGuideMessage, type GuideActionName, type GuideChatLanguage } from '@/lib/api';
 import {
-  getGuideSessionGeneration,
-  isGuideSessionGenerationCurrent,
+  beginGuideSessionRequest,
+  finishGuideSessionRequest,
+  isGuideSessionRequestCurrent,
   useGuideSession,
 } from '@/lib/guide-session';
 import type { GuideAction } from '@/components/guide-runtime/types';
@@ -65,7 +66,7 @@ export function GuideConversationPanel({
     turns,
     language: chatLanguage,
     history,
-    generation: sessionGeneration,
+    requestSequence: sessionRequestSequence,
     appendTurn,
     setLanguage: setChatLanguage,
     clear: clearSession,
@@ -82,11 +83,17 @@ export function GuideConversationPanel({
   const [chatError, setChatError] = useState<string | null>(null);
   const chatRequestSequenceRef = useRef(0);
   const chatInFlightRef = useRef(false);
-  const observedSessionGenerationRef = useRef(sessionGeneration);
+  const activeSessionRequestRef = useRef<number | null>(null);
+  const observedSessionRequestSequenceRef = useRef(sessionRequestSequence);
 
   useEffect(() => {
-    if (observedSessionGenerationRef.current === sessionGeneration) return;
-    observedSessionGenerationRef.current = sessionGeneration;
+    if (observedSessionRequestSequenceRef.current === sessionRequestSequence) return;
+    observedSessionRequestSequenceRef.current = sessionRequestSequence;
+    if (
+      activeSessionRequestRef.current === null
+      || activeSessionRequestRef.current === sessionRequestSequence
+    ) return;
+    activeSessionRequestRef.current = null;
     chatRequestSequenceRef.current += 1;
     chatInFlightRef.current = false;
     const resetFrame = window.requestAnimationFrame(() => {
@@ -94,7 +101,7 @@ export function GuideConversationPanel({
       setChatError(null);
     });
     return () => window.cancelAnimationFrame(resetFrame);
-  }, [sessionGeneration]);
+  }, [sessionRequestSequence]);
 
   async function handleChatSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -103,7 +110,8 @@ export function GuideConversationPanel({
 
     chatInFlightRef.current = true;
     const requestToken = ++chatRequestSequenceRef.current;
-    const requestGeneration = getGuideSessionGeneration(caseId);
+    const sessionRequest = beginGuideSessionRequest(caseId);
+    activeSessionRequestRef.current = sessionRequest.sequence;
     setChatDraft('');
     setChatSending(true);
     setChatError(null);
@@ -126,10 +134,11 @@ export function GuideConversationPanel({
         caseId,
         history,
         availableActions,
+        sessionRequest.signal,
       );
       if (
         requestToken !== chatRequestSequenceRef.current
-        || !isGuideSessionGenerationCurrent(caseId, requestGeneration)
+        || !isGuideSessionRequestCurrent(caseId, sessionRequest)
       ) return;
 
       if (response.status === 'ok') {
@@ -155,7 +164,7 @@ export function GuideConversationPanel({
     } catch {
       if (
         requestToken === chatRequestSequenceRef.current
-        && isGuideSessionGenerationCurrent(caseId, requestGeneration)
+        && isGuideSessionRequestCurrent(caseId, sessionRequest)
       ) {
         dispatch({
           type: 'GUIDE_ERROR',
@@ -164,7 +173,11 @@ export function GuideConversationPanel({
         setChatError('The local Guide service could not be reached. No cloud fallback was used. Try again or use the existing case actions.');
       }
     } finally {
+      finishGuideSessionRequest(caseId, sessionRequest);
       if (requestToken === chatRequestSequenceRef.current) {
+        if (activeSessionRequestRef.current === sessionRequest.sequence) {
+          activeSessionRequestRef.current = null;
+        }
         chatInFlightRef.current = false;
         setChatSending(false);
       }
@@ -173,6 +186,7 @@ export function GuideConversationPanel({
 
   function clearChat() {
     chatRequestSequenceRef.current += 1;
+    activeSessionRequestRef.current = null;
     dispatch({ type: 'GUIDE_RESET' });
     chatInFlightRef.current = false;
     clearSession();
