@@ -12,6 +12,19 @@ The source catalog at `data/knowledge/source_catalog/sources.json` is the persis
 4. Record the exact source version and the retrieval/review times. Include what was checked and what was not checked in the evidence.
 5. Commit the source catalog change and any necessary seed-text/provision corrections together. Have the review evidence checked before merging.
 
+## Record an identity review
+
+After manually matching the exact title, issuing authority and Act/citation against the official primary publication, record the review date and what was checked:
+
+```powershell
+python scripts/verify_legal_source.py `
+  --source-id "source-india-code-consumer-protection-act-2019" `
+  --verification-date "2026-11-04" `
+  --evidence "Matched the Act title, Act number, issuing authority and official India Code record against the primary publication."
+```
+
+This command records only the maintainer-supplied identity review. It does not fetch the source, verify the evidence independently, or mark freshness as current. Freshness remains a separate review.
+
 ## Record a current review
 
 Use this only when the local LawSense source snapshot has been retrieved from the official source and compared with the current official publication.
