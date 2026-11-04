@@ -55,7 +55,7 @@ class LegalSourceCatalogTests(unittest.TestCase):
             path = self._write_catalog(directory, verified=False)
             reviewed = record_source_identity_review(
                 "source-test-act",
-                verification_date=date(2026, 11, 4),
+                verification_date=date(2026, 11, 3),
                 evidence=(
                     "Matched the exact Act title, Act number and issuing authority "
                     "against the official Government of India publication."
@@ -64,11 +64,13 @@ class LegalSourceCatalogTests(unittest.TestCase):
             )
 
             self.assertEqual(reviewed.verification_status, "verified_official")
-            self.assertEqual(reviewed.verification_date, date(2026, 11, 4))
+            self.assertEqual(reviewed.verification_date, date(2026, 11, 3))
             self.assertIn("Matched the exact Act title", reviewed.verification_evidence or "")
             self.assertEqual(reviewed.freshness_status, SourceFreshnessStatus.UNKNOWN)
             self.assertIsNone(reviewed.freshness_checked_at)
             self.assertIsNone(reviewed.freshness_evidence)
+            saved_catalog = json.loads(path.read_text(encoding="utf-8"))
+            self.assertEqual(saved_catalog["catalogVersion"], "2026-11-04")
 
     def test_identity_review_date_cannot_move_backwards(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
