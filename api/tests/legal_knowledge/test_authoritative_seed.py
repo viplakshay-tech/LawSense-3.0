@@ -275,11 +275,19 @@ class AuthoritativeLegalKnowledgeSeedTests(unittest.TestCase):
                 self.assertEqual(source["verificationDate"], "2026-11-04")
                 expected_freshness = (
                     "stale"
-                    if source_id == "source-india-code-code-on-wages-2019"
+                    if source_id in {
+                        "source-india-code-consumer-protection-act-2019",
+                        "source-india-code-code-on-wages-2019",
+                    }
                     else "unknown"
                 )
                 self.assertEqual(source["freshnessStatus"], expected_freshness)
-                if expected_freshness == "stale":
+                if source_id == "source-india-code-consumer-protection-act-2019":
+                    self.assertEqual(source["freshnessCheckedAt"], "2026-11-04T13:51:00+05:30")
+                    self.assertIn("Mediation Act, 2023", source["freshnessEvidence"])
+                    self.assertIn("S.O. 4506(E)", source["freshnessEvidence"])
+                    self.assertIn("Tenth Schedule", source["freshnessEvidence"])
+                elif source_id == "source-india-code-code-on-wages-2019":
                     self.assertEqual(source["freshnessCheckedAt"], "2026-11-04T13:20:08+05:30")
                     self.assertIn("S.O. 454(E)", source["freshnessEvidence"])
                 else:
@@ -299,18 +307,19 @@ class AuthoritativeLegalKnowledgeSeedTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             temporary_catalog = Path(directory) / "sources.json"
             shutil.copyfile(catalog_path, temporary_catalog)
-            checked_at = datetime(2026, 11, 4, 7, 10, tzinfo=timezone.utc)
+            checked_at = datetime(2026, 11, 4, 8, 30, tzinfo=timezone.utc)
             evidence = (
-                "Reviewed the current consolidated Act text, published amendments and "
-                "commencement notifications against the official India Code record."
+                "Reviewed the current consolidated Act text, including the Mediation Act "
+                "2023 Tenth Schedule changes and the S.O. 4506(E) correction, against the "
+                "official India Code record and applicable commencement notifications."
             )
             record_source_freshness_review(
                 "source-india-code-consumer-protection-act-2019",
                 SourceFreshnessStatus.CURRENT,
                 checked_at=checked_at,
                 evidence=evidence,
-                retrieved_at=datetime(2026, 11, 4, 7, 0, tzinfo=timezone.utc),
-                version="Act No. 35 of 2019; India Code record 123456789/16103",
+                retrieved_at=datetime(2026, 11, 4, 8, 25, tzinfo=timezone.utc),
+                version="Act No. 35 of 2019; India Code record 123456789/16103; updated consolidated snapshot",
                 path=temporary_catalog,
             )
 
