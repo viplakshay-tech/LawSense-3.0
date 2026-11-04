@@ -506,3 +506,26 @@ test('Legal Advisory traps keyboard focus and restores it to the opener', async 
   await expect(dialog).toHaveCount(0);
   await expect(trigger).toBeFocused();
 });
+
+
+test('Guide shows local model readiness and a local install command', async ({ page }) => {
+  await page.route('**/guide/status', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        status: 'model_missing',
+        model: 'qwen3.5:4b-q4_K_M',
+        reachable: true,
+        model_available: false,
+        message: "The local model 'qwen3.5:4b-q4_K_M' is not installed. Run: ollama pull qwen3.5:4b-q4_K_M",
+      }),
+    });
+  });
+
+  await enterCase(page);
+  await page.getByRole('button', { name: 'Expand Guide control surface' }).click();
+  await expect(page.getByText(/Model not installed/)).toBeVisible();
+  await expect(page.getByText(/ollama pull qwen3\.5:4b-q4_K_M/)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Check local Guide model status again' })).toBeEnabled();
+});
