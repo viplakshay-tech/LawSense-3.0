@@ -389,6 +389,7 @@ def _apply_source_catalog_record(
     return replace(
         spec,
         status=status,
+        version=record.version,
         verification_evidence=record.verification_evidence,
         retrieved_at=record.retrieved_at or spec.retrieved_at or _VERIFIED_AT,
         freshness_status=record.freshness_status,
