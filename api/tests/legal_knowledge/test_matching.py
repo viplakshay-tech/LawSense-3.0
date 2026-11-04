@@ -187,7 +187,7 @@ class LegalMatchTests(unittest.TestCase):
         self.assertEqual(match.evidence_assessment, "unclear")
         self.assertEqual(match.assessment_factors["source_freshness"], "unknown")
         self.assertIn("21 November 2025", match.temporal_limitation)
-        self.assertIn("section 69", match.temporal_limitation)
+        self.assertIn("section 69", match.temporal_limitation.casefold())
         self.assertIn("S.O. 5322(E)", match.temporal_limitation)
         self.assertTrue(any(
             link["url"] == "https://egazette.gov.in/WriteReadData/2025/267885.pdf"
