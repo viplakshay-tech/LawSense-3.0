@@ -9,7 +9,7 @@ legal-source registry.
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from datetime import date, datetime, timezone
+from datetime import date, datetime
 from pathlib import Path
 
 from app.engines.legal_knowledge.models import (
@@ -29,7 +29,6 @@ from app.engines.legal_sources import LegalSourceRegistry, RegistrySourceVersion
 from app.engines.legal_sources.source_catalog import SourceCatalogError, SourceCatalogRecord, load_source_catalog
 
 
-_VERIFIED_AT = datetime(2026, 10, 7, 21, 1, 55, tzinfo=timezone.utc)
 _INDIA_JURISDICTION_ID = "jurisdiction-india"
 _UTTARAKHAND_JURISDICTION_ID = "jurisdiction-uttarakhand"
 _PARLIAMENT_AUTHORITY_ID = "authority-parliament-of-india"
@@ -86,7 +85,6 @@ _SOURCES = (
         publication_date=date(2022, 1, 27),
         effective_date=None,
         jurisdiction_id=_UTTARAKHAND_JURISDICTION_ID,
-        retrieved_at=datetime(2026, 10, 27, 0, 0, tzinfo=timezone.utc),
     ),
     _SourceSeed(
         id="source-pib-model-tenancy-act-adoption-2021",
@@ -124,7 +122,6 @@ _SOURCES = (
         version="Act No. 29 of 2019; India Code Act ID 201929; staged commencement includes S.O. 5322(E) for specified provisions",
         publication_date=date(2019, 8, 8),
         effective_date=None,
-        retrieved_at=datetime(2026, 11, 4, 6, 42, tzinfo=timezone.utc),
     ),
     _SourceSeed(
         id="source-pib-labour-codes-commencement-2025",
@@ -151,7 +148,6 @@ _SOURCES = (
         effective_date=date(2025, 11, 21),
         authority_tier=SourceAuthorityTier.TIER_1_PRIMARY_OFFICIAL,
         source_type=SourceType.GOVERNMENT_NOTIFICATION,
-        retrieved_at=datetime(2026, 10, 10, 0, 0, tzinfo=timezone.utc),
     ),
     _SourceSeed(
         id="source-india-code-posh-act-2013",
@@ -166,7 +162,6 @@ _SOURCES = (
         version="Act No. 14 of 2013; India Code text last updated 2021-08-31",
         publication_date=date(2013, 4, 22),
         effective_date=date(2013, 12, 9),
-        retrieved_at=datetime(2026, 11, 4, 6, 42, tzinfo=timezone.utc),
     ),
     _SourceSeed(
         id="source-india-code-domestic-violence-act-2005",
@@ -178,7 +173,6 @@ _SOURCES = (
         version="Act No. 43 of 2005; official India Code text",
         publication_date=date(2005, 9, 13),
         effective_date=date(2006, 10, 26),
-        retrieved_at=datetime(2026, 11, 4, 6, 42, tzinfo=timezone.utc),
     ),
 )
 
@@ -363,12 +357,22 @@ _PROVISIONS = (
 )
 
 
+def _required_retrieved_at(value: datetime | None, source_id: str) -> datetime:
+    if value is None:
+        raise SourceCatalogError(
+            f"{source_id}: catalog retrievedAt is required; retrieval time is never synthesized."
+        )
+    return value
+
+
 def _apply_source_catalog_record(
     spec: _SourceSeed,
     record: SourceCatalogRecord | None,
 ) -> _SourceSeed:
     if record is None:
         raise SourceCatalogError(f"Seed source is missing from the source catalog: {spec.id}")
+    if record.retrieved_at is None:
+        raise SourceCatalogError(f"{spec.id}: catalog retrievedAt is required; retrieval time is never synthesized.")
     if record.title != spec.title:
         raise SourceCatalogError(f"{spec.id}: catalog title does not match the curated source.")
     if record.official_url != spec.source_url:
@@ -385,7 +389,7 @@ def _apply_source_catalog_record(
         status=status,
         version=record.version,
         verification_evidence=record.verification_evidence,
-        retrieved_at=record.retrieved_at or spec.retrieved_at or _VERIFIED_AT,
+        retrieved_at=record.retrieved_at,
         freshness_status=record.freshness_status,
         freshness_checked_at=record.freshness_checked_at,
         freshness_evidence=record.freshness_evidence,
@@ -406,7 +410,7 @@ def build_authoritative_legal_knowledge_seed(
     authority_source_refs: dict[str, list[SourceReference]] = {}
     jurisdiction_refs = []
     for spec in effective_sources:
-        retrieved_at = spec.retrieved_at or _VERIFIED_AT
+        retrieved_at = _required_retrieved_at(spec.retrieved_at, spec.id)
         reference = SourceReference(
             source_id=spec.id,
             retrieval_time=retrieved_at,
@@ -480,7 +484,7 @@ def build_authoritative_legal_knowledge_seed(
     registry = LegalSourceRegistry(store)
 
     for spec in effective_sources:
-        retrieved_at = spec.retrieved_at or _VERIFIED_AT
+        retrieved_at = _required_retrieved_at(spec.retrieved_at, spec.id)
         source_reference = SourceReference(
             source_id=spec.id,
             retrieval_time=retrieved_at,
@@ -529,7 +533,7 @@ def build_authoritative_legal_knowledge_seed(
 
     document_by_source: dict[str, LegalDocument] = {}
     for spec in effective_sources:
-        retrieved_at = spec.retrieved_at or _VERIFIED_AT
+        retrieved_at = _required_retrieved_at(spec.retrieved_at, spec.id)
         document_id = f"document-{spec.id.removeprefix('source-')}"
         document_by_source[spec.id] = LegalDocument(
             id=document_id,
@@ -563,7 +567,7 @@ def build_authoritative_legal_knowledge_seed(
     for spec in _PROVISIONS:
         source = source_by_id[spec.source_id]
         document = document_by_source[spec.source_id]
-        source_retrieved_at = source.retrieved_at or _VERIFIED_AT
+        source_retrieved_at = _required_retrieved_at(source.retrieved_at, source.id)
         supporting_provenance = (
             SourceReference(
                 source_id=source.id,
@@ -582,9 +586,7 @@ def build_authoritative_legal_knowledge_seed(
                         "PIB release ID 2194018: four Labour Codes made effective "
                         "from 2025-11-21"
                     ),
-                    retrieval_time=source_by_id[
-                        "source-pib-labour-codes-commencement-2025"
-                    ].retrieved_at or _VERIFIED_AT,
+                    retrieval_time=_required_retrieved_at(source_by_id["source-pib-labour-codes-commencement-2025"].retrieved_at, "source-pib-labour-codes-commencement-2025"),
                     source_url=source_by_id[
                         "source-pib-labour-codes-commencement-2025"
                     ].source_url,
@@ -597,9 +599,7 @@ def build_authoritative_legal_knowledge_seed(
                         "S.O. 5322(E): Code on Wages commencement from 21 November 2025; "
                         "section 69 repeals the Payment of Wages Act, 1936 subject to transition/savings"
                     ),
-                    retrieval_time=source_by_id[
-                        "source-gazette-code-on-wages-commencement-2025"
-                    ].retrieved_at or _VERIFIED_AT,
+                    retrieval_time=_required_retrieved_at(source_by_id["source-gazette-code-on-wages-commencement-2025"].retrieved_at, "source-gazette-code-on-wages-commencement-2025"),
                     source_url=source_by_id[
                         "source-gazette-code-on-wages-commencement-2025"
                     ].source_url,
