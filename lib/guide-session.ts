@@ -171,6 +171,7 @@ export function invalidateGuideTurn(caseId: string): void {
 
 export function appendGuideSessionTurn(caseId: string, turn: GuideSessionTurn): void {
   const current = readSession(caseId);
+  if (current.turns.some((existing) => existing.id === turn.id)) return;
   publish(caseId, { ...current, turns: [...current.turns, turn].slice(-MAX_VISIBLE_TURNS) });
 }
 
