@@ -23,7 +23,7 @@ test('stale advisory and support-resource responses cannot overwrite a newer cas
 });
 
 test('opening the advisory delegates loading to the case-aware effect', () => {
-  assert.match(advisorySource, /function openDialog\(\) \{\s*setOpen\(true\);\s*\}/);
+  assert.match(advisorySource, /function openDialog\(\) \{\s*if \(!open && document\.activeElement instanceof HTMLElement\) \{\s*previousFocusRef\.current = document\.activeElement;\s*\}\s*setOpen\(true\);\s*\}/);
 });
 
 
