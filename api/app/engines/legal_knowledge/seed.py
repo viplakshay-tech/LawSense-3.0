@@ -27,7 +27,7 @@ from app.engines.legal_knowledge.store import InMemoryLegalKnowledgeStore
 from app.engines.legal_sources import LegalSourceRegistry, RegistrySourceVersion, SourceFreshnessStatus, SourceType
 
 
-_VERIFIED_AT = datetime(2026, 11, 4, 6, 42, tzinfo=timezone.utc)
+_VERIFIED_AT = datetime(2026, 10, 7, 21, 1, 55, tzinfo=timezone.utc)
 _INDIA_JURISDICTION_ID = "jurisdiction-india"
 _UTTARAKHAND_JURISDICTION_ID = "jurisdiction-uttarakhand"
 _PARLIAMENT_AUTHORITY_ID = "authority-parliament-of-india"
