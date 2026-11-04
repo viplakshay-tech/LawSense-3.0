@@ -294,7 +294,18 @@ def _legal_source(case_state: CaseState, source_id: str) -> DocumentProvenance:
     freshness_status = getattr(record, "source_freshness_status", None)
     freshness_checked_at = getattr(record, "source_freshness_checked_at", None)
     freshness_evidence = getattr(record, "source_freshness_evidence", None)
-    if freshness_status != "current" or not freshness_checked_at or not freshness_evidence:
+    try:
+        parsed_freshness_time = datetime.fromisoformat(
+            str(freshness_checked_at).replace("Z", "+00:00")
+        )
+    except (TypeError, ValueError):
+        parsed_freshness_time = None
+    if (
+        freshness_status != "current"
+        or parsed_freshness_time is None
+        or parsed_freshness_time.tzinfo is None
+        or not str(freshness_evidence or "").strip()
+    ):
         raise ValueError("Legal wording requires an evidenced current-source freshness review.")
 
     if getattr(record, "jurisdiction_match_status", "unknown") != "matched":
