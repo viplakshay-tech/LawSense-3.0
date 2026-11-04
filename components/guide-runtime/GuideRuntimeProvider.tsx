@@ -367,15 +367,22 @@ export function GuideRuntimeProvider({ caseId, children }: { caseId: string; chi
     );
   }, [appendMessage, caseState, controller, dispatch, revision]);
 
-  const runAction = useCallback(async (action: GuideAction): Promise<GuideActionResult | null> => {
-    const selection = dispatch({ type: 'GUIDE_ACTION_SELECTED', action });
-    if (!selection.emissions.some((emission) => emission.type === 'action_requested')) {
-      appendMessage('error', 'That action is no longer available for the current case state.');
-      return null;
-    }
+  const actionExecutionRef = useRef(false);
 
+  const runAction = useCallback(async (action: GuideAction): Promise<GuideActionResult | null> => {
+    // UI disabled states are not a concurrency boundary: keyboard activation,
+    // rapid taps, or multiple surfaces can otherwise dispatch the same action.
+    if (actionExecutionRef.current) return null;
+    actionExecutionRef.current = true;
     setActionRunning(true);
+
     try {
+      const selection = dispatch({ type: 'GUIDE_ACTION_SELECTED', action });
+      if (!selection.emissions.some((emission) => emission.type === 'action_requested')) {
+        appendMessage('error', 'That action is no longer available for the current case state.');
+        return null;
+      }
+
       const result = await createGuideActionBridge(adapter).dispatch(commandForAction(action));
       if (result.status === 'success') {
         const completion = action.type === 'START_VOICE'
@@ -395,6 +402,7 @@ export function GuideRuntimeProvider({ caseId, children }: { caseId: string; chi
       }
       return result;
     } finally {
+      actionExecutionRef.current = false;
       setActionRunning(false);
     }
   }, [adapter, appendMessage, dispatch]);
