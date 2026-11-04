@@ -446,6 +446,23 @@ test('text Guide offers non-destructive cancellation that invalidates the shared
   assert.match(guideControlSurfaceSource, /status: 'unavailable'/);
 });
 
+test('invalidating a pending Guide turn aborts work but preserves the confirmed session transcript', () => {
+  const caseId = 'guide-stop-preserves-session';
+  clearGuideSession(caseId);
+  appendGuideSessionTurn(caseId, {
+    id: 'confirmed-before-stop',
+    role: 'user',
+    content: 'I want to understand my notice.',
+    inputMode: 'text',
+  });
+  const pending = beginGuideTurn(caseId);
+  invalidateGuideTurn(caseId);
+  assert.equal(pending.signal.aborted, true);
+  assert.equal(isGuideTurnCurrent(caseId, pending), false);
+  assert.deepEqual(getGuideSessionSnapshot(caseId).turns.map((turn) => turn.id), ['confirmed-before-stop']);
+  clearGuideSession(caseId);
+});
+
 test('Guide action execution is serialized even if multiple surfaces activate the same control', () => {
   assert.match(guideRuntimeProvider, /const actionExecutionRef = useRef\(false\)/);
   assert.match(guideRuntimeProvider, /if \(actionExecutionRef\.current\) return null/);
