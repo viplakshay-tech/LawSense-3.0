@@ -18,6 +18,7 @@ const voicePage = await readFile(new URL('../../app/case/[id]/voice/page.tsx', i
 const guideRuntimeProvider = await readFile(new URL('../../components/guide-runtime/GuideRuntimeProvider.tsx', import.meta.url), 'utf8');
 const guideWorkspaceSource = await readFile(new URL('../../app/case/[id]/guide/GuideClient.tsx', import.meta.url), 'utf8');
 const legalSourceCandidates = await readFile(new URL('../../components/LegalSourceCandidates.tsx', import.meta.url), 'utf8');
+const draftingStudio = await readFile(new URL('../../components/drafting/DraftingStudio.tsx', import.meta.url), 'utf8');
 const persistentLegalAdvisorySource = await readFile(new URL('../../components/case-shell/PersistentLegalAdvisory.tsx', import.meta.url), 'utf8');
 const guideSessionSource = await readFile(new URL('../../lib/guide-session.ts', import.meta.url), 'utf8');
 const voiceConversationSource = await readFile(new URL('../../components/voice/GuideConversation.tsx', import.meta.url), 'utf8');
@@ -255,4 +256,10 @@ test('Guide workspace always exposes Legal Advisory based on information so far'
   assert.match(guideWorkspaceSource, /Legal Advisory/);
   assert.match(guideWorkspaceSource, /Decision based on information so far/);
   assert.match(guideWorkspaceSource, /window\.dispatchEvent\(new Event\(OPEN_LEGAL_ADVISORY_EVENT\)\)/);
+});
+
+
+test('drafting source suggestions require explicit verification metadata', () => {
+  assert.match(draftingStudio, /item\.record\.status === 'verified' && item\.record\.sourceVerificationStatus === 'verified'/);
+  assert.doesNotMatch(draftingStudio, /!item\.record\.sourceVerificationStatus/);
 });
