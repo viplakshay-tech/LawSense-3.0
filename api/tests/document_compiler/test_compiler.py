@@ -344,6 +344,8 @@ class DocumentCompilerTests(unittest.TestCase):
             ("unknown", None, None),
             ("current", None, None),
             ("current", "2026-11-04T00:00:00+00:00", None),
+            ("current", "not-a-date", "Review evidence present."),
+            ("current", "2026-11-04T00:00:00+00:00", "   "),
         ):
             with self.subTest(freshness_status=freshness_status, checked_at=checked_at, evidence=evidence):
                 case_state = make_case()
