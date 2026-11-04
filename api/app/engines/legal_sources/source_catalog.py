@@ -94,7 +94,9 @@ def _parse_record(raw: Any) -> SourceCatalogRecord:
     ):
         raise SourceCatalogError(f"{source_id}: verificationNote must be non-empty text.")
     if verification_status == "verified_official" and (
-        verification_date is None or not verification_evidence
+        verification_date is None
+        or not verification_evidence
+        or len(verification_evidence.strip()) < 30
     ):
         raise SourceCatalogError(
             f"{source_id}: verified_official requires verificationDate and verificationNote."
@@ -122,7 +124,12 @@ def _parse_record(raw: Any) -> SourceCatalogRecord:
             raise SourceCatalogError(
                 f"{source_id}: freshness cannot be reviewed before source identity is verified."
             )
-        if retrieved_at is None or freshness_checked_at is None or not freshness_evidence:
+        if (
+            retrieved_at is None
+            or freshness_checked_at is None
+            or not freshness_evidence
+            or len(freshness_evidence.strip()) < 30
+        ):
             raise SourceCatalogError(
                 f"{source_id}: reviewed freshness requires retrievedAt, freshnessCheckedAt and freshnessEvidence."
             )
