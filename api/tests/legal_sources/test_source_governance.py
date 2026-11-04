@@ -52,6 +52,7 @@ class SourceGovernanceTests(unittest.TestCase):
 
         self.assertIs(registry.get(source.source_id), source)
         self.assertEqual(source.verification_status, SourceVerificationStatus.VERIFIED)
+        self.assertEqual(source.verification_date, date(2026, 10, 8))
         self.assertEqual(source.source_url, "https://sources.example.invalid/acts/fixture-1")
 
     def test_unverified_is_the_default_and_is_registerable(self) -> None:
