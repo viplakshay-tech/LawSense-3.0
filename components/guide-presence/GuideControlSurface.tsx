@@ -8,6 +8,7 @@ import { guidePresenceStateFromSnapshot, useGuideRuntime } from '@/components/gu
 import { sendGuideMessage, type GuideActionName, type GuideChatLanguage } from '@/lib/api';
 import {
   beginGuideTurn,
+  finishGuideTurn,
   isGuideTurnCurrent,
   useGuideSession,
 } from '@/lib/guide-session';
@@ -65,7 +66,7 @@ export function GuideConversationPanel({
     turns,
     language: chatLanguage,
     history,
-    generation: sessionGeneration,
+    requestSequence: sessionRequestSequence,
     appendTurn,
     setLanguage: setChatLanguage,
     clear: clearSession,
@@ -82,11 +83,17 @@ export function GuideConversationPanel({
   const [chatError, setChatError] = useState<string | null>(null);
   const chatRequestSequenceRef = useRef(0);
   const chatInFlightRef = useRef(false);
-  const observedSessionGenerationRef = useRef(sessionGeneration);
+  const activeSessionRequestRef = useRef<number | null>(null);
+  const observedSessionRequestSequenceRef = useRef(sessionRequestSequence);
 
   useEffect(() => {
-    if (observedSessionGenerationRef.current === sessionGeneration) return;
-    observedSessionGenerationRef.current = sessionGeneration;
+    if (observedSessionRequestSequenceRef.current === sessionRequestSequence) return;
+    observedSessionRequestSequenceRef.current = sessionRequestSequence;
+    if (
+      activeSessionRequestRef.current === null
+      || activeSessionRequestRef.current === sessionRequestSequence
+    ) return;
+    activeSessionRequestRef.current = null;
     chatRequestSequenceRef.current += 1;
     chatInFlightRef.current = false;
     const resetFrame = window.requestAnimationFrame(() => {
@@ -94,7 +101,7 @@ export function GuideConversationPanel({
       setChatError(null);
     });
     return () => window.cancelAnimationFrame(resetFrame);
-  }, [sessionGeneration]);
+  }, [sessionRequestSequence]);
 
   async function handleChatSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -104,6 +111,7 @@ export function GuideConversationPanel({
     chatInFlightRef.current = true;
     const requestToken = ++chatRequestSequenceRef.current;
     const turnToken = beginGuideTurn(caseId);
+    activeSessionRequestRef.current = turnToken.sequence;
     setChatDraft('');
     setChatSending(true);
     setChatError(null);
@@ -126,6 +134,7 @@ export function GuideConversationPanel({
         caseId,
         history,
         availableActions,
+        turnToken.signal,
       );
       if (requestToken !== chatRequestSequenceRef.current) return;
       if (!isGuideTurnCurrent(caseId, turnToken)) {
@@ -165,6 +174,10 @@ export function GuideConversationPanel({
         setChatError('The local Guide service could not be reached. No cloud fallback was used. Try again or use the existing case actions.');
       }
     } finally {
+      finishGuideTurn(caseId, turnToken);
+      if (activeSessionRequestRef.current === turnToken.sequence) {
+        activeSessionRequestRef.current = null;
+      }
       if (requestToken === chatRequestSequenceRef.current) {
         chatInFlightRef.current = false;
         setChatSending(false);
@@ -174,6 +187,7 @@ export function GuideConversationPanel({
 
   function clearChat() {
     chatRequestSequenceRef.current += 1;
+    activeSessionRequestRef.current = null;
     dispatch({ type: 'GUIDE_RESET' });
     chatInFlightRef.current = false;
     clearSession();
