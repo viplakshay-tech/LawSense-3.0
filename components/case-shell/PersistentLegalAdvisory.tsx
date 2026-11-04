@@ -255,7 +255,7 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
       if (!dialog?.contains(document.activeElement)) {
         event.preventDefault();
         (event.shiftKey ? last : first).focus({ preventScroll: true });
-      } else if (event.shiftKey && document.activeElement === first) {
+      } else if (event.shiftKey && (document.activeElement === first || document.activeElement === dialog)) {
         event.preventDefault();
         last.focus({ preventScroll: true });
       } else if (!event.shiftKey && document.activeElement === last) {
