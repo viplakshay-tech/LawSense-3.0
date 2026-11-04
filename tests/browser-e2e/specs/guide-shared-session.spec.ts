@@ -111,6 +111,8 @@ test('a voice statement enters shared Guide history only after explicit case con
   await page.goto(`/case/${caseId}/voice`);
 
   await page.getByLabel('Live transcript · edit anything that was misheard').fill(confirmedStatement);
+  const conversation = page.getByRole('log', { name: 'Voice conversation transcript' });
+  await expect(conversation).not.toContainText(confirmedStatement);
   await page.getByRole('button', { name: 'Review transcript' }).click();
   await expect(page.getByRole('heading', { name: 'Review the extracted details' })).toBeVisible();
   await page.getByRole('button', { name: 'Continue to confirmation' }).click();
@@ -118,7 +120,6 @@ test('a voice statement enters shared Guide history only after explicit case con
   await page.getByRole('button', { name: 'Confirm and add statement' }).click();
   await expect(page.getByText('Confirmed and added to the case.')).toBeVisible();
 
-  const conversation = page.getByRole('log', { name: 'Voice conversation transcript' });
   await expect(conversation).toContainText(confirmedStatement);
 
   await page.goto(`/case/${caseId}/guide`);
