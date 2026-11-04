@@ -120,7 +120,7 @@ _SOURCES = (
         publisher_name="India Code, Government of India",
         source_url="https://www.indiacode.nic.in/indiacode/handle/123456789/15793?view_type=browse",
         reference="The Code on Wages, 2019 (Act No. 29 of 2019)",
-        version="Act No. 29 of 2019; India Code Act ID 201929; staged commencement includes S.O. 5322(E) for specified provisions",
+        version="India Code consolidated text as on 2025-11-21; Act No. 29 of 2019; India Code Act ID 201929; staged commencement includes S.O. 5322(E) for specified provisions",
         publication_date=date(2019, 8, 8),
         effective_date=None,
     ),
