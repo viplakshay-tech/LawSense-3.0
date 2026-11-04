@@ -1,4 +1,4 @@
-import { sendGuideMessage, type GuideActionName, type GuideChatLanguage, type GuideChatResponse } from './api';
+import { sendGuideMessage, type GuideActionName, type GuideChatLanguage, type GuideChatResponse } from './api.ts';
 import type { GuideAction } from '../components/guide-runtime/types';
 import { getGuideConversationHistory } from './guide-session.ts';
 
