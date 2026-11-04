@@ -438,6 +438,14 @@ test('shared Guide session rejects malformed or oversized persisted turn data at
 });
 
 
+test('Guide action execution is serialized even if multiple surfaces activate the same control', () => {
+  assert.match(guideRuntimeProvider, /const actionExecutionRef = useRef\(false\)/);
+  assert.match(guideRuntimeProvider, /if \(actionExecutionRef\.current\) return null/);
+  assert.match(guideRuntimeProvider, /actionExecutionRef\.current = true/);
+  assert.match(guideRuntimeProvider, /actionExecutionRef\.current = false/);
+  assert.match(guideRuntimeProvider, /dispatch\(\{ type: 'GUIDE_ACTION_SELECTED', action \}\)/);
+});
+
 test('Guide always exposes a direct current-case Legal Advisory action', () => {
   assert.match(guideControlSurfaceSource, /snapshot\.availableActions\.find\(\(action\) => action\.type === 'OPEN_LEGAL_ADVISORY'\)/);
   assert.match(guideControlSurfaceSource, /Get Legal Advisory using current case information/);
