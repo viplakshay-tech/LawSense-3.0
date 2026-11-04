@@ -671,6 +671,29 @@ class CasePipelineTests(unittest.TestCase):
         self.assertNotIn("SOURCE_VERIFICATION_NOT_CONFIRMED", statement.reason_codes)
         self.assertNotIn("SOURCE_FRESHNESS_NOT_CURRENT", statement.reason_codes)
 
+        # A verified status and provenance pointer alone must not synthesize
+        # source identity verification when the explicit evidence is absent.
+        unreviewed_repository = InMemoryLegalKnowledgeStore()
+        unreviewed_repository.add_many((
+            authority,
+            jurisdiction,
+            source,
+            replace(source_version, verification_evidence=None),
+            document,
+            provision,
+        ))
+        unreviewed_result = run_case_pipeline(
+            make_request("I bought a phone from a seller. It arrived damaged, and the seller refused my refund."),
+            legal_knowledge_repository=unreviewed_repository,
+        )
+        unreviewed_summary = next(
+            item for item in unreviewed_result.case_analysis.legal_knowledge.records
+            if item.id == provision.id
+        )
+        self.assertEqual(unreviewed_summary.source_verification_status, "unverified")
+        self.assertIsNone(unreviewed_summary.source_verification_evidence)
+        self.assertEqual(unreviewed_result.legal_reasoning.legal_knowledge_status, "insufficient_or_blocked")
+
     def test_analysis_timeline_preserves_report_status_and_timeline_provenance(self) -> None:
         _, result = self._run_fixture("threatening_messages")
 
