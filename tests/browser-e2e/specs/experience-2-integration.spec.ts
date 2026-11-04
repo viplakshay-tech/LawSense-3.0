@@ -429,6 +429,33 @@ test('document finding deep links select only a finding returned for the request
 });
 
 
+test('the local Guide can propose and open the active case Legal Advisory action', async ({ page }) => {
+  const caseId = await enterCase(page);
+  await page.route('**/api/guide/chat', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        reply: 'I can open the source-aware Legal Advisory for this case.',
+        status: 'ok',
+        model: 'qwen3.5:4b-q4_K_M',
+        proposed_action: 'OPEN_LEGAL_ADVISORY',
+      }),
+    });
+  });
+
+  await page.goto(`/case/${caseId}/guide`);
+  await page.getByPlaceholder('Type your question or explain what is missing…').fill('Please open my Legal Advisory.');
+  await page.getByRole('button', { name: 'Send to local Guide' }).click();
+  await expect(page.getByText('I can open the source-aware Legal Advisory for this case.')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Open Legal Advisory', exact: true }).click();
+  const advisory = page.getByRole('dialog');
+  await expect(advisory).toBeVisible();
+  await expect(advisory.getByRole('heading', { name: 'Legal Advisory' })).toBeVisible();
+  await expect(advisory).toContainText('Based on information recorded so far');
+});
+
 test('Guide workspace opens the current case Legal Advisory from its quick switch', async ({ page }) => {
   const caseId = await enterCase(page);
   await page.goto(`/case/${caseId}/guide`);
