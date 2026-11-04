@@ -136,6 +136,7 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
   const [resources, setResources] = useState<JsonRecord[]>([]);
   const [legalKnowledgeStatus, setLegalKnowledgeStatus] = useState('');
   const loadRequestIdRef = useRef(0);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
   const dialogRef = useRef<HTMLElement | null>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
 
@@ -266,7 +267,7 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
     return () => {
       window.cancelAnimationFrame(frame);
       window.removeEventListener('keydown', onKeyDown);
-      previousFocusRef.current?.focus({ preventScroll: true });
+      (previousFocusRef.current ?? triggerRef.current)?.focus({ preventScroll: true });
       previousFocusRef.current = null;
     };
   }, [open]);
