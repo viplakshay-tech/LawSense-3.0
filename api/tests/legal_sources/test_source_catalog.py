@@ -34,6 +34,21 @@ class LegalSourceCatalogTests(unittest.TestCase):
         path.write_text(json.dumps({"catalogVersion": "2026-11-04", "sources": [record]}, indent=2), encoding="utf-8")
         return path
 
+    def test_catalog_rejects_non_government_hosts_and_credentialed_urls(self) -> None:
+        for url in (
+            "https://indiacode.nic.in.attacker.example/fake-act",
+            "https://user@indiacode.nic.in/fake-act",
+            "http://indiacode.nic.in/fake-act",
+            "https://indiacode.nic.in:8443/fake-act",
+        ):
+            with self.subTest(url=url), tempfile.TemporaryDirectory() as directory:
+                path = self._write_catalog(directory)
+                catalog = json.loads(path.read_text(encoding="utf-8"))
+                catalog["sources"][0]["officialUrl"] = url
+                path.write_text(json.dumps(catalog), encoding="utf-8")
+                with self.assertRaisesRegex(SourceCatalogError, "official government domain"):
+                    load_source_catalog(path)
+
     def test_current_review_requires_matching_snapshot_version_and_timestamps(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = self._write_catalog(directory)
