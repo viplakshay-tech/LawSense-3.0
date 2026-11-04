@@ -14,6 +14,7 @@ import {
 } from '@/lib/guide-session';
 import type { GuideAction } from '@/components/guide-runtime/types';
 import { GuidePresence } from './GuidePresence';
+import { GuideModelStatusBanner } from './GuideModelStatusBanner';
 import { GUIDE_PRESENCE_LABELS } from './types';
 
 function actionLabel(action: GuideAction): string {
@@ -219,6 +220,8 @@ export function GuideConversationPanel({
                   )}
                 </div>
     
+                <GuideModelStatusBanner />
+                
                 <div role="log" aria-label="Guide conversation" aria-live="polite" aria-relevant="additions" className="mt-3 max-h-56 space-y-2 overflow-y-auto">
                   {chatEntries.length === 0 ? (
                     <p className="rounded-lg border border-dashed border-white/[0.09] px-3 py-2.5 text-[11px] leading-5 text-slate-400">
