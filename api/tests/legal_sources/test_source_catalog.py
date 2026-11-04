@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import tempfile
 import unittest
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 from app.engines.legal_sources.governance_models import SourceFreshnessStatus
@@ -11,6 +11,7 @@ from app.engines.legal_sources.source_catalog import (
     SourceCatalogError,
     load_source_catalog,
     record_source_freshness_review,
+    record_source_identity_review,
 )
 
 
@@ -48,6 +49,59 @@ class LegalSourceCatalogTests(unittest.TestCase):
                 path.write_text(json.dumps(catalog), encoding="utf-8")
                 with self.assertRaisesRegex(SourceCatalogError, "official government domain"):
                     load_source_catalog(path)
+
+    def test_identity_review_records_date_and_evidence_without_claiming_freshness(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = self._write_catalog(directory, verified=False)
+            reviewed = record_source_identity_review(
+                "source-test-act",
+                verification_date=date(2026, 11, 3),
+                evidence=(
+                    "Matched the exact Act title, Act number and issuing authority "
+                    "against the official Government of India publication."
+                ),
+                path=path,
+            )
+
+            self.assertEqual(reviewed.verification_status, "verified_official")
+            self.assertEqual(reviewed.verification_date, date(2026, 11, 3))
+            self.assertIn("Matched the exact Act title", reviewed.verification_evidence or "")
+            self.assertEqual(reviewed.freshness_status, SourceFreshnessStatus.UNKNOWN)
+            self.assertIsNone(reviewed.freshness_checked_at)
+            self.assertIsNone(reviewed.freshness_evidence)
+            saved_catalog = json.loads(path.read_text(encoding="utf-8"))
+            self.assertEqual(saved_catalog["catalogVersion"], "2026-11-04")
+
+    def test_identity_review_date_cannot_move_backwards(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = self._write_catalog(directory)
+            with self.assertRaisesRegex(SourceCatalogError, "cannot move backwards"):
+                record_source_identity_review(
+                    "source-test-act",
+                    verification_date="2026-11-03",
+                    evidence="Rechecked the official Act title and citation against the issuing authority.",
+                    path=path,
+                )
+            self.assertEqual(load_source_catalog(path)["source-test-act"].verification_date, date(2026, 11, 4))
+
+    def test_identity_review_rejects_unknown_sources_and_insufficient_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = self._write_catalog(directory, verified=False)
+            with self.assertRaisesRegex(SourceCatalogError, "Unknown legal source id"):
+                record_source_identity_review(
+                    "missing-source",
+                    verification_date="2026-11-04",
+                    evidence="A sufficiently detailed official identity review was completed.",
+                    path=path,
+                )
+            with self.assertRaisesRegex(SourceCatalogError, "at least 30 characters"):
+                record_source_identity_review(
+                    "source-test-act",
+                    verification_date="2026-11-04",
+                    evidence="Checked",
+                    path=path,
+                )
+            self.assertEqual(load_source_catalog(path)["source-test-act"].verification_status, "unverified")
 
     def test_current_review_requires_matching_snapshot_version_and_timestamps(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
