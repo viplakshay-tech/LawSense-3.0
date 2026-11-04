@@ -61,6 +61,7 @@ export function GuideModelStatusBanner() {
         <p className="mt-1 break-words text-[10px] leading-4 opacity-80">
           {error ?? status?.message ?? 'Checking the private Ollama service…'}
         </p>
+        <p className="mt-1 text-[9px] opacity-60">Local-only · no cloud fallback</p>
       </div>
       <button
         type="button"
