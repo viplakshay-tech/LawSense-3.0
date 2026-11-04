@@ -70,6 +70,18 @@ class LegalSourceCatalogTests(unittest.TestCase):
             self.assertIsNone(reviewed.freshness_checked_at)
             self.assertIsNone(reviewed.freshness_evidence)
 
+    def test_identity_review_date_cannot_move_backwards(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = self._write_catalog(directory)
+            with self.assertRaisesRegex(SourceCatalogError, "cannot move backwards"):
+                record_source_identity_review(
+                    "source-test-act",
+                    verification_date="2026-11-03",
+                    evidence="Rechecked the official Act title and citation against the issuing authority.",
+                    path=path,
+                )
+            self.assertEqual(load_source_catalog(path)["source-test-act"].verification_date, date(2026, 11, 4))
+
     def test_identity_review_rejects_unknown_sources_and_insufficient_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = self._write_catalog(directory, verified=False)
