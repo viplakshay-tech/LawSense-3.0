@@ -110,6 +110,11 @@ class AuthoritativeLegalKnowledgeSeedTests(unittest.TestCase):
                     self.assertIsNotNone(version.freshness_checked_at)
                     self.assertIn("S.O. 454(E)", version.freshness_evidence or "")
                     self.assertIn("https://egazette.gov.in/WriteReadData/2026/269705.pdf", version.freshness_evidence or "")
+                elif version.source == "source-india-code-consumer-protection-act-2019":
+                    self.assertEqual(version.freshness_status, SourceFreshnessStatus.STALE)
+                    self.assertIsNotNone(version.freshness_checked_at)
+                    self.assertIn("Mediation Act, 2023", version.freshness_evidence or "")
+                    self.assertIn("S.O. 4506(E)", version.freshness_evidence or "")
                 else:
                     self.assertEqual(version.freshness_status, SourceFreshnessStatus.UNKNOWN)
                     self.assertIsNone(version.freshness_checked_at)
