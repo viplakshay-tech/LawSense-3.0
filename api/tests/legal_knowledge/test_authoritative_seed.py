@@ -241,6 +241,22 @@ class AuthoritativeLegalKnowledgeSeedTests(unittest.TestCase):
         self.assertEqual(tenancy["verificationDate"], "2026-10-27")
         self.assertIn("commencement notification under section 1(3) not verified", tenancy["version"])
 
+        for source_id in (
+            "consumer-protection-act-2019",
+            "code-on-wages-2019",
+            "posh-act-2013",
+            "domestic-violence-act-2005",
+            "model-tenancy-act-pib-2021",
+            "four-labour-codes-pib-2025",
+            "code-on-wages-so-5322-2025",
+        ):
+            with self.subTest(source=source_id):
+                source = sources[source_id]
+                self.assertEqual(source["verificationStatus"], "verified_official")
+                self.assertEqual(source["verificationDate"], "2026-11-04")
+                self.assertEqual(source["freshnessStatus"], "unknown")
+                self.assertIn("identity", source["verificationNote"].lower())
+
 
 if __name__ == "__main__":
     unittest.main()
