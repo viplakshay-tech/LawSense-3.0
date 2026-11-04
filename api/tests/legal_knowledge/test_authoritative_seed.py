@@ -119,7 +119,7 @@ class AuthoritativeLegalKnowledgeSeedTests(unittest.TestCase):
         for version in versions:
             with self.subTest(source=version.source):
                 self.assertEqual(version.status, KnowledgeStatus.VERIFIED)
-                self.assertIsNotNone(version.verification_date)
+                self.assertEqual(version.verification_date.isoformat(), "2026-11-04")
                 self.assertTrue(version.verification_evidence)
                 self.assertNotIn("catalog snapshot", version.verification_evidence.lower())
 
