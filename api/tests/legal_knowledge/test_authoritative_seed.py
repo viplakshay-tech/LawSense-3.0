@@ -4,7 +4,7 @@ import json
 import shutil
 import tempfile
 import unittest
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 from app.engines.legal_knowledge.models import (
