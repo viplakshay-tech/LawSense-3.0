@@ -40,7 +40,6 @@ const GUIDE_ACTION_NAMES = new Set<GuideActionName>([
   'SHOW_TWIN',
   'START_VOICE',
   'OPEN_DRAFTING',
-  'SPEAK_RESPONSE',
   'OPEN_SAFETY',
   'NAVIGATE',
 ]);
