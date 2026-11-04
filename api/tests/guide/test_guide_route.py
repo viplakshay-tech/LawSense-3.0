@@ -36,8 +36,13 @@ class _MockOpener:
         return self.callback(request, timeout=timeout)
 
 
-def _asgi_request(payload: dict[str, object]) -> tuple[int, object]:
-    body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+def _asgi_request(
+    payload: dict[str, object],
+    *,
+    path: str = "/guide/chat",
+    method: str = "POST",
+) -> tuple[int, object]:
+    body = json.dumps(payload, ensure_ascii=False).encode("utf-8") if method != "GET" else b""
     sent_request = False
     status = 500
     chunks: list[bytes] = []
@@ -56,12 +61,11 @@ def _asgi_request(payload: dict[str, object]) -> tuple[int, object]:
         elif message["type"] == "http.response.body":
             chunks.append(message.get("body", b""))  # type: ignore[arg-type]
 
-    path = "/guide/chat"
     scope = {
         "type": "http",
         "asgi": {"version": "3.0", "spec_version": "2.3"},
         "http_version": "1.1",
-        "method": "POST",
+        "method": method,
         "scheme": "http",
         "path": path,
         "raw_path": path.encode("ascii"),
@@ -318,6 +322,60 @@ class GuideRouteTests(unittest.TestCase):
 
         self.assertEqual(status, 404, response)
         local_model.assert_not_called()
+
+    def test_guide_status_reports_an_installed_local_model_without_sending_a_prompt(self) -> None:
+        status_value = local_assistant.LocalModelStatus(
+            status="available",
+            model="qwen3.5:4b-q4_K_M",
+            reachable=True,
+            model_available=True,
+            message="The configured local model is installed and Ollama is reachable.",
+        )
+        with (
+            patch.object(guide_route, "check_local_model_status", return_value=status_value),
+            patch.object(guide_route, "chat_with_local_model") as chat,
+        ):
+            status, response = _asgi_request({}, path="/guide/status", method="GET")
+
+        self.assertEqual(status, 200)
+        self.assertEqual(response["status"], "available")
+        self.assertTrue(response["reachable"])
+        self.assertTrue(response["model_available"])
+        self.assertEqual(response["model"], "qwen3.5:4b-q4_K_M")
+        chat.assert_not_called()
+
+    def test_local_status_detects_installed_and_missing_models(self) -> None:
+        def installed(request, *, timeout):
+            self.assertEqual(request.full_url, "http://127.0.0.1:11434/api/tags")
+            self.assertEqual(timeout, local_assistant.OLLAMA_STATUS_TIMEOUT_SECONDS)
+            return _Response({"models": [{"name": "qwen3.5:4b-q4_K_M", "model": "qwen3.5:4b-q4_K_M"}]})
+
+        with self._proxy_free_opener_patch(installed):
+            available = local_assistant.check_local_model_status()
+        self.assertEqual(available.status, "available")
+        self.assertTrue(available.reachable)
+        self.assertTrue(available.model_available)
+
+        with self._proxy_free_opener_patch(lambda *args, **kwargs: _Response({"models": []})):
+            missing = local_assistant.check_local_model_status()
+        self.assertEqual(missing.status, "model_missing")
+        self.assertTrue(missing.reachable)
+        self.assertFalse(missing.model_available)
+        self.assertIn("ollama pull qwen3.5:4b-q4_K_M", missing.message)
+
+    def test_local_status_fails_closed_for_non_loopback_or_unreachable_ollama(self) -> None:
+        with (
+            patch.dict("os.environ", {"OLLAMA_BASE_URL": "https://example.com"}, clear=False),
+            self._proxy_free_opener_patch(lambda *args, **kwargs: None) as mocked_builder,
+        ):
+            misconfigured = local_assistant.check_local_model_status()
+        self.assertEqual(misconfigured.status, "misconfigured")
+        mocked_builder.assert_not_called()
+
+        with self._proxy_free_opener_patch(lambda *args, **kwargs: (_ for _ in ()).throw(URLError("offline"))):
+            unavailable = local_assistant.check_local_model_status()
+        self.assertEqual(unavailable.status, "unavailable")
+        self.assertFalse(unavailable.reachable)
 
     def test_defaults_are_loopback_and_use_the_configured_qwen_model_name(self) -> None:
         with patch.dict("os.environ", {}, clear=True):

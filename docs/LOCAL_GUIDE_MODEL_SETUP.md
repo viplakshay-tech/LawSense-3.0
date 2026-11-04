@@ -59,7 +59,16 @@ ollama run qwen3.5:4b-q4_K_M "Reply with the word OK."
 
 If you use a different model, substitute the installed model name.
 
-## 4. What happens when the model is unavailable
+## 4. Local model status check
+
+The backend exposes `GET /guide/status`. It checks the loopback Ollama `/api/tags` endpoint with a short timeout and reports whether the configured model is installed.
+
+- It does not send a prompt or load the model.
+- It does not contact a cloud provider.
+- `available` means the Ollama API responds and the configured model is installed; the first chat response may still take longer while the model loads.
+- `model_missing` includes the exact `ollama pull` command for the configured model.
+
+## 5. What happens when the model is unavailable
 
 - The Guide reports that the local assistant is unavailable.
 - It does not silently fall back to a cloud model.
@@ -67,7 +76,7 @@ If you use a different model, substitute the installed model name.
 - A model response is conversational assistance only. It is not a verified legal source or a legal conclusion.
 - Caller-supplied excerpts and conversation history remain untrusted context; the backend does not authenticate them.
 
-## 5. Android limitation
+## 6. Android limitation
 
 The current Capacitor APK is a **connection shell**, not a standalone on-device AI app. It does not bundle Ollama or the model weights, and it still depends on a reachable LawSense frontend/API. A successful debug APK build does not prove cable-free offline operation.
 

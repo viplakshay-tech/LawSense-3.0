@@ -1103,6 +1103,46 @@ export interface GuideChatResponse {
   proposed_action?: GuideActionName | null;
 }
 
+export interface GuideModelStatus {
+  status: 'available' | 'model_missing' | 'unavailable' | 'misconfigured';
+  model: string;
+  reachable: boolean;
+  model_available: boolean;
+  message: string;
+}
+
+/** Checks the configured loopback Ollama model without sending a prompt. */
+export async function getGuideModelStatus(signal?: AbortSignal): Promise<GuideModelStatus> {
+  const controller = new AbortController();
+  const abortFromCaller = () => controller.abort();
+  if (signal?.aborted) controller.abort();
+  else signal?.addEventListener('abort', abortFromCaller, { once: true });
+  const timeout = setTimeout(() => controller.abort(), 5_000);
+  try {
+    const response = await fetch(`${BASE_URL}/guide/status`, {
+      method: 'GET',
+      cache: 'no-store',
+      signal: controller.signal,
+    });
+    const body = await response.json().catch(() => null);
+    if (
+      !response.ok
+      || !body
+      || !['available', 'model_missing', 'unavailable', 'misconfigured'].includes(body.status)
+      || typeof body.model !== 'string'
+      || typeof body.reachable !== 'boolean'
+      || typeof body.model_available !== 'boolean'
+      || typeof body.message !== 'string'
+    ) {
+      throw new Error('Local Guide model status could not be checked.');
+    }
+    return body as GuideModelStatus;
+  } finally {
+    clearTimeout(timeout);
+    signal?.removeEventListener('abort', abortFromCaller);
+  }
+}
+
 /** Sends a reviewed text turn to the same-origin LawSense backend for local Guide assistance. */
 export async function sendGuideMessage(
   message: string,

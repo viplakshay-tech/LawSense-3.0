@@ -228,6 +228,7 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
 
   useLayoutEffect(() => {
     if (!open) return;
+    const trigger = triggerRef.current;
     const dialog = dialogRef.current;
     const focusableElements = () => Array.from(
       dialog?.querySelectorAll<HTMLElement>(
@@ -266,7 +267,7 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
     window.addEventListener('keydown', onKeyDown);
     return () => {
       window.removeEventListener('keydown', onKeyDown);
-      (previousFocusRef.current ?? triggerRef.current)?.focus({ preventScroll: true });
+      (previousFocusRef.current ?? trigger)?.focus({ preventScroll: true });
       previousFocusRef.current = null;
     };
   }, [open]);
