@@ -454,6 +454,14 @@ test('text Guide transport failures are recorded as unavailable shared-session t
   assert.match(catchBlock, /No cloud fallback was used/);
 });
 
+test('text and voice Guide surfaces use the same case-scoped message transport', () => {
+  assert.match(voiceConversationSource, /sendCaseScopedGuideMessage/);
+  assert.match(guideControlSurfaceSource, /sendCaseScopedGuideMessage/);
+  assert.doesNotMatch(voiceConversationSource, /sendGuideMessage\(/);
+  assert.doesNotMatch(guideControlSurfaceSource, /sendGuideMessage\(/);
+  assert.match(guideControlSurfaceSource, /status: 'unavailable'/);
+});
+
 test('text and voice Guide requests share one case-scoped history and model-action context', () => {
   const caseId = 'guide-chat-context-test';
   clearGuideSession(caseId);
