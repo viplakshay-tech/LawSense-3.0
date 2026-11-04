@@ -177,7 +177,7 @@ class AuthoritativeLegalKnowledgeSeedTests(unittest.TestCase):
         self.assertIn("Uttarakhand-specific", housing.text)
         self.assertIn("Section 1(3)", housing.text)
         self.assertEqual(housing.jurisdiction, "jurisdiction-uttarakhand")
-        self.assertEqual(self.store.get(housing.jurisdiction).status, KnowledgeStatus.UNVERIFIED)
+        self.assertEqual(self.store.get(housing.jurisdiction).status, KnowledgeStatus.VERIFIED)
         self.assertTrue(any(
             ref.source_id == "source-pib-labour-codes-commencement-2025"
             and "2025-11-21" in (ref.page_section_reference or "")
