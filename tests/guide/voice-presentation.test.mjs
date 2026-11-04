@@ -261,8 +261,8 @@ test('Legal Advisory distinguishes catalog record status from source verificatio
 
 test('clearing the shared case session invalidates pending text Guide replies across routes', () => {
   assert.match(guideControlSurfaceSource, /generation: sessionGeneration/);
-  assert.match(guideControlSurfaceSource, /getGuideSessionGeneration\(caseId\)/);
-  assert.match(guideControlSurfaceSource, /isGuideSessionGenerationCurrent\(caseId, requestGeneration\)/);
+  assert.match(guideControlSurfaceSource, /beginGuideTurn\(caseId\)/);
+  assert.match(guideControlSurfaceSource, /isGuideTurnCurrent\(caseId, turnToken\)/);
   assert.match(guideControlSurfaceSource, /observedSessionGenerationRef\.current === sessionGeneration/);
 });
 
