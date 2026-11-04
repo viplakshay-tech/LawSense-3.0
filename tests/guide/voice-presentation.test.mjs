@@ -28,6 +28,7 @@ const legalSourceCandidates = await readFile(new URL('../../components/LegalSour
 const draftingStudio = await readFile(new URL('../../components/drafting/DraftingStudio.tsx', import.meta.url), 'utf8');
 const persistentLegalAdvisorySource = await readFile(new URL('../../components/case-shell/PersistentLegalAdvisory.tsx', import.meta.url), 'utf8');
 const guideSessionSource = await readFile(new URL('../../lib/guide-session.ts', import.meta.url), 'utf8');
+const guideApiSource = await readFile(new URL('../../lib/api.ts', import.meta.url), 'utf8');
 const voiceConversationSource = await readFile(new URL('../../components/voice/GuideConversation.tsx', import.meta.url), 'utf8');
 const guideControlSurfaceSource = await readFile(new URL('../../components/guide-presence/GuideControlSurface.tsx', import.meta.url), 'utf8');
 const persistentLegalAdvisory = await readFile(new URL('../../components/case-shell/PersistentLegalAdvisory.tsx', import.meta.url), 'utf8');
@@ -262,6 +263,13 @@ test('clearing or switching the active Guide case invalidates pending requests',
   assert.deepEqual(getGuideSessionSnapshot(caseId).turns, []);
   assert.match(guideSessionSource, /invalidateGuideSessionRequest\(previousActiveCaseId\)/);
   assert.match(guideSessionSource, /signal: controller\.signal/);
+});
+
+test('Guide API propagates shared cancellation to fetch and removes its abort listener', () => {
+  assert.match(guideApiSource, /sessionSignal\?: AbortSignal/);
+  assert.match(guideApiSource, /sessionSignal\?\.addEventListener\('abort', abortFromSession/);
+  assert.match(guideApiSource, /signal: controller\.signal/);
+  assert.match(guideApiSource, /sessionSignal\?\.removeEventListener\('abort', abortFromSession\)/);
 });
 
 test('voice conversation preserves an unavailable local assistant response status', () => {
