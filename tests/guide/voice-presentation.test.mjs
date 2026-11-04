@@ -237,9 +237,10 @@ test('a newer Guide turn aborts older text and voice requests without crossing c
   assert.equal(getGuideSessionSnapshot(caseId).requestSequence, second.sequence);
   finishGuideTurn(caseId, second);
   assert.equal(second.signal.aborted, false);
+  const pendingAtClear = beginGuideTurn(caseId);
   clearGuideSession(caseId);
-  assert.equal(second.signal.aborted, true);
-  assert.equal(isGuideTurnCurrent(caseId, second), false);
+  assert.equal(pendingAtClear.signal.aborted, true);
+  assert.equal(isGuideTurnCurrent(caseId, pendingAtClear), false);
 
   const switchedCaseRequest = beginGuideTurn(otherCaseId);
   invalidateGuideTurn(otherCaseId);
