@@ -26,7 +26,7 @@ The integration branch already provides useful foundations:
 - `GuidePresence` renders runtime state through an avatar adapter and respects reduced-motion preferences.
 - `/guide/chat` can call a configured loopback Ollama service. It has no cloud fallback and receives a bounded case context.
 - Guide chat may propose only actions supplied by the frontend allowlist. The user must click to execute a proposal.
-- The voice route retains its own microphone capture, transcript review, confirmation and playback lifecycle; confirmed turns and language are shared with the floating text Guide through the case-scoped session.
+- The voice route retains its own microphone capture, transcript review, confirmation and playback lifecycle. Confirmed Guide turns and language are shared through the case-scoped session; a transcript from the separate case-statement workflow is appended to that same history only after the backend accepts the explicit user confirmation. Unreviewed voice drafts remain route-local and are not conversation turns.
 - `OPEN_DRAFTING` opens the active case's existing document studio only after user approval.
 - `SHOW_LEGAL_GROUNDING` focuses one exact source record when unambiguous; with zero or multiple candidate records, it opens the persistent Legal Advisory for the active case.
 - `OPEN_LEGAL_ADVISORY` is a distinct, always-available, read-only action for opening the existing case-scoped Legal Advisory; it does not create or approve advice.
@@ -36,7 +36,7 @@ Important gaps confirmed by the current code:
 
 1. Confirmed turns and language are shared between the floating text Guide and dedicated voice workspace in case-scoped `sessionStorage`; active microphone capture and unreviewed transcript drafts remain route-local.
 2. The shared session survives route changes and page refresh within the same browser tab, but is not durable across tabs/devices or stored as a canonical case record.
-3. Voice capture, transcript review and case mutation are implemented as a separate workflow. They are not yet a mode adapter over the same agent turn/session.
+3. Voice capture, transcript review and case mutation remain a separate workflow rather than a mode adapter over the same agent turn/session. The confirmed statement is bridged into shared conversation history only after successful case acceptance; microphone capture, review drafts, extracted previews and commit state remain owned by the voice workflow.
 4. The current action registry is navigation and read-only inspection, including validated document finding and Legal Twin node/time deep links. It does not constitute unrestricted app control or permission to change facts, evidence, documents or case records.
 5. The local assistant is an optional laptop/Ollama integration. It is not an embedded Android model or a standalone phone runtime.
 6. The current Capacitor APK is a connection shell that relies on a computer-hosted frontend/API. It is not the requested standalone, cable-free Android application.
