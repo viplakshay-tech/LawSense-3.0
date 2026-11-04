@@ -14,7 +14,7 @@ from app.engines.legal_knowledge.models import (
     SourceAuthorityTier,
 )
 from app.engines.legal_knowledge.seed import build_authoritative_legal_knowledge_seed
-from app.engines.legal_sources import LegalSourceRegistry, RegistryRegistrySourceVersion, SourceFreshnessStatus
+from app.engines.legal_sources import LegalSourceRegistry, RegistrySourceVersion, SourceFreshnessStatus
 from app.services.legal_knowledge_service import search_legal_knowledge
 
 
