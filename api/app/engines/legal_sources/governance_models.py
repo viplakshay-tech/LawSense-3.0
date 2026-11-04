@@ -82,6 +82,8 @@ class GovernedLegalSource:
             missing.append("official_reference or source_url or reference")
         if self.retrieved_at is None:
             missing.append("retrieved_at")
+        if self.verification_date is None:
+            missing.append("verification_date")
         return tuple(missing)
 
 

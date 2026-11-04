@@ -10,7 +10,8 @@ The source catalog at `data/knowledge/source_catalog/sources.json` is the persis
 2. Open the official primary publication. For legislation, inspect the official Act text and all relevant amendment, commencement, repeal/savings and corrigendum notifications. For State law, use the relevant State government's official publication.
 3. Compare the official version with the text and provision metadata actually stored in LawSense. Check section numbering, definitions, commencement dates, amendments and whether the local source snapshot needs updating.
 4. Record the exact source version and the retrieval/review times. Include what was checked and what was not checked in the evidence.
-5. Commit the source catalog change and any necessary seed-text/provision corrections together. Have the review evidence checked before merging.
+5. Record a calendar `verificationDate` for the identity review, alongside the reviewer evidence and retrieval timestamp. A source marked verified without a review date is rejected by source governance.
+6. Commit the source catalog change and any necessary seed-text/provision corrections together. Have the review evidence checked before merging.
 
 ## Record a current review
 
