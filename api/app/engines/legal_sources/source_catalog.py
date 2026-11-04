@@ -219,7 +219,7 @@ def record_source_identity_review(
     raw_catalog["catalogVersion"] = parsed_date.isoformat()
 
     temporary_path = catalog_path.with_suffix(catalog_path.suffix + ".tmp")
-    temporary_path.write_text(json.dumps(raw_catalog, indent=2, ensure_ascii=False) + "\\n", encoding="utf-8")
+    temporary_path.write_text(json.dumps(raw_catalog, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     temporary_path.replace(catalog_path)
     return load_source_catalog(catalog_path)[source_id]
 
