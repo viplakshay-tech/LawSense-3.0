@@ -545,10 +545,14 @@ class CasePipelineTests(unittest.TestCase):
                     self.assertNotIn("SOURCE_FRESHNESS_NOT_CURRENT", result.legal_reasoning.reason_codes)
                 else:
                     self.assertIn("SOURCE_FRESHNESS_NOT_CURRENT", result.legal_reasoning.reason_codes)
-                self.assertTrue(any(
+                has_current_source_block = any(
                     item.subject == "current_legal_source_use"
                     for item in result.legal_reasoning.blocked_conclusions
-                ))
+                )
+                if category == "housing":
+                    self.assertFalse(has_current_source_block)
+                else:
+                    self.assertTrue(has_current_source_block)
 
     def test_matching_local_legal_record_is_retrieved_with_its_original_text_and_provenance(self) -> None:
         authority = Authority(id="authority-consumer", title="Fixture authority", status=KnowledgeStatus.VERIFIED)
