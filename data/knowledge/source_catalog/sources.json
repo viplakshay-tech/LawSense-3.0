@@ -56,7 +56,7 @@
       "verificationNote": "Act ID 201929, Act No. 29, enactment date 2019-08-08 and title matched against the official India Code record. Gazette S.O. 5322(E) dated 2025-11-21 commences only its listed provisions; no blanket commencement date is inferred.",
       "retrievedAt": "2026-11-04T06:42:00+00:00",
       "freshnessCheckedAt": "2026-11-04T13:20:08+05:30",
-      "freshnessEvidence": "Compared the India Code consolidated Code on Wages PDF labelled as on 21 November 2025 with Gazette S.O. 454(E), dated 30 January 2026. The later notification sets the supervisory-worker wage ceiling at ₹18,000 per month under section 2(z)(d), which is absent from the stored 2025 consolidated snapshot. Marked stale pending a refreshed snapshot and review of affected provisions."
+      "freshnessEvidence": "Compared the India Code consolidated Code on Wages PDF labelled as on 21 November 2025 (https://www.indiacode.nic.in/bitstream/123456789/15793/1/aA2019-29.pdf) with Gazette S.O. 454(E), dated 30 January 2026 (https://egazette.gov.in/WriteReadData/2026/269705.pdf). The Gazette sets the supervisory-worker wage ceiling at ₹18,000 per month under section 2(z)(d), while the stored 2025 consolidated text still states ₹15,000. Marked stale pending a refreshed snapshot and review of affected provisions."
     },
     {
       "id": "source-india-code-posh-act-2013",
