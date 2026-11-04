@@ -37,11 +37,11 @@
       "verificationStatus": "verified_official",
       "catalogPage": "https://consumeraffairs.gov.in/pages/consumer-protection-acts",
       "version": "Act No. 35 of 2019; India Code record 123456789/16103",
-      "freshnessStatus": "unknown",
+      "freshnessStatus": "stale",
       "verificationNote": "Act ID 201935, Act No. 35, enactment date 2019-08-09 and title matched against the official India Code record. The Department of Consumer Affairs page lists the Act and separate commencement notifications. This verifies source identity only; amendments, provision-level commencement and currentness require separate review.",
       "retrievedAt": "2026-10-07T21:01:55+00:00",
-      "freshnessCheckedAt": null,
-      "freshnessEvidence": null
+      "freshnessCheckedAt": "2026-11-04T13:51:00+05:30",
+      "freshnessEvidence": "Compared the local curated Consumer Protection Act source and its provision summaries with the official India Code Act PDF (arrangement page states last updated 17-09-2021) and the Mediation Act, 2023 (Act No. 32 of 2023), Tenth Schedule, published 15-09-2023 in Gazette ID CG-DL-E-15092023-248775. The Tenth Schedule specifies changes to Consumer Protection Act sections 2(25) and 2(26), section 37 (including new sections 37A and 37B), section 38(1), section 41, Chapter V, and delegated rule/regulation powers; S.O. 4506(E) dated 13-10-2023 further changes the section 37 wording. The local curated source still reflects the 2021 Act text and does not reconcile these later amendment texts or their applicable commencement scope. The seed provisions are sections 2(10), 2(11) and 39(1)(c), which are not the provisions expressly changed in the Tenth Schedule, but source-level currentness is not established until the complete consolidation and commencement status are reviewed. Marked stale; preserved the prior retrievedAt and version."
     },
     {
       "id": "source-india-code-code-on-wages-2019",
