@@ -8,7 +8,8 @@
       "officialUrl": "https://indiacode.gov.in/",
       "verificationDate": "2026-10-09",
       "verificationStatus": "verified_official",
-      "verificationNote": "Official portal metadata recorded by the project catalog; the date is a recorded verification date, not a live check."
+      "verificationNote": "Official portal metadata recorded by the project catalog; the date is a recorded verification date, not a live check.",
+      "version": "Portal metadata snapshot; not a consolidated legal text version"
     },
     {
       "id": "source-indiacode-uttarakhand-tenancy-act-2021",
