@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import type { FormEvent, KeyboardEvent } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { Activity, ArrowLeft, ChevronDown, ChevronUp, CircleHelp, Loader2, MessageCircle, Mic2, Radio, Scale, Send, ShieldAlert, Trash2, Volume2, VolumeX } from 'lucide-react';
+import { Activity, ArrowLeft, ChevronDown, ChevronUp, CircleHelp, Loader2, MessageCircle, Mic2, Radio, Scale, Send, ShieldAlert, Square, Trash2, Volume2, VolumeX } from 'lucide-react';
 import { guidePresenceStateFromSnapshot, useGuideRuntime } from '@/components/guide-runtime';
 import { type GuideChatLanguage } from '@/lib/api';
 import { sendCaseScopedGuideMessage } from '@/lib/guide-chat-context';
@@ -11,6 +11,7 @@ import {
   beginGuideTurn,
   finishGuideTurn,
   isGuideTurnCurrent,
+  invalidateGuideTurn,
   useGuideSession,
 } from '@/lib/guide-session';
 import type { GuideAction } from '@/components/guide-runtime/types';
@@ -192,6 +193,24 @@ export function GuideConversationPanel({
     }
   }
 
+  function stopChat() {
+    if (!caseId || !chatInFlightRef.current) return;
+    invalidateGuideTurn(caseId);
+    chatRequestSequenceRef.current += 1;
+    activeSessionRequestRef.current = null;
+    chatInFlightRef.current = false;
+    appendTurn({
+      id: `guide-chat-${Date.now()}-${chatRequestSequenceRef.current}-stopped`,
+      role: 'assistant',
+      content: 'You stopped this response. Your message remains in this session; send another message whenever you are ready.',
+      inputMode: 'text',
+      status: 'unavailable',
+    });
+    dispatch({ type: 'GUIDE_RESET' });
+    setChatSending(false);
+    setChatError(null);
+  }
+
   function clearChat() {
     chatRequestSequenceRef.current += 1;
     activeSessionRequestRef.current = null;
@@ -213,16 +232,28 @@ export function GuideConversationPanel({
                       <p className="mt-1 text-[10px] leading-4 text-slate-400">Uses your saved case context with the configured local assistant. This chat is not saved to the case; legal advice stays in Legal Advisory.</p>
                     </div>
                   </div>
-                  {chatEntries.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={clearChat}
-                      className="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-lg px-2 text-[10px] text-slate-400 hover:bg-white/[0.05] hover:text-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e9bd7b]"
-                      aria-label="Clear Guide chat from this screen"
-                    >
-                      <Trash2 aria-hidden="true" className="h-3 w-3" /> Clear
-                    </button>
-                  )}
+                  <div className="flex shrink-0 items-center gap-1">
+                    {chatSending && (
+                      <button
+                        type="button"
+                        onClick={stopChat}
+                        className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-rose-300/20 px-2 text-[10px] font-semibold text-rose-200 hover:bg-rose-200/[0.08] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e9bd7b]"
+                        aria-label="Stop the current Guide response"
+                      >
+                        <Square aria-hidden="true" className="h-3 w-3" /> Stop
+                      </button>
+                    )}
+                    {chatEntries.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={clearChat}
+                        className="inline-flex min-h-8 items-center gap-1 rounded-lg px-2 text-[10px] text-slate-400 hover:bg-white/[0.05] hover:text-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e9bd7b]"
+                        aria-label="Clear Guide chat from this screen"
+                      >
+                        <Trash2 aria-hidden="true" className="h-3 w-3" /> Clear
+                      </button>
+                    )}
+                  </div>
                 </div>
     
                 <GuideModelStatusBanner />
