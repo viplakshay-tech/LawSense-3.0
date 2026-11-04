@@ -85,7 +85,7 @@ def _parse_record(raw: Any) -> SourceCatalogRecord:
         raise SourceCatalogError(f"{source_id}: version is required.")
 
     verification_status = raw.get("verificationStatus", "unverified")
-    if verification_status not in {"verified_official", "unverified"}:
+    if not isinstance(verification_status, str) or verification_status not in {"verified_official", "unverified"}:
         raise SourceCatalogError(f"{source_id}: unsupported verificationStatus.")
     verification_date = _parse_date(raw.get("verificationDate"), "verificationDate")
     verification_evidence = raw.get("verificationNote")
@@ -103,7 +103,7 @@ def _parse_record(raw: Any) -> SourceCatalogRecord:
     retrieved_at = _parse_datetime(raw.get("retrievedAt"), "retrievedAt")
     try:
         freshness_status = SourceFreshnessStatus(raw.get("freshnessStatus", "unknown"))
-    except ValueError as exc:
+    except (TypeError, ValueError) as exc:
         raise SourceCatalogError(f"{source_id}: unsupported freshnessStatus.") from exc
     freshness_checked_at = _parse_datetime(raw.get("freshnessCheckedAt"), "freshnessCheckedAt")
     freshness_evidence = raw.get("freshnessEvidence")
@@ -185,9 +185,15 @@ def record_source_freshness_review(
 
     try:
         freshness_status = SourceFreshnessStatus(status)
-    except ValueError as exc:
+    except (TypeError, ValueError) as exc:
         raise SourceCatalogError("Freshness status must be unknown, current or stale.") from exc
 
+    if freshness_status is SourceFreshnessStatus.UNKNOWN and any(
+        value is not None for value in (checked_at, evidence, retrieved_at, version)
+    ):
+        raise SourceCatalogError("Unknown freshness must clear review time, evidence, retrievedAt and version inputs.")
+    if freshness_status is SourceFreshnessStatus.STALE and (retrieved_at is not None or version is not None):
+        raise SourceCatalogError("A stale review must preserve the last retrieved snapshot and version.")
     raw_catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
     raw_record = next(item for item in raw_catalog["sources"] if item["id"] == source_id)
     if freshness_status is SourceFreshnessStatus.STALE and retrieved_at is not None:
