@@ -3,6 +3,13 @@ import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
 import { validateGuideActionCommand } from '../../components/guide-actions/validation.ts';
 import { createGuideActionBridge } from '../../components/guide-actions/bridge.ts';
+import {
+  beginGuideSessionRequest,
+  clearGuideSession,
+  finishGuideSessionRequest,
+  getGuideSessionSnapshot,
+  isGuideSessionRequestCurrent,
+} from '../../lib/guide-session.ts';
 import { guideVoiceSnapshotForEvent } from '../../components/guide-runtime/voice-adapter/visual-state.ts';
 import {
   createGuideConversationResponse,
@@ -212,12 +219,49 @@ test('Guide opens Legal Advisory when there is no single source record to focus'
 });
 
 
-test('clearing the shared Guide session invalidates pending voice replies across routes', () => {
-  assert.match(guideSessionSource, /generation:\s*current\.generation\s*\+\s*1/);
-  assert.match(guideSessionSource, /export function getGuideSessionGeneration/);
-  assert.match(guideSessionSource, /export function isGuideSessionGenerationCurrent/);
-  assert.match(voiceConversationSource, /const sessionGeneration = getGuideSessionGeneration\(caseId\)/);
-  assert.match(voiceConversationSource, /!isGuideSessionGenerationCurrent\(caseId, sessionGeneration\)/);
+test('new text or voice Guide turns cancel older in-flight requests for the same case', () => {
+  const caseId = 'guide-cross-mode-request-test';
+  const otherCaseId = 'guide-cross-mode-other-case';
+  clearGuideSession(caseId);
+  clearGuideSession(otherCaseId);
+
+  const first = beginGuideSessionRequest(caseId);
+  const independent = beginGuideSessionRequest(otherCaseId);
+  const second = beginGuideSessionRequest(caseId);
+
+  assert.equal(first.signal.aborted, true);
+  assert.equal(isGuideSessionRequestCurrent(caseId, first), false);
+  assert.equal(isGuideSessionRequestCurrent(caseId, second), true);
+  assert.equal(independent.signal.aborted, false);
+  assert.equal(isGuideSessionRequestCurrent(otherCaseId, independent), true);
+  assert.equal(getGuideSessionSnapshot(caseId).requestSequence, second.sequence);
+  finishGuideSessionRequest(caseId, second);
+  assert.equal(second.signal.aborted, false);
+
+  assert.match(guideSessionSource, /pendingRequests\.get\(caseId\)\?\.abort\(\)/);
+  assert.match(guideSessionSource, /export function beginGuideSessionRequest/);
+  assert.match(guideSessionSource, /export function isGuideSessionRequestCurrent/);
+  assert.match(voiceConversationSource, /beginGuideSessionRequest\(caseId\)/);
+  assert.match(voiceConversationSource, /isGuideSessionRequestCurrent\(caseId, sessionRequest\)/);
+  assert.match(guideControlSurfaceSource, /beginGuideSessionRequest\(caseId\)/);
+  assert.match(guideControlSurfaceSource, /isGuideSessionRequestCurrent\(caseId, sessionRequest\)/);
+  assert.match(guideControlSurfaceSource, /observedSessionRequestSequenceRef\.current === sessionRequestSequence/);
+});
+
+test('clearing or switching the active Guide case invalidates pending requests', () => {
+  const caseId = 'guide-cross-mode-clear-test';
+  const otherCaseId = 'guide-cross-mode-switch-test';
+  clearGuideSession(caseId);
+  clearGuideSession(otherCaseId);
+  const pending = beginGuideSessionRequest(caseId);
+
+  clearGuideSession(caseId);
+
+  assert.equal(pending.signal.aborted, true);
+  assert.equal(isGuideSessionRequestCurrent(caseId, pending), false);
+  assert.deepEqual(getGuideSessionSnapshot(caseId).turns, []);
+  assert.match(guideSessionSource, /invalidateGuideSessionRequest\(previousActiveCaseId\)/);
+  assert.match(guideSessionSource, /signal: controller\.signal/);
 });
 
 test('voice conversation preserves an unavailable local assistant response status', () => {
