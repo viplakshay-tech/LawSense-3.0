@@ -12,10 +12,9 @@ from app.engines.legal_knowledge.models import (
     LegalProvision,
     LegalSource,
     SourceAuthorityTier,
-    SourceVersion,
 )
 from app.engines.legal_knowledge.seed import build_authoritative_legal_knowledge_seed
-from app.engines.legal_sources import LegalSourceRegistry, SourceFreshnessStatus
+from app.engines.legal_sources import LegalSourceRegistry, RegistryRegistrySourceVersion, SourceFreshnessStatus
 from app.services.legal_knowledge_service import search_legal_knowledge
 
 
@@ -88,7 +87,7 @@ class AuthoritativeLegalKnowledgeSeedTests(unittest.TestCase):
             },
         )
 
-        versions = [item for item in self.store.items if isinstance(item, SourceVersion)]
+        versions = [item for item in self.store.items if isinstance(item, RegistrySourceVersion)]
         self.assertEqual(len(versions), 8)
         for version in versions:
             with self.subTest(snapshot=version.id):
@@ -111,7 +110,7 @@ class AuthoritativeLegalKnowledgeSeedTests(unittest.TestCase):
                 self.assertEqual(version.source_url, entry.source_url)
 
     def test_verified_seed_snapshots_carry_source_specific_evidence(self) -> None:
-        versions = [item for item in self.store.items if isinstance(item, SourceVersion)]
+        versions = [item for item in self.store.items if isinstance(item, RegistrySourceVersion)]
         self.assertEqual(len(versions), 8)
         for version in versions:
             with self.subTest(source=version.source):
@@ -212,7 +211,7 @@ class AuthoritativeLegalKnowledgeSeedTests(unittest.TestCase):
         self.assertIsNone(consumer_act.effective_from)
         consumer_snapshot = next(
             item for item in self.store.items
-            if isinstance(item, SourceVersion) and item.source == consumer_act.id
+            if isinstance(item, RegistrySourceVersion) and item.source == consumer_act.id
         )
         self.assertEqual(
             consumer_snapshot.canonical_reference,
