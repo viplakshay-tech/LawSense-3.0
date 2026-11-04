@@ -281,6 +281,11 @@ test('Guide workspace always exposes Legal Advisory based on information so far'
 
 
 test('drafting source suggestions require explicit verification metadata', () => {
-  assert.match(draftingStudio, /item\.record\.status === 'verified' && item\.record\.sourceVerificationStatus === 'verified'/);
+  assert.match(draftingStudio, /record\.sourceFreshnessStatus !== 'current'/);
+  assert.match(draftingStudio, /!record\.sourceFreshnessCheckedAt\?\.trim\(\)/);
+  assert.match(draftingStudio, /!record\.sourceFreshnessEvidence\?\.trim\(\)/);
+  assert.match(draftingStudio, /record\.jurisdictionMatchStatus !== 'matched'/);
+  assert.match(draftingStudio, /item\.record\.sourceFreshnessStatus === 'current'/);
+  assert.match(draftingStudio, /item\.record\.jurisdictionMatchStatus === 'matched'/);
   assert.doesNotMatch(draftingStudio, /!item\.record\.sourceVerificationStatus/);
 });

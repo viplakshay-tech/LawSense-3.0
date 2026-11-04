@@ -63,11 +63,15 @@ function safeSourceUrl(url: string | null | undefined): string | null {
   }
 }
 
-function hasVerifiedLegalSource(caseState: CaseState, label: string, url: string): boolean {
+function hasDraftEligibleLegalSource(caseState: CaseState, label: string, url: string): boolean {
   const normalizedLabel = label.trim().toLocaleLowerCase();
   const normalizedUrl = safeSourceUrl(url);
   return Boolean(caseState.analysis?.legalKnowledge.records.some((record) => {
-    if (record.status !== 'verified' || record.sourceVerificationStatus !== 'verified') return false;
+    if (record.status !== 'verified' || record.sourceVerificationStatus !== 'verified'
+      || record.sourceFreshnessStatus !== 'current'
+      || !record.sourceFreshnessCheckedAt?.trim()
+      || !record.sourceFreshnessEvidence?.trim()
+      || record.jurisdictionMatchStatus !== 'matched') return false;
     const recordUrl = safeSourceUrl(record.sourceUrl || record.provenance.find((item) => item.sourceUrl)?.sourceUrl);
     const normalizedReference = (record.reference ?? '').trim().toLocaleLowerCase();
     return Boolean(
@@ -189,17 +193,17 @@ export function DraftingStudio({ caseId }: { caseId: string }) {
       : null,
     [draft, draftIsStale],
   );
-  const verifiedLegalSourceMissing = Boolean(
+  const eligibleLegalSourceMissing = Boolean(
     caseState && previewDraft?.fields.legalText.trim()
-    && !hasVerifiedLegalSource(caseState, previewDraft.fields.legalSourceLabel, previewDraft.fields.legalSourceUrl),
+    && !hasDraftEligibleLegalSource(caseState, previewDraft.fields.legalSourceLabel, previewDraft.fields.legalSourceUrl),
   );
   const unresolved = useMemo(
     () => {
       const missing = previewDraft ? getUnresolvedFields(previewDraft, sourceFacts) : [];
-      if (verifiedLegalSourceMissing) missing.push('Verified legal source already recorded in this case');
+      if (eligibleLegalSourceMissing) missing.push('Current verified source with freshness evidence and matching jurisdiction');
       return missing;
     },
-    [previewDraft, sourceFacts, verifiedLegalSourceMissing],
+    [previewDraft, sourceFacts, eligibleLegalSourceMissing],
   );
   const previewText = useMemo(
     () => (previewDraft ? createDocumentText(previewDraft, sourceFacts, unresolved) : ''),
@@ -232,7 +236,13 @@ export function DraftingStudio({ caseId }: { caseId: string }) {
   const selectedFacts = sourceFacts.filter((fact) => previewDraft?.includedFactIds.includes(fact.id));
   const safeLegalSources = (caseState.analysis?.legalKnowledge.records ?? [])
     .map((record) => ({ record, url: safeSourceUrl(record.sourceUrl || record.provenance.find((item) => item.sourceUrl)?.sourceUrl) }))
-    .filter((item) => item.url && item.record.status === 'verified' && item.record.sourceVerificationStatus === 'verified');
+    .filter((item) => item.url
+      && item.record.status === 'verified'
+      && item.record.sourceVerificationStatus === 'verified'
+      && item.record.sourceFreshnessStatus === 'current'
+      && Boolean(item.record.sourceFreshnessCheckedAt?.trim())
+      && Boolean(item.record.sourceFreshnessEvidence?.trim())
+      && item.record.jurisdictionMatchStatus === 'matched');
 
   function changeField(field: keyof DraftFields, value: string) {
     setDraft((current) => current ? {
@@ -294,13 +304,13 @@ export function DraftingStudio({ caseId }: { caseId: string }) {
   }
 
   function confirmReview() {
-    if (draftIsStale || verifiedLegalSourceMissing) return;
+    if (draftIsStale || eligibleLegalSourceMissing) return;
     if (unresolved.length > 0 && !activeDraft.unresolvedAcknowledged) return;
     setDraft((current) => current ? { ...current, reviewConfirmed: true } : current);
   }
 
   function downloadDraft() {
-    if (!activeDraft.reviewConfirmed || draftIsStale || verifiedLegalSourceMissing) return;
+    if (!activeDraft.reviewConfirmed || draftIsStale || eligibleLegalSourceMissing) return;
     const blob = new Blob([previewText], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const anchor = window.document.createElement('a');
@@ -312,7 +322,7 @@ export function DraftingStudio({ caseId }: { caseId: string }) {
 
   function printDraft() {
     const paper = paperRef.current;
-    if (!activeDraft.reviewConfirmed || draftIsStale || verifiedLegalSourceMissing || !paper) return;
+    if (!activeDraft.reviewConfirmed || draftIsStale || eligibleLegalSourceMissing || !paper) return;
     const previousBodyVisibility = window.document.body.style.visibility;
     const previousPaperVisibility = paper.style.visibility;
     const restore = () => {
@@ -515,14 +525,14 @@ export function DraftingStudio({ caseId }: { caseId: string }) {
               <Field label="Legal wording · copied or written by you" value={draft.fields.legalText} onChange={(value) => changeField('legalText', value)} placeholder="Optional · leave empty to use no legal wording" multiline rows={4} maxLength={6000} />
               {draft.fields.legalText.trim() && (
                 <div className={styles.formGrid}>
-                  <Field label="Source title or reference" value={draft.fields.legalSourceLabel} onChange={(value) => changeField('legalSourceLabel', value)} placeholder="Use the title or reference of a verified case source" required hint="A source link by itself does not count as verification." />
+                  <Field label="Source title or reference" value={draft.fields.legalSourceLabel} onChange={(value) => changeField('legalSourceLabel', value)} placeholder="Use the title or reference of an eligible case source" required hint="The source must be verified, current with recorded review evidence, and matched to the case jurisdiction. A link alone is not enough." />
                   <Field label="Source link" value={draft.fields.legalSourceUrl} onChange={(value) => changeField('legalSourceUrl', value)} placeholder="https://…" hint="Optional · only a valid web link will be clickable in the preview." />
                 </div>
               )}
             </div>
             {safeLegalSources.length > 0 && (
               <div className={styles.availableSources}>
-                <p>Sources already recorded in this case · not inserted into your draft</p>
+                <p>Eligible sources already recorded in this case · not inserted into your draft</p>
                 {safeLegalSources.map(({ record, url }) => (
                   <a key={record.id} href={url!} target="_blank" rel="noreferrer">{record.title}<span>{record.jurisdictionLabel || record.jurisdiction || 'Jurisdiction not recorded'}</span></a>
                 ))}
@@ -579,7 +589,7 @@ export function DraftingStudio({ caseId }: { caseId: string }) {
             )}
             <div className={styles.reviewActions}>
               {!draft.reviewConfirmed || draftIsStale ? (
-                <button type="button" className={styles.primaryButton} onClick={confirmReview} disabled={draftIsStale || verifiedLegalSourceMissing || (unresolved.length > 0 && !draft.unresolvedAcknowledged)}>
+                <button type="button" className={styles.primaryButton} onClick={confirmReview} disabled={draftIsStale || eligibleLegalSourceMissing || (unresolved.length > 0 && !draft.unresolvedAcknowledged)}>
                   <ShieldCheck size={15} aria-hidden="true" /> I reviewed this draft
                 </button>
               ) : (
