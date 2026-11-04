@@ -110,6 +110,11 @@ class AuthoritativeLegalKnowledgeSeedTests(unittest.TestCase):
                     self.assertIsNotNone(version.freshness_checked_at)
                     self.assertIn("S.O. 454(E)", version.freshness_evidence or "")
                     self.assertIn("https://egazette.gov.in/WriteReadData/2026/269705.pdf", version.freshness_evidence or "")
+                elif version.source == "source-india-code-consumer-protection-act-2019":
+                    self.assertEqual(version.freshness_status, SourceFreshnessStatus.STALE)
+                    self.assertIsNotNone(version.freshness_checked_at)
+                    self.assertIn("Mediation Act, 2023", version.freshness_evidence or "")
+                    self.assertIn("S.O. 4506(E)", version.freshness_evidence or "")
                 else:
                     self.assertEqual(version.freshness_status, SourceFreshnessStatus.UNKNOWN)
                     self.assertIsNone(version.freshness_checked_at)
@@ -275,11 +280,21 @@ class AuthoritativeLegalKnowledgeSeedTests(unittest.TestCase):
                 self.assertEqual(source["verificationDate"], "2026-11-04")
                 expected_freshness = (
                     "stale"
-                    if source_id == "source-india-code-code-on-wages-2019"
+                    if source_id in {
+                        "source-india-code-consumer-protection-act-2019",
+                        "source-india-code-code-on-wages-2019",
+                    }
                     else "unknown"
                 )
                 self.assertEqual(source["freshnessStatus"], expected_freshness)
-                if expected_freshness == "stale":
+                if source_id == "source-india-code-consumer-protection-act-2019":
+                    self.assertEqual(source["freshnessCheckedAt"], "2026-11-04T13:51:00+05:30")
+                    self.assertIn("Mediation Act, 2023", source["freshnessEvidence"])
+                    self.assertIn("S.O. 4506(E)", source["freshnessEvidence"])
+                    self.assertIn("Tenth Schedule", source["freshnessEvidence"])
+                    self.assertIn("https://egazette.gov.in/WriteReadData/2023/248775.pdf", source["freshnessEvidence"])
+                    self.assertIn("https://upload.indiacode.nic.in/view-casepdf?id=AC_CEN_3_46_00011_A2023-32_1697800640677&type=act", source["freshnessEvidence"])
+                elif source_id == "source-india-code-code-on-wages-2019":
                     self.assertEqual(source["freshnessCheckedAt"], "2026-11-04T13:20:08+05:30")
                     self.assertIn("S.O. 454(E)", source["freshnessEvidence"])
                 else:
@@ -299,17 +314,18 @@ class AuthoritativeLegalKnowledgeSeedTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             temporary_catalog = Path(directory) / "sources.json"
             shutil.copyfile(catalog_path, temporary_catalog)
-            checked_at = datetime(2026, 11, 4, 7, 10, tzinfo=timezone.utc)
+            checked_at = datetime(2026, 11, 4, 8, 30, tzinfo=timezone.utc)
             evidence = (
-                "Reviewed the current consolidated Act text, published amendments and "
-                "commencement notifications against the official India Code record."
+                "Reviewed the current consolidated Act text, including the Mediation Act "
+                "2023 Tenth Schedule changes and the S.O. 4506(E) correction, against the "
+                "official India Code record and applicable commencement notifications."
             )
             record_source_freshness_review(
                 "source-india-code-consumer-protection-act-2019",
                 SourceFreshnessStatus.CURRENT,
                 checked_at=checked_at,
                 evidence=evidence,
-                retrieved_at=datetime(2026, 11, 4, 7, 0, tzinfo=timezone.utc),
+                retrieved_at=datetime(2026, 11, 4, 8, 25, tzinfo=timezone.utc),
                 version="Act No. 35 of 2019; India Code record 123456789/16103",
                 path=temporary_catalog,
             )
@@ -344,6 +360,9 @@ class AuthoritativeLegalKnowledgeSeedTests(unittest.TestCase):
             record["verificationStatus"] = "unverified"
             record["verificationDate"] = None
             record["verificationNote"] = None
+            record["freshnessStatus"] = "unknown"
+            record["freshnessCheckedAt"] = None
+            record["freshnessEvidence"] = None
             temporary_catalog.write_text(json.dumps(catalog, indent=2), encoding="utf-8")
 
             downgraded_store = build_authoritative_legal_knowledge_seed(temporary_catalog)
@@ -400,6 +419,9 @@ class AuthoritativeLegalKnowledgeSeedTests(unittest.TestCase):
                 if item["id"] == "source-india-code-consumer-protection-act-2019"
             )
             record["retrievedAt"] = None
+            record["freshnessStatus"] = "unknown"
+            record["freshnessCheckedAt"] = None
+            record["freshnessEvidence"] = None
             temporary_catalog.write_text(json.dumps(catalog, indent=2), encoding="utf-8")
             with self.assertRaisesRegex(SourceCatalogError, "retrievedAt is required"):
                 build_authoritative_legal_knowledge_seed(temporary_catalog)

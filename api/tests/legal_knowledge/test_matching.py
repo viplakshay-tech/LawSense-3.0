@@ -37,7 +37,7 @@ class LegalMatchTests(unittest.TestCase):
         )
         self.assertIn("user_reported", {fact.status for fact in match.supporting_facts})
         self.assertEqual(match.source["verification_status"], "verified")
-        self.assertEqual(match.source["freshness_status"], "unknown")
+        self.assertEqual(match.source["freshness_status"], "stale")
         self.assertTrue(any("not established as current" in item for item in match.assessment_rationale))
         self.assertTrue(match.source["url"].startswith((
             "https://indiacode.gov.in/",
@@ -170,7 +170,7 @@ class LegalMatchTests(unittest.TestCase):
         )
         procedure_item = candidate["procedures"]["items"][0]
         self.assertEqual(procedure_item["verification_status"], "unverified")
-        self.assertEqual(procedure_item["freshness_status"], "unknown")
+        self.assertEqual(procedure_item["freshness_status"], "stale")
         self.assertEqual(procedure_item["guidance_status"], "not_established_as_current")
         self.assertEqual(procedure_item["steps"], [])
 
