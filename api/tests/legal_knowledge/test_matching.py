@@ -187,6 +187,7 @@ class LegalMatchTests(unittest.TestCase):
         self.assertEqual(match.evidence_assessment, "unclear")
         self.assertEqual(match.assessment_factors["source_freshness"], "stale")
         self.assertEqual(match.source["freshness_status"], "stale")
+        self.assertEqual(match.source["freshness_checked_at"], "2026-11-04T13:20:08+05:30")
         self.assertIn("S.O. 454(E)", match.source["freshness_evidence"])
         self.assertIn("https://egazette.gov.in/WriteReadData/2026/269705.pdf", match.source["freshness_evidence"])
         self.assertIn("21 November 2025", match.temporal_limitation)
