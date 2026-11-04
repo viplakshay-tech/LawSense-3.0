@@ -17,6 +17,11 @@ const avatarCss = await readFile(new URL('../../components/guide-presence/avatar
 const callCss = await readFile(new URL('../../app/case/[id]/voice/VoiceCaseClient.css', import.meta.url), 'utf8');
 const voicePage = await readFile(new URL('../../app/case/[id]/voice/page.tsx', import.meta.url), 'utf8');
 const guideRuntimeProvider = await readFile(new URL('../../components/guide-runtime/GuideRuntimeProvider.tsx', import.meta.url), 'utf8');
+const guideActionRegistrySource = await readFile(new URL('../../components/guide-runtime/actions.ts', import.meta.url), 'utf8');
+const guideClientSource = await readFile(new URL('../../app/case/[id]/guide/GuideClient.tsx', import.meta.url), 'utf8');
+const localAssistantSource = await readFile(new URL('../../api/app/services/local_assistant.py', import.meta.url), 'utf8');
+const guideRouteSource = await readFile(new URL('../../api/app/routes/guide.py', import.meta.url), 'utf8');
+const apiClientSource = await readFile(new URL('../../lib/api.ts', import.meta.url), 'utf8');
 const guideWorkspaceSource = await readFile(new URL('../../app/case/[id]/guide/GuideClient.tsx', import.meta.url), 'utf8');
 const legalSourceCandidates = await readFile(new URL('../../components/LegalSourceCandidates.tsx', import.meta.url), 'utf8');
 const draftingStudio = await readFile(new URL('../../components/drafting/DraftingStudio.tsx', import.meta.url), 'utf8');
@@ -288,4 +293,15 @@ test('drafting source suggestions require explicit verification metadata', () =>
   assert.match(draftingStudio, /item\.record\.sourceFreshnessStatus === 'current'/);
   assert.match(draftingStudio, /item\.record\.jurisdictionMatchStatus === 'matched'/);
   assert.doesNotMatch(draftingStudio, /!item\.record\.sourceVerificationStatus/);
+});
+
+
+test('Legal Advisory is a distinct always-available Guide action', () => {
+  assert.match(guideActionRegistrySource, /type: 'OPEN_LEGAL_ADVISORY'[\s\S]*?caseState\s*\?\s*\[\{ type: 'OPEN_LEGAL_ADVISORY'/);
+  assert.match(guideRuntimeProvider, /case 'OPEN_LEGAL_ADVISORY':\s*return \{ type: 'openLegalAdvisory' \}/);
+  assert.match(guideClientSource, /case 'OPEN_LEGAL_ADVISORY'/);
+  assert.match(guideControlSurfaceSource, /case 'OPEN_LEGAL_ADVISORY'/);
+  assert.match(localAssistantSource, /OPEN_LEGAL_ADVISORY/);
+  assert.match(guideRouteSource, /OPEN_LEGAL_ADVISORY/);
+  assert.match(apiClientSource, /'OPEN_LEGAL_ADVISORY'/);
 });
