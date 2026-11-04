@@ -12,10 +12,9 @@ from app.engines.legal_knowledge.models import (
     LegalProvision,
     LegalSource,
     SourceAuthorityTier,
-    SourceVersion,
 )
 from app.engines.legal_knowledge.seed import build_authoritative_legal_knowledge_seed
-from app.engines.legal_sources import LegalSourceRegistry, SourceFreshnessStatus
+from app.engines.legal_sources import LegalSourceRegistry, RegistrySourceVersion, SourceFreshnessStatus
 from app.services.legal_knowledge_service import search_legal_knowledge
 
 
@@ -88,7 +87,7 @@ class AuthoritativeLegalKnowledgeSeedTests(unittest.TestCase):
             },
         )
 
-        versions = [item for item in self.store.items if isinstance(item, SourceVersion)]
+        versions = [item for item in self.store.items if isinstance(item, RegistrySourceVersion)]
         self.assertEqual(len(versions), 8)
         for version in versions:
             with self.subTest(snapshot=version.id):
@@ -109,6 +108,15 @@ class AuthoritativeLegalKnowledgeSeedTests(unittest.TestCase):
                 self.assertIsNotNone(entry)
                 self.assertTrue(entry.canonical_reference)
                 self.assertEqual(version.source_url, entry.source_url)
+
+    def test_verified_seed_snapshots_carry_source_specific_evidence(self) -> None:
+        versions = [item for item in self.store.items if isinstance(item, RegistrySourceVersion)]
+        self.assertEqual(len(versions), 8)
+        for version in versions:
+            with self.subTest(source=version.source):
+                self.assertEqual(version.status, KnowledgeStatus.VERIFIED)
+                self.assertTrue(version.verification_evidence)
+                self.assertNotIn("catalog snapshot", version.verification_evidence.lower())
 
     def test_seed_retrieval_is_deterministic_and_uses_issue_terms(self) -> None:
         cases = {
@@ -177,11 +185,11 @@ class AuthoritativeLegalKnowledgeSeedTests(unittest.TestCase):
             "source-india-code-consumer-protection-act-2019":
                 "https://www.indiacode.nic.in/indiacode/handle/123456789/16103?view_type=browse",
             "source-india-code-code-on-wages-2019":
-                "https://indiacode.gov.in/handle/123456789/496699",
+                "https://www.indiacode.nic.in/indiacode/handle/123456789/15793?view_type=browse",
             "source-india-code-posh-act-2013":
-                "https://indiacode.gov.in/handle/123456789/496008",
+                "https://www.indiacode.nic.in/bitstream/123456789/2104/1/A2013-14.pdf",
             "source-india-code-domestic-violence-act-2005":
-                "https://indiacode.gov.in/handle/123456789/496007",
+                "https://www.indiacode.nic.in/bitstream/123456789/2021/5/A2005-43.pdf",
         }
         for source_id, expected_url in expected_urls.items():
             with self.subTest(source=source_id):
@@ -203,7 +211,7 @@ class AuthoritativeLegalKnowledgeSeedTests(unittest.TestCase):
         self.assertIsNone(consumer_act.effective_from)
         consumer_snapshot = next(
             item for item in self.store.items
-            if isinstance(item, SourceVersion) and item.source == consumer_act.id
+            if isinstance(item, RegistrySourceVersion) and item.source == consumer_act.id
         )
         self.assertEqual(
             consumer_snapshot.canonical_reference,
@@ -232,6 +240,22 @@ class AuthoritativeLegalKnowledgeSeedTests(unittest.TestCase):
         )
         self.assertEqual(tenancy["verificationDate"], "2026-10-27")
         self.assertIn("commencement notification under section 1(3) not verified", tenancy["version"])
+
+        for source_id in (
+            "consumer-protection-act-2019",
+            "code-on-wages-2019",
+            "posh-act-2013",
+            "domestic-violence-act-2005",
+            "model-tenancy-act-pib-2021",
+            "four-labour-codes-pib-2025",
+            "code-on-wages-so-5322-2025",
+        ):
+            with self.subTest(source=source_id):
+                source = sources[source_id]
+                self.assertEqual(source["verificationStatus"], "verified_official")
+                self.assertEqual(source["verificationDate"], "2026-11-04")
+                self.assertEqual(source["freshnessStatus"], "unknown")
+                self.assertIn("matched", source["verificationNote"].lower())
 
 
 if __name__ == "__main__":

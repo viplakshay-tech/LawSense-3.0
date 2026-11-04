@@ -387,6 +387,7 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
                         <div className="mt-3 space-y-2">
                           {sourceReviewRecords.slice(0, 8).map((record, index) => {
                             const sourceUrl = recordedHttpsUrl(record);
+                            const verificationEvidence = textValue(record.sourceVerificationEvidence);
                             const freshnessCheckedAt = textValue(record.sourceFreshnessCheckedAt);
                             const freshnessEvidence = textValue(record.sourceFreshnessEvidence);
                             return (
@@ -417,7 +418,11 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
                                   </div>
                                 </dl>
                                 <p className="mt-2 text-xs leading-5 text-slate-400">
-                                  <span className="font-semibold text-slate-300">Review evidence:</span>{' '}
+                                  <span className="font-semibold text-slate-300">Identity verification evidence:</span>{' '}
+                                  {verificationEvidence || 'No source identity verification evidence recorded.'}
+                                </p>
+                                <p className="mt-2 text-xs leading-5 text-slate-400">
+                                  <span className="font-semibold text-slate-300">Freshness review evidence:</span>{' '}
                                   {freshnessEvidence || 'No freshness review evidence recorded.'}
                                 </p>
                                 {sourceUrl && (

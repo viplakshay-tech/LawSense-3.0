@@ -49,6 +49,7 @@ class RegistrySourceVersion(SourceVersion):
     publication_date: date | None = None
     publisher_name: str | None = None
     authority_tier: SourceAuthorityTier | None = None
+    verification_evidence: str | None = None
     freshness_status: SourceFreshnessStatus = SourceFreshnessStatus.UNKNOWN
     freshness_checked_at: datetime | None = None
     freshness_evidence: str | None = None
@@ -87,6 +88,7 @@ class RegistrySourceVersion(SourceVersion):
             and bool(self.jurisdiction)
             and self.retrieved_at is not None
             and bool(self.provenance)
+            and bool(self.verification_evidence and self.verification_evidence.strip())
         )
 
 

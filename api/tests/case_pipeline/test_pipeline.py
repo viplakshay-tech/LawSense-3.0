@@ -169,6 +169,7 @@ class CasePipelineTests(unittest.TestCase):
         ]
         self.assertTrue(provisions)
         self.assertTrue(all(item.source_verification_status == "verified" for item in provisions))
+        self.assertTrue(all(item.source_verification_evidence for item in provisions))
         self.assertTrue(all(item.source_freshness_status == "unknown" for item in provisions))
         self.assertTrue(all(
             item.source_applicability_status == "applicability_not_established"
@@ -635,6 +636,7 @@ class CasePipelineTests(unittest.TestCase):
             publication_date=date(2019, 8, 9),
             publisher_name="Fixture publisher",
             authority_tier=SourceAuthorityTier.TIER_1_PRIMARY_OFFICIAL,
+            verification_evidence="Matched the fixture Act number and title against the supplied official source snapshot.",
             freshness_status=SourceFreshnessStatus.CURRENT,
             freshness_checked_at=datetime(2026, 10, 9, 12, 0, tzinfo=timezone.utc),
             freshness_evidence="Compared the current official publication and Gazette amendments through 2026-10-09.",
@@ -661,11 +663,36 @@ class CasePipelineTests(unittest.TestCase):
         self.assertEqual(governed.freshness_checked_at, datetime(2026, 10, 9, 12, 0, tzinfo=timezone.utc))
         self.assertIn("Compared the current official publication", governed.freshness_evidence or "")
         summary = next(item for item in result.case_analysis.legal_knowledge.records if item.id == provision.id)
+        self.assertEqual(summary.source_verification_status, "verified")
+        self.assertIn("Matched the fixture Act number", summary.source_verification_evidence or "")
         self.assertEqual(summary.source_freshness_status, SourceFreshnessStatus.CURRENT.value)
         self.assertEqual(summary.source_freshness_checked_at, governed.freshness_checked_at.isoformat())
         self.assertIn("Compared the current official publication", summary.source_freshness_evidence or "")
         self.assertNotIn("SOURCE_VERIFICATION_NOT_CONFIRMED", statement.reason_codes)
         self.assertNotIn("SOURCE_FRESHNESS_NOT_CURRENT", statement.reason_codes)
+
+        # A verified status and provenance pointer alone must not synthesize
+        # source identity verification when the explicit evidence is absent.
+        unreviewed_repository = InMemoryLegalKnowledgeStore()
+        unreviewed_repository.add_many((
+            authority,
+            jurisdiction,
+            source,
+            replace(source_version, verification_evidence=None),
+            document,
+            provision,
+        ))
+        unreviewed_result = run_case_pipeline(
+            make_request("I bought a phone from a seller. It arrived damaged, and the seller refused my refund."),
+            legal_knowledge_repository=unreviewed_repository,
+        )
+        unreviewed_summary = next(
+            item for item in unreviewed_result.case_analysis.legal_knowledge.records
+            if item.id == provision.id
+        )
+        self.assertEqual(unreviewed_summary.source_verification_status, "unverified")
+        self.assertIsNone(unreviewed_summary.source_verification_evidence)
+        self.assertEqual(unreviewed_result.legal_reasoning.legal_knowledge_status, "insufficient_or_blocked")
 
     def test_analysis_timeline_preserves_report_status_and_timeline_provenance(self) -> None:
         _, result = self._run_fixture("threatening_messages")

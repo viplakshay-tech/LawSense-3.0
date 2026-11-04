@@ -145,6 +145,7 @@ class LegalKnowledgeRecordSummary(AnalysisModel):
     authority_tier: str | None = None
     provenance: list[LegalKnowledgeProvenance] = Field(default_factory=list)
     source_verification_status: str | None = None
+    source_verification_evidence: str | None = None
     source_freshness_status: str | None = None
     source_freshness_checked_at: str | None = None
     source_freshness_evidence: str | None = None

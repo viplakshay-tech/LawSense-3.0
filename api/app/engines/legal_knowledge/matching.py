@@ -434,7 +434,17 @@ def _temporal_limit(case_state: CaseState, provision: LegalProvision) -> tuple[s
         if code_on_wages_transition else ""
     )
     if effective is None:
-        return "The provision record does not state an effective or commencement date; verify the applicable version and Gazette notifications.", "unknown"
+        return (
+            "The provision record does not state one blanket effective or commencement date; "
+            "the linked Gazette notification S.O. 5322(E) records commencement of specified "
+            "Code on Wages provisions from 21 November 2025. Section 69 contains repeal and "
+            "transition/savings provisions; confirm that this exact provision was commenced "
+            "and which version governs the incident date.",
+            "unknown",
+        ) if code_on_wages_transition else (
+            "The provision record does not state an effective or commencement date; verify the applicable version and Gazette notifications.",
+            "unknown",
+        )
     if event_dates and any(item < effective for item in event_dates):
         return f"At least one recorded event date is before the recorded effective date ({effective.isoformat()}); historical version review is needed.{transition_note}", "uncertain"
     if end and event_dates and any(item > end for item in event_dates):

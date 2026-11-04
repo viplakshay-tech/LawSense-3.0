@@ -45,6 +45,7 @@ class _SourceSeed:
     source_url: str
     reference: str
     version: str
+    verification_evidence: str
     publication_date: date
     effective_date: date | None
     authority_tier: SourceAuthorityTier = SourceAuthorityTier.TIER_1_PRIMARY_OFFICIAL
@@ -79,6 +80,7 @@ _SOURCES = (
             "Act No. 02 of 2022; official Uttarakhand UDD copy listed 2025-12-29; "
             "commencement notification under section 1(3) not verified"
         ),
+        verification_evidence="Matched Act No. 02 of 2022 and the Act title against the official Uttarakhand Urban Development Department listing and linked PDF on 2026-11-04. Section 1(3) commencement notification remains unverified; this does not establish current operation.",
         publication_date=date(2022, 1, 27),
         effective_date=None,
         jurisdiction_id=_UTTARAKHAND_JURISDICTION_ID,
@@ -92,6 +94,7 @@ _SOURCES = (
         source_url="https://www.pib.gov.in/PressReleasePage.aspx?PRID=1723636&lang=2&reg=48",
         reference="PIB release ID 1723636, 2 June 2021",
         version="Official PIB release published 2021-06-02",
+        verification_evidence="Matched PIB release ID 1723636, its 2021-06-02 publication date, and its statement that the Model Tenancy Act was circulated to States/UTs for adoption against the official PIB release on 2026-11-04. This is an institutional announcement, not enacted State tenancy law.",
         publication_date=date(2021, 6, 2),
         effective_date=None,
         authority_tier=SourceAuthorityTier.TIER_2_OFFICIAL_INSTITUTIONAL,
@@ -105,6 +108,7 @@ _SOURCES = (
         source_url="https://www.indiacode.nic.in/indiacode/handle/123456789/16103?view_type=browse",
         reference="The Consumer Protection Act, 2019 (Act No. 35 of 2019)",
         version="Act No. 35 of 2019; India Code record 123456789/16103",
+        verification_evidence="Matched India Code Act ID 201935, Act No. 35 of 2019, enactment date 2019-08-09, and title against the official India Code record on 2026-11-04. Staged commencement is separate; freshness and later amendments are not assessed.",
         publication_date=date(2019, 8, 9),
         # The Act's provisions had staged commencement; no single effective
         # date is assigned to this document snapshot.
@@ -115,11 +119,13 @@ _SOURCES = (
         title="The Code on Wages, 2019",
         authority_id=_PARLIAMENT_AUTHORITY_ID,
         publisher_name="India Code, Government of India",
-        source_url="https://indiacode.gov.in/handle/123456789/496699",
+        source_url="https://www.indiacode.nic.in/indiacode/handle/123456789/15793?view_type=browse",
         reference="The Code on Wages, 2019 (Act No. 29 of 2019)",
-        version="Act No. 29 of 2019; India Code text as on 2025-11-21",
+        version="Act No. 29 of 2019; India Code Act ID 201929; staged commencement includes S.O. 5322(E) for specified provisions",
+        verification_evidence="Matched India Code Act ID 201929, Act No. 29 of 2019, enactment date 2019-08-08, and title against the official India Code record on 2026-11-04. Commencement is staged; Gazette S.O. 5322(E) supports only the provisions it expressly lists.",
         publication_date=date(2019, 8, 8),
-        effective_date=date(2025, 11, 21),
+        effective_date=None,
+        retrieved_at=datetime(2026, 11, 4, 6, 42, tzinfo=timezone.utc),
     ),
     _SourceSeed(
         id="source-pib-labour-codes-commencement-2025",
@@ -129,6 +135,7 @@ _SOURCES = (
         source_url="https://www.pib.gov.in/PressReleasePage.aspx?PRID=2194018&lang=1&reg=1",
         reference="PIB release ID 2194018, 25 November 2025",
         version="Official PIB release published 2025-11-25",
+        verification_evidence="Matched PIB release ID 2194018, Ministry of Labour & Employment, publication date 2025-11-25, and its announcement concerning the four Labour Codes against the official PIB release on 2026-11-04. The release is institutional context, not a substitute for commencement notifications.",
         publication_date=date(2025, 11, 25),
         effective_date=None,
         authority_tier=SourceAuthorityTier.TIER_2_OFFICIAL_INSTITUTIONAL,
@@ -142,6 +149,7 @@ _SOURCES = (
         source_url="https://egazette.gov.in/WriteReadData/2025/267885.pdf",
         reference="S.O. 5322(E), dated 21 November 2025; Code on Wages, 2019 commencement and repeal/transition provisions",
         version="Official Gazette PDF; notification S.O. 5322(E)",
+        verification_evidence="Matched official Gazette of India PDF CG-DL-E-21112025-267885, notification S.O. 5322(E), dated 2025-11-21, against the primary Gazette publication on 2026-11-04. The notification lists specified Code on Wages provisions; it does not make every provision effective.",
         publication_date=date(2025, 11, 21),
         effective_date=date(2025, 11, 21),
         authority_tier=SourceAuthorityTier.TIER_1_PRIMARY_OFFICIAL,
@@ -156,22 +164,26 @@ _SOURCES = (
         ),
         authority_id=_PARLIAMENT_AUTHORITY_ID,
         publisher_name="India Code, Government of India",
-        source_url="https://indiacode.gov.in/handle/123456789/496008",
+        source_url="https://www.indiacode.nic.in/bitstream/123456789/2104/1/A2013-14.pdf",
         reference="The Sexual Harassment of Women at Workplace Act, 2013 (Act No. 14 of 2013)",
         version="Act No. 14 of 2013; India Code text last updated 2021-08-31",
+        verification_evidence="Matched Act No. 14 of 2013, title, and last-updated date 2021-08-31 against the official India Code PDF A2013-14.pdf and corroborated the Act listing on the Ministry of Women and Child Development site on 2026-11-04. Freshness and subsequent amendments are not assessed.",
         publication_date=date(2013, 4, 22),
         effective_date=date(2013, 12, 9),
+        retrieved_at=datetime(2026, 11, 4, 6, 42, tzinfo=timezone.utc),
     ),
     _SourceSeed(
         id="source-india-code-domestic-violence-act-2005",
         title="The Protection of Women from Domestic Violence Act, 2005",
         authority_id=_PARLIAMENT_AUTHORITY_ID,
         publisher_name="India Code, Government of India",
-        source_url="https://indiacode.gov.in/handle/123456789/496007",
+        source_url="https://www.indiacode.nic.in/bitstream/123456789/2021/5/A2005-43.pdf",
         reference="The Protection of Women from Domestic Violence Act, 2005 (Act No. 43 of 2005)",
         version="Act No. 43 of 2005; official India Code text",
+        verification_evidence="Matched Act No. 43 of 2005 and title against the official India Code PDF A2005-43.pdf and corroborated the Act listing on the Ministry of Women and Child Development site on 2026-11-04. Freshness and subsequent amendments are not assessed.",
         publication_date=date(2005, 9, 13),
         effective_date=date(2006, 10, 26),
+        retrieved_at=datetime(2026, 11, 4, 6, 42, tzinfo=timezone.utc),
     ),
 )
 
@@ -477,6 +489,7 @@ def build_authoritative_legal_knowledge_seed() -> InMemoryLegalKnowledgeStore:
                 publication_date=spec.publication_date,
                 publisher_name=spec.publisher_name,
                 authority_tier=spec.authority_tier,
+                verification_evidence=spec.verification_evidence,
                 freshness_status=spec.freshness_status,
                 freshness_checked_at=spec.freshness_checked_at,
                 freshness_evidence=spec.freshness_evidence,

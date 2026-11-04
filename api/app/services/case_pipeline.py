@@ -651,6 +651,7 @@ def _case_analysis_from_stages(
                 "source_url": reference.source_url,
             } for reference in item.provenance],
             source_verification_status=(governed.verification_status.value if governed else "unverified"),
+            source_verification_evidence=(governed.verification_evidence if governed else None),
             source_freshness_status=(governed.freshness_status.value if governed else "unknown"),
             source_freshness_checked_at=(
                 governed.freshness_checked_at.isoformat() if governed and governed.freshness_checked_at else None
@@ -1272,11 +1273,12 @@ def _govern_sources(
         reference = version.canonical_reference if version else None
         if not reference:
             reference = next((item.page_section_reference for item in refs if item.page_section_reference), None)
-        evidence = None
-        if verified and version is not None:
-            evidence = (
-                f"Verified catalog snapshot {version.id} includes explicit source provenance."
-            )
+        evidence = (
+            version.verification_evidence
+            if verified and version is not None and version.verification_evidence
+            else None
+        )
+        verified = verified and evidence is not None
         governed.append(GovernedLegalSource(
             source_id=source_id,
             authority=source_record.authority,

@@ -73,6 +73,7 @@ def make_version(
     freshness_status: SourceFreshnessStatus = SourceFreshnessStatus.UNKNOWN,
     freshness_checked_at: datetime | None = None,
     freshness_evidence: str | None = None,
+    verification_evidence: str | None = "Matched the fixture title and citation to its official source record.",
 ) -> RegistrySourceVersion:
     return RegistrySourceVersion(
         id=version_id,
@@ -100,6 +101,7 @@ def make_version(
         publication_date=date(2025, 12, 15),
         publisher_name="Fixture publisher",
         authority_tier=authority_tier or source.authority_tier,
+        verification_evidence=verification_evidence,
         freshness_status=freshness_status,
         freshness_checked_at=freshness_checked_at,
         freshness_evidence=freshness_evidence,
@@ -461,6 +463,10 @@ class LegalSourceRegistryTests(unittest.TestCase):
         )
         with self.assertRaises(SourceRegistryValidationError):
             validate_registry_version(bad)
+
+    def test_verified_snapshot_requires_explicit_verification_evidence(self) -> None:
+        with self.assertRaisesRegex(SourceRegistryValidationError, "verification_evidence"):
+            validate_registry_version(make_version(self.source, verification_evidence=None))
 
     def test_publication_and_effective_dates_reject_datetime_values(self) -> None:
         with self.assertRaises(SourceRegistryValidationError):
