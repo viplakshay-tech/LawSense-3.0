@@ -75,6 +75,7 @@ def validate_registry_version(version: RegistrySourceVersion) -> None:
     _optional_text(version.canonical_reference, "canonical_reference")
     _optional_text(version.resource_identifier, "resource_identifier")
     _optional_text(version.publisher_name, "publisher_name")
+    _optional_text(version.verification_evidence, "verification_evidence")
     _optional_text(version.freshness_evidence, "freshness_evidence")
     _validate_url(version.source_url, "source_url")
     if not isinstance(version.freshness_status, SourceFreshnessStatus):
@@ -130,6 +131,8 @@ def validate_registry_version(version: RegistrySourceVersion) -> None:
             missing.append("retrieved_at")
         if not version.provenance:
             missing.append("provenance")
+        if not version.verification_evidence:
+            missing.append("verification_evidence")
         elif version.retrieved_at is not None and not any(
             reference.source_id == version.source
             and reference.retrieval_time == version.retrieved_at
