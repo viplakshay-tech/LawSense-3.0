@@ -62,7 +62,7 @@ class LegalMatchTests(unittest.TestCase):
         candidate = analysis.legal_knowledge.law_matches[0]
         self.assertEqual(candidate.jurisdiction["match_status"], "unknown")
         self.assertEqual(candidate.evidence_assessment, "unclear")
-        self.assertEqual(candidate.assessment_factors["source_freshness"], "unknown")
+        self.assertEqual(candidate.assessment_factors["source_freshness"], "current")
 
         result.case_state.analysis = analysis
         twin = build_legal_twin(result.case_state)
