@@ -8,8 +8,6 @@ import { guidePresenceStateFromSnapshot, useGuideRuntime } from '@/components/gu
 import { sendGuideMessage, type GuideActionName, type GuideChatLanguage } from '@/lib/api';
 import {
   beginGuideTurn,
-  getGuideSessionGeneration,
-  isGuideSessionGenerationCurrent,
   isGuideTurnCurrent,
   useGuideSession,
 } from '@/lib/guide-session';
@@ -157,7 +155,7 @@ export function GuideConversationPanel({
     } catch {
       if (
         requestToken === chatRequestSequenceRef.current
-        && isGuideSessionGenerationCurrent(caseId, requestGeneration)
+        && isGuideTurnCurrent(caseId, turnToken)
       ) {
         dispatch({
           type: 'GUIDE_ERROR',
