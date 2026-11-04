@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import { validateGuideActionCommand } from '../../components/guide-actions/validation.ts';
 import { createGuideActionBridge } from '../../components/guide-actions/bridge.ts';
 import { appendGuideSessionTurn, beginGuideTurn, clearGuideSession, finishGuideTurn, getGuideConversationHistory, getGuideSessionSnapshot, invalidateGuideTurn, isGuideTurnCurrent } from '../../lib/guide-session.ts';
+import { createGuideChatContext } from '../../lib/guide-chat-context.ts';
 import { guideVoiceSnapshotForEvent } from '../../components/guide-runtime/voice-adapter/visual-state.ts';
 import {
   createGuideConversationResponse,
@@ -434,4 +435,30 @@ test('shared Guide session rejects malformed or oversized persisted turn data at
   assert.deepEqual(getGuideConversationHistory(caseId), [
     { role: 'user', content: 'A reviewed statement.' },
   ]);
+});
+
+
+test('text and voice Guide requests share one case-scoped history and model-action context', () => {
+  const caseId = 'guide-chat-context-test';
+  clearGuideSession(caseId);
+  appendGuideSessionTurn(caseId, {
+    id: 'context-user', role: 'user', content: 'My landlord kept the deposit.', inputMode: 'text',
+  });
+  appendGuideSessionTurn(caseId, {
+    id: 'context-unavailable', role: 'assistant', content: 'Local model unavailable.', inputMode: 'voice', status: 'unavailable',
+  });
+  appendGuideSessionTurn(caseId, {
+    id: 'context-assistant', role: 'assistant', content: 'When did the tenancy end?', inputMode: 'voice', status: 'ok',
+  });
+
+  const advisory = { type: 'OPEN_LEGAL_ADVISORY', payload: { caseId } };
+  const speech = { type: 'SPEAK_RESPONSE', payload: { response: { id: 'response-1', text: 'Read this aloud.' } } };
+  const context = createGuideChatContext(caseId, [advisory, speech, advisory]);
+
+  assert.deepEqual(context.conversationHistory, [
+    { role: 'user', content: 'My landlord kept the deposit.' },
+    { role: 'assistant', content: 'When did the tenancy end?' },
+  ]);
+  assert.deepEqual(context.availableActions, ['OPEN_LEGAL_ADVISORY']);
+  assert.equal(context.availableActions.includes('SPEAK_RESPONSE'), false);
 });
