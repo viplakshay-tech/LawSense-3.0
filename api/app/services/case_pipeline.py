@@ -1291,6 +1291,7 @@ def _govern_sources(
             version=version.version if version else source_record.version,
             effective_date=(version.effective_from if version else source_record.effective_from),
             retrieved_at=retrieved_at,
+            verification_date=(version.verification_date if verified and version else None),
             verification_status=(
                 SourceVerificationStatus.VERIFIED if verified
                 else SourceVerificationStatus.UNVERIFIED
