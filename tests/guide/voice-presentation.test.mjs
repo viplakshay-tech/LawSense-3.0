@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
 import { validateGuideActionCommand } from '../../components/guide-actions/validation.ts';
 import { createGuideActionBridge } from '../../components/guide-actions/bridge.ts';
+import { beginGuideTurn, clearGuideSession, isGuideTurnCurrent } from '../../lib/guide-session.ts';
 import { guideVoiceSnapshotForEvent } from '../../components/guide-runtime/voice-adapter/visual-state.ts';
 import {
   createGuideConversationResponse,
@@ -211,12 +212,26 @@ test('Guide opens Legal Advisory when there is no single source record to focus'
 });
 
 
-test('clearing the shared Guide session invalidates pending voice replies across routes', () => {
-  assert.match(guideSessionSource, /generation:\s*current\.generation\s*\+\s*1/);
-  assert.match(guideSessionSource, /export function getGuideSessionGeneration/);
-  assert.match(guideSessionSource, /export function isGuideSessionGenerationCurrent/);
-  assert.match(voiceConversationSource, /const sessionGeneration = getGuideSessionGeneration\(caseId\)/);
-  assert.match(voiceConversationSource, /!isGuideSessionGenerationCurrent\(caseId, sessionGeneration\)/);
+test('a newer Guide turn supersedes older in-flight replies across text and voice modes', () => {
+  const caseId = 'guide-turn-ordering-test';
+  const otherCaseId = 'guide-turn-ordering-other-case';
+  const first = beginGuideTurn(caseId);
+  const independent = beginGuideTurn(otherCaseId);
+  const second = beginGuideTurn(caseId);
+
+  assert.equal(isGuideTurnCurrent(caseId, first), false);
+  assert.equal(isGuideTurnCurrent(caseId, second), true);
+  assert.equal(isGuideTurnCurrent(otherCaseId, independent), true);
+  clearGuideSession(caseId);
+  assert.equal(isGuideTurnCurrent(caseId, second), false);
+
+  assert.match(guideSessionSource, /export function beginGuideTurn/);
+  assert.match(guideSessionSource, /export function isGuideTurnCurrent/);
+  assert.match(guideSessionSource, /turnSequences\.set\(caseId, 0\)/);
+  assert.match(voiceConversationSource, /const turnToken = beginGuideTurn\(caseId\)/);
+  assert.match(voiceConversationSource, /!isGuideTurnCurrent\(caseId, turnToken\)/);
+  assert.match(guideControlSurfaceSource, /const turnToken = beginGuideTurn\(caseId\)/);
+  assert.match(guideControlSurfaceSource, /!isGuideTurnCurrent\(caseId, turnToken\)/);
 });
 
 test('voice conversation preserves an unavailable local assistant response status', () => {
