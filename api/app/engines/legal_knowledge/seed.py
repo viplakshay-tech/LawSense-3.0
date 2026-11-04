@@ -405,7 +405,7 @@ def build_authoritative_legal_knowledge_seed(
     catalog = load_source_catalog(source_catalog_path)
     effective_sources = tuple(
         _apply_source_catalog_record(spec, catalog.get(spec.id))
-        for spec in effective_sources
+        for spec in _SOURCES
     )
     source_by_id = {source.id: source for source in effective_sources}
     authority_source_refs: dict[str, list[SourceReference]] = {}
