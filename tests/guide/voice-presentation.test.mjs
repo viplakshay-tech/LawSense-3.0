@@ -297,11 +297,13 @@ test('Legal Advisory distinguishes catalog record status from source verificatio
   assert.match(persistentLegalAdvisorySource, /sourceApplicabilityStatus, 'applicability_not_established'\) !== 'potentially_relevant'/);
 });
 
-test('clearing the shared case session invalidates pending text Guide replies across routes', () => {
-  assert.match(guideControlSurfaceSource, /generation: sessionGeneration/);
-  assert.match(guideControlSurfaceSource, /getGuideSessionGeneration\(caseId\)/);
-  assert.match(guideControlSurfaceSource, /isGuideSessionGenerationCurrent\(caseId, requestGeneration\)/);
-  assert.match(guideControlSurfaceSource, /observedSessionGenerationRef\.current === sessionGeneration/);
+test('cross-mode requests reset pending text Guide UI and clearing invalidates it', () => {
+  assert.match(guideControlSurfaceSource, /requestSequence: sessionRequestSequence/);
+  assert.match(guideControlSurfaceSource, /beginGuideSessionRequest\(caseId\)/);
+  assert.match(guideControlSurfaceSource, /isGuideSessionRequestCurrent\(caseId, sessionRequest\)/);
+  assert.match(guideControlSurfaceSource, /observedSessionRequestSequenceRef\.current === sessionRequestSequence/);
+  assert.match(guideControlSurfaceSource, /activeSessionRequestRef\.current === sessionRequestSequence/);
+  assert.match(guideControlSurfaceSource, /clearSession\(\)/);
 });
 
 test('Guide workspace always exposes Legal Advisory based on information so far', () => {
