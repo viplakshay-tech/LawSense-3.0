@@ -7,8 +7,9 @@ import type { RecognitionLanguage } from './VoiceCapture';
 import { sendGuideMessage, type GuideActionName } from '@/lib/api';
 import {
   getGuideConversationHistory,
-  getGuideSessionGeneration,
+  beginGuideTurn,
   isGuideSessionGenerationCurrent,
+  isGuideTurnCurrent,
   useGuideSession,
   type GuideSessionTurn,
 } from '@/lib/guide-session';
@@ -414,7 +415,7 @@ export default function GuideConversation({
     const statement = text.trim();
     if (!statement) return;
 
-    const sessionGeneration = getGuideSessionGeneration(caseId);
+    const turnToken = beginGuideTurn(caseId);
     const previousHistory = getGuideConversationHistory(caseId);
     appendUserTurn(statement, inputMethod);
 
@@ -452,7 +453,7 @@ export default function GuideConversation({
       responseText = `${localUnavailable}${createGuideConversationResponse(statement, question, languageRef.current)}`;
       proposedAction = undefined;
     }
-    if (!mountedRef.current || !isGuideSessionGenerationCurrent(caseId, sessionGeneration)) return;
+    if (!mountedRef.current || !isGuideTurnCurrent(caseId, turnToken)) return;
     const responseId = createId('response');
     appendTurn({ id: responseId, role: 'assistant', content: responseText, inputMode: inputMethod, status: responseStatus, ...(proposedAction ? { proposedAction } : {}), audio: 'queued' });
     const response = { id: responseId, text: responseText };
