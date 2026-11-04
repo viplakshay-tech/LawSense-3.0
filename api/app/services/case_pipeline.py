@@ -1272,11 +1272,12 @@ def _govern_sources(
         reference = version.canonical_reference if version else None
         if not reference:
             reference = next((item.page_section_reference for item in refs if item.page_section_reference), None)
-        evidence = None
-        if verified and version is not None:
-            evidence = (
-                f"Verified catalog snapshot {version.id} includes explicit source provenance."
-            )
+        evidence = (
+            version.verification_evidence
+            if verified and version is not None and version.verification_evidence
+            else None
+        )
+        verified = verified and evidence is not None
         governed.append(GovernedLegalSource(
             source_id=source_id,
             authority=source_record.authority,
