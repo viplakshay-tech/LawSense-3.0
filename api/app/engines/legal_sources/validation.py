@@ -100,6 +100,11 @@ def validate_registry_version(version: RegistrySourceVersion) -> None:
                 "freshness_checked_at cannot precede the source snapshot retrieval time."
             )
 
+    if version.verification_date is not None and (
+        not isinstance(version.verification_date, date)
+        or isinstance(version.verification_date, datetime)
+    ):
+        raise SourceRegistryValidationError("verification_date must be a date.")
     if version.publication_date is not None and (
         not isinstance(version.publication_date, date)
         or isinstance(version.publication_date, datetime)
