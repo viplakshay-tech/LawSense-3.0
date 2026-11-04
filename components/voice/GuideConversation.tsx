@@ -882,7 +882,8 @@ export default function GuideConversation({
                             : proposedAction.type === 'OPEN_DRAFTING' ? 'document drafting'
                               : proposedAction.type === 'OPEN_SAFETY' ? 'safety options'
                               : proposedAction.type === 'ASK_CLARIFICATION' ? 'clarification'
-                                : `${proposedAction.payload.target} workspace`}
+                                : proposedAction.type === 'OPEN_LEGAL_ADVISORY' ? 'Legal Advisory'
+                                  : `${proposedAction.payload.target} workspace`}
                 </button>
               )}
             </article>
