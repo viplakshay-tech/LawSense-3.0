@@ -40,8 +40,13 @@ export function GuideModelStatusBanner() {
   }, []);
 
   useEffect(() => {
-    void check();
-    return () => requestControllerRef.current?.abort();
+    const frame = window.requestAnimationFrame(() => {
+      void check();
+    });
+    return () => {
+      window.cancelAnimationFrame(frame);
+      requestControllerRef.current?.abort();
+    };
   }, [check]);
 
   const label = checking ? 'Checking local model' : error ? 'Status unavailable' : statusLabel(status?.status ?? null);
