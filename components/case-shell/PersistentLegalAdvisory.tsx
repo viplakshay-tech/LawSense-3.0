@@ -204,6 +204,9 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
 
   useEffect(() => {
     const openFromGuide = () => {
+      if (document.activeElement instanceof HTMLElement) {
+        previousFocusRef.current = document.activeElement;
+      }
       setOpen(true);
     };
     window.addEventListener(OPEN_LEGAL_ADVISORY_EVENT, openFromGuide);
