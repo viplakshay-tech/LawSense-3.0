@@ -136,6 +136,9 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
   const [resources, setResources] = useState<JsonRecord[]>([]);
   const [legalKnowledgeStatus, setLegalKnowledgeStatus] = useState('');
   const loadRequestIdRef = useRef(0);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const dialogRef = useRef<HTMLElement | null>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
 
   const loadAdvisory = useCallback(async () => {
     const requestId = ++loadRequestIdRef.current;
@@ -202,6 +205,9 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
 
   useEffect(() => {
     const openFromGuide = () => {
+      if (document.activeElement instanceof HTMLElement) {
+        previousFocusRef.current = document.activeElement;
+      }
       setOpen(true);
     };
     window.addEventListener(OPEN_LEGAL_ADVISORY_EVENT, openFromGuide);
@@ -221,11 +227,49 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
 
   useEffect(() => {
     if (!open) return;
+    const dialog = dialogRef.current;
+    const focusableElements = () => Array.from(
+      dialog?.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ) ?? [],
+    ).filter((element) => element.getClientRects().length > 0 && element.getAttribute('aria-hidden') !== 'true');
+    const frame = window.requestAnimationFrame(() => {
+      const first = focusableElements()[0];
+      if (first) first.focus({ preventScroll: true });
+      else dialog?.focus({ preventScroll: true });
+    });
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false);
+      if (event.key === 'Escape') {
+        setOpen(false);
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const focusable = focusableElements();
+      if (focusable.length === 0) {
+        event.preventDefault();
+        dialog?.focus({ preventScroll: true });
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (!dialog?.contains(document.activeElement)) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus({ preventScroll: true });
+      } else if (event.shiftKey && (document.activeElement === first || document.activeElement === dialog)) {
+        event.preventDefault();
+        last.focus({ preventScroll: true });
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus({ preventScroll: true });
+      }
     };
     window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener('keydown', onKeyDown);
+      (previousFocusRef.current ?? triggerRef.current)?.focus({ preventScroll: true });
+      previousFocusRef.current = null;
+    };
   }, [open]);
 
   const sourceReviewRecords = rows(caseState?.analysis?.legalKnowledge?.records).filter((record) =>
@@ -272,12 +316,16 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
   if (nextSteps.length === 0) nextSteps.push('Check the relevant original documents and official source links, confirm current jurisdiction and dates, and review any procedural deadline with a qualified legal professional before acting.');
 
   function openDialog() {
+    if (!open && document.activeElement instanceof HTMLElement) {
+      previousFocusRef.current = document.activeElement;
+    }
     setOpen(true);
   }
 
   return (
     <>
       <button
+        ref={triggerRef}
         type="button"
         onClick={openDialog}
         aria-haspopup="dialog"
@@ -296,6 +344,8 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
           }}
         >
           <section
+            ref={dialogRef}
+            tabIndex={-1}
             role="dialog"
             aria-modal="true"
             aria-labelledby="legal-advisory-title"
