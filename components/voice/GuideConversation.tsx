@@ -8,6 +8,7 @@ import { sendGuideMessage, type GuideActionName } from '@/lib/api';
 import {
   getGuideConversationHistory,
   beginGuideTurn,
+  finishGuideTurn,
   isGuideTurnCurrent,
   useGuideSession,
   type GuideSessionTurn,
@@ -438,6 +439,7 @@ export default function GuideConversation({
         caseId,
         previousHistory,
         allowedActions,
+        turnToken.signal,
       );
       responseText = result.reply;
       responseStatus = result.status;
@@ -451,6 +453,8 @@ export default function GuideConversation({
           : 'The local Guide service is unavailable right now. ';
       responseText = `${localUnavailable}${createGuideConversationResponse(statement, question, languageRef.current)}`;
       proposedAction = undefined;
+    } finally {
+      finishGuideTurn(caseId, turnToken);
     }
     if (!mountedRef.current) return;
     if (!isGuideTurnCurrent(caseId, turnToken)) {
