@@ -31,6 +31,7 @@ const guideApiSource = await readFile(new URL('../../lib/api.ts', import.meta.ur
 const voiceConversationSource = await readFile(new URL('../../components/voice/GuideConversation.tsx', import.meta.url), 'utf8');
 const guideControlSurfaceSource = await readFile(new URL('../../components/guide-presence/GuideControlSurface.tsx', import.meta.url), 'utf8');
 const persistentLegalAdvisory = await readFile(new URL('../../components/case-shell/PersistentLegalAdvisory.tsx', import.meta.url), 'utf8');
+const guideModelStatusBanner = await readFile(new URL('../../components/guide-presence/GuideModelStatusBanner.tsx', import.meta.url), 'utf8');
 
 test('voice milestones present the state reported by the call flow', () => {
   const started = guideVoiceSnapshotForEvent({ type: 'capture_started', draftId: 'd', captureId: 'c', provider: 'browser', language: 'english' }, 'IDLE', 'idle');
@@ -330,4 +331,15 @@ test('Legal Advisory is a distinct always-available Guide action', () => {
   assert.match(localAssistantSource, /OPEN_LEGAL_ADVISORY/);
   assert.match(guideRouteSource, /OPEN_LEGAL_ADVISORY/);
   assert.match(apiClientSource, /'OPEN_LEGAL_ADVISORY'/);
+});
+
+
+test('Guide surfaces local model readiness without a cloud fallback', () => {
+  assert.match(apiClientSource, /getGuideModelStatus/);
+  assert.match(guideRouteSource, /@router\.get\("\/status"/);
+  assert.match(localAssistantSource, /def check_local_model_status/);
+  assert.match(guideModelStatusBanner, /role="status"/);
+  assert.match(guideModelStatusBanner, /Guide chat does not fall back to a cloud model/);
+  assert.match(guideControlSurfaceSource, /<GuideModelStatusBanner \/>/);
+  assert.match(voiceConversationSource, /<GuideModelStatusBanner \/>/);
 });
