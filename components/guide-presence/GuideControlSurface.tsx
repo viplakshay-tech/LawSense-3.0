@@ -127,10 +127,11 @@ export function GuideConversationPanel({
         history,
         availableActions,
       );
-      if (
-        requestToken !== chatRequestSequenceRef.current
-        || !isGuideTurnCurrent(caseId, turnToken)
-      ) return;
+      if (requestToken !== chatRequestSequenceRef.current) return;
+      if (!isGuideTurnCurrent(caseId, turnToken)) {
+        dispatch({ type: 'GUIDE_RESET' });
+        return;
+      }
 
       if (response.status === 'ok') {
         dispatch({
