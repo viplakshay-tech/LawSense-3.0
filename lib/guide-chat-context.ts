@@ -1,6 +1,6 @@
 import type { GuideActionName } from './api';
 import type { GuideAction } from '../components/guide-runtime/types';
-import { getGuideConversationHistory } from './guide-session';
+import { getGuideConversationHistory } from './guide-session.ts';
 
 type ModelGuideAction = Extract<GuideAction, { type: GuideActionName }>;
 
