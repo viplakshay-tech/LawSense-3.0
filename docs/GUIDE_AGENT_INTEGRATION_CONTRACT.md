@@ -215,4 +215,4 @@ The case-scoped browser session is untrusted persistence, not an authorization s
 
 ## Shared text/voice request context
 
-Text workspace messages and dedicated voice turns now call the same case-scoped context builder. It reads conversation history from the shared session store, excludes unavailable assistant replies through the session history policy, deduplicates the model-visible action allowlist, and keeps the presentation-only speech action out of model requests. Both input modes retain their existing turn cancellation and explicit voice-statement confirmation behavior.
+Text workspace messages and dedicated voice turns now call the same case-scoped context builder in `lib/guide-chat-context.ts`. It reads conversation history from the shared session store, excludes unavailable assistant replies through the session history policy, deduplicates the model-visible action allowlist, and keeps the presentation-only speech action out of model requests. Both input modes retain their existing turn cancellation and explicit voice-statement confirmation behavior.
