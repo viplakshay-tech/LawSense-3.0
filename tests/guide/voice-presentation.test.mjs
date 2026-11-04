@@ -413,3 +413,25 @@ test('dedicated voice statement drafts enter shared Guide history only after suc
   assert.match(voiceCaseClientSource, /role: 'assistant',[\s\S]*?I have added this statement to the case after your confirmation/);
   assert.match(voiceCaseClientSource, /const \{ language: sessionLanguage, setLanguage: setSessionLanguage, appendTurn \} = useGuideSession\(id\)/);
 });
+
+
+test('shared Guide session rejects malformed or oversized persisted turn data at its boundary', () => {
+  const caseId = 'guide-session-validation-test';
+  clearGuideSession(caseId);
+  const appendUntrusted = (turn) => appendGuideSessionTurn(caseId, turn);
+
+  appendUntrusted({ id: 'valid-user', role: 'user', content: 'A reviewed statement.', inputMode: 'text' });
+  appendUntrusted({ id: 'bad-role', role: 'system', content: 'Must not enter history.', inputMode: 'text' });
+  appendUntrusted({ id: 'bad-status', role: 'assistant', content: 'Invalid status.', inputMode: 'text', status: 'trusted' });
+  appendUntrusted({ id: 'bad-action', role: 'assistant', content: 'Invalid action.', inputMode: 'text', proposedAction: 'RUN_ARBITRARY_CODE' });
+  appendUntrusted({ id: 'bad-audio', role: 'assistant', content: 'Invalid audio state.', inputMode: 'text', audio: 'auto_send' });
+  appendUntrusted({ id: 'oversized-id-' + 'x'.repeat(220), role: 'user', content: 'Oversized identifier.', inputMode: 'text' });
+  appendUntrusted({ id: 'oversized-content', role: 'user', content: 'x'.repeat(10_001), inputMode: 'text' });
+  appendUntrusted({ id: 'empty-content', role: 'user', content: '   ', inputMode: 'text' });
+
+  const turns = getGuideSessionSnapshot(caseId).turns;
+  assert.deepEqual(turns.map((turn) => turn.id), ['valid-user']);
+  assert.deepEqual(getGuideConversationHistory(caseId), [
+    { role: 'user', content: 'A reviewed statement.' },
+  ]);
+});
