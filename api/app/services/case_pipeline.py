@@ -651,6 +651,7 @@ def _case_analysis_from_stages(
                 "source_url": reference.source_url,
             } for reference in item.provenance],
             source_verification_status=(governed.verification_status.value if governed else "unverified"),
+            source_verification_date=(governed.verification_date.isoformat() if governed and governed.verification_date else None),
             source_verification_evidence=(governed.verification_evidence if governed else None),
             source_freshness_status=(governed.freshness_status.value if governed else "unknown"),
             source_freshness_checked_at=(
@@ -1291,6 +1292,7 @@ def _govern_sources(
             version=version.version if version else source_record.version,
             effective_date=(version.effective_from if version else source_record.effective_from),
             retrieved_at=retrieved_at,
+            verification_date=(version.verification_date if verified and version else None),
             verification_status=(
                 SourceVerificationStatus.VERIFIED if verified
                 else SourceVerificationStatus.UNVERIFIED
