@@ -282,6 +282,9 @@ class AuthoritativeLegalKnowledgeSeedTests(unittest.TestCase):
                 if expected_freshness == "stale":
                     self.assertEqual(source["freshnessCheckedAt"], "2026-11-04T13:20:08+05:30")
                     self.assertIn("S.O. 454(E)", source["freshnessEvidence"])
+                else:
+                    self.assertIsNone(source["freshnessCheckedAt"])
+                    self.assertIsNone(source["freshnessEvidence"])
                 self.assertIn("matched", source["verificationNote"].lower())
 
 
