@@ -438,6 +438,16 @@ test('shared Guide session rejects malformed or oversized persisted turn data at
 });
 
 
+test('text Guide transport failures are recorded as unavailable shared-session turns', () => {
+  const catchBlock = guideControlSurfaceSource.slice(
+    guideControlSurfaceSource.indexOf('} catch {'),
+    guideControlSurfaceSource.indexOf('} finally {'),
+  );
+  assert.match(catchBlock, /status: 'unavailable'/);
+  assert.match(catchBlock, /appendTurn\(/);
+  assert.match(catchBlock, /No cloud fallback was used/);
+});
+
 test('text and voice Guide requests share one case-scoped history and model-action context', () => {
   const caseId = 'guide-chat-context-test';
   clearGuideSession(caseId);
