@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import type { FormEvent, KeyboardEvent } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { Activity, ArrowLeft, ChevronDown, ChevronUp, CircleHelp, Loader2, MessageCircle, Mic2, Radio, Send, ShieldAlert, Trash2, Volume2, VolumeX } from 'lucide-react';
+import { Activity, ArrowLeft, ChevronDown, ChevronUp, CircleHelp, Loader2, MessageCircle, Mic2, Radio, Scale, Send, ShieldAlert, Trash2, Volume2, VolumeX } from 'lucide-react';
 import { guidePresenceStateFromSnapshot, useGuideRuntime } from '@/components/guide-runtime';
 import { sendGuideMessage, type GuideChatLanguage } from '@/lib/api';
 import { createGuideChatContext } from '@/lib/guide-chat-context';
@@ -73,6 +73,7 @@ export function GuideConversationPanel({
     setLanguage: setChatLanguage,
     clear: clearSession,
   } = useGuideSession(caseId ?? '');
+  const legalAdvisoryAction = snapshot.availableActions.find((action) => action.type === 'OPEN_LEGAL_ADVISORY');
   const chatEntries: GuideChatEntry[] = turns.map((turn) => ({
     id: turn.id,
     role: turn.role === 'user' ? 'you' : 'guide',
@@ -227,6 +228,17 @@ export function GuideConversationPanel({
                 </div>
     
                 <GuideModelStatusBanner />
+                {legalAdvisoryAction && (
+                  <button
+                    type="button"
+                    onClick={() => void runAction(legalAdvisoryAction)}
+                    disabled={actionRunning}
+                    className="mt-3 flex min-h-10 w-full items-center justify-between gap-3 rounded-xl border border-[#e9bd7b]/25 bg-[#e9bd7b]/[0.07] px-3 py-2 text-left text-[11px] font-semibold text-[#f2d4a3] transition hover:bg-[#e9bd7b]/[0.12] disabled:cursor-wait disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e9bd7b] motion-reduce:transition-none"
+                  >
+                    <span className="flex items-center gap-2"><Scale aria-hidden="true" className="h-4 w-4" /> Get Legal Advisory using current case information</span>
+                    <span aria-hidden="true">→</span>
+                  </button>
+                )}
                 
                 <div role="log" aria-label="Guide conversation" aria-live="polite" aria-relevant="additions" className="mt-3 max-h-56 space-y-2 overflow-y-auto">
                   {chatEntries.length === 0 ? (
