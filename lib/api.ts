@@ -1107,8 +1107,12 @@ export async function sendGuideMessage(
   caseId?: string,
   conversationHistory: GuideConversationTurn[] = [],
   availableActions: GuideActionName[] = [],
+  sessionSignal?: AbortSignal,
 ): Promise<GuideChatResponse> {
   const controller = new AbortController();
+  const abortFromSession = () => controller.abort();
+  if (sessionSignal?.aborted) controller.abort();
+  else sessionSignal?.addEventListener('abort', abortFromSession, { once: true });
   const timeout = setTimeout(() => controller.abort(), 52_000);
   try {
     let remainingHistoryChars = 8_000;
@@ -1164,6 +1168,7 @@ export async function sendGuideMessage(
     return body as GuideChatResponse;
   } finally {
     clearTimeout(timeout);
+    sessionSignal?.removeEventListener('abort', abortFromSession);
   }
 }
 
