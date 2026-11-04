@@ -651,6 +651,7 @@ def _case_analysis_from_stages(
                 "source_url": reference.source_url,
             } for reference in item.provenance],
             source_verification_status=(governed.verification_status.value if governed else "unverified"),
+            source_verification_evidence=(governed.verification_evidence if governed else None),
             source_freshness_status=(governed.freshness_status.value if governed else "unknown"),
             source_freshness_checked_at=(
                 governed.freshness_checked_at.isoformat() if governed and governed.freshness_checked_at else None
