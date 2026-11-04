@@ -293,13 +293,13 @@ export default function VoiceCaseClient({ id }: { id: string }) {
         id: createId('turn'),
         role: 'user',
         content: committedTranscript.trim(),
-        inputMode,
+        inputMode: 'voice',
       });
       appendTurn({
         id: createId('turn'),
         role: 'assistant',
         content: 'I have added this statement to the case after your confirmation. It is now part of the case record.',
-        inputMode,
+        inputMode: 'voice',
       });
       setPendingCommit({
         draftId,
