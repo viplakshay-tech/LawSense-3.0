@@ -167,11 +167,19 @@ export function GuideConversationPanel({
         requestToken === chatRequestSequenceRef.current
         && isGuideTurnCurrent(caseId, turnToken)
       ) {
+        const unavailableMessage = 'The local Guide service could not be reached. No cloud fallback was used.';
+        appendTurn({
+          id: `guide-chat-${Date.now()}-${requestToken}-assistant`,
+          role: 'assistant',
+          content: unavailableMessage,
+          inputMode: 'text',
+          status: 'unavailable',
+        });
         dispatch({
           type: 'GUIDE_ERROR',
-          message: 'The local Guide service could not be reached. No cloud fallback was used.',
+          message: unavailableMessage,
         });
-        setChatError('The local Guide service could not be reached. No cloud fallback was used. Try again or use the existing case actions.');
+        setChatError(`${unavailableMessage} Try again or use the existing case actions.`);
       }
     } finally {
       finishGuideTurn(caseId, turnToken);
