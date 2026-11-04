@@ -121,6 +121,7 @@ export interface GuideActionPayloadMap {
     sourceIds: readonly string[];
   };
   SHOW_LEGAL_GROUNDING: { caseId: string; recordIds: readonly string[] };
+  OPEN_LEGAL_ADVISORY: { caseId: string };
   OPEN_JOURNEY: { caseId: string };
   SHOW_TWIN: { caseId: string };
   START_VOICE: { caseId: string };

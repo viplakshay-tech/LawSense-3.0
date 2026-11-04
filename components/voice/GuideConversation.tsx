@@ -880,7 +880,8 @@ export default function GuideConversation({
                 >
                   Open {proposedAction.type === 'SHOW_EVIDENCE' ? 'Evidence Map'
                     : proposedAction.type === 'SHOW_LEGAL_GROUNDING' ? 'legal grounding'
-                      : proposedAction.type === 'OPEN_JOURNEY' ? 'journey'
+                      : proposedAction.type === 'OPEN_LEGAL_ADVISORY' ? 'Legal Advisory'
+                        : proposedAction.type === 'OPEN_JOURNEY' ? 'journey'
                         : proposedAction.type === 'SHOW_TWIN' ? 'Living Twin'
                           : proposedAction.type === 'START_VOICE' ? 'voice capture'
                             : proposedAction.type === 'OPEN_DRAFTING' ? 'document drafting'

@@ -123,6 +123,12 @@ const guideActionDefinitions: readonly GuideActionDefinition[] = [
     },
   },
   {
+    type: 'OPEN_LEGAL_ADVISORY',
+    resolve: ({ caseState }) => caseState
+      ? [{ type: 'OPEN_LEGAL_ADVISORY', payload: { caseId: caseState.id } }]
+      : [],
+  },
+  {
     type: 'OPEN_JOURNEY',
     resolve: ({ caseState }) => caseState?.analysis?.journey
       ? [{ type: 'OPEN_JOURNEY', payload: { caseId: caseState.id } }]
