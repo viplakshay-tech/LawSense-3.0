@@ -87,10 +87,10 @@ def _local_ollama_base_url() -> str:
     try:
         parsed = urlsplit(configured)
         hostname = parsed.hostname
-        port = parsed.port
+        _ = parsed.port  # Validate the configured port without restricting private custom ports.
         if parsed.scheme not in {"http", "https"} or not hostname or parsed.username or parsed.password:
             raise ValueError
-        if parsed.query or parsed.fragment or port not in (None, 11434):
+        if parsed.query or parsed.fragment:
             raise ValueError
         is_localhost = hostname.casefold() == "localhost"
         try:
