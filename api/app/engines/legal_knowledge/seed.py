@@ -81,10 +81,10 @@ _SOURCES = (
         reference="Act No. 02 of 2022; Sections 1(3) and 11",
         version=(
             "Act No. 02 of 2022; official Uttarakhand UDD copy listed 2025-12-29; "
-            "commencement notification under section 1(3) not verified"
+            "commenced 2023-01-01 under Notification No. 67/iv(2)-sh.Vi.-2023-53 (sha)/2021 dated 2023-01-13"
         ),
         publication_date=date(2022, 1, 27),
-        effective_date=None,
+        effective_date=date(2023, 1, 1),
         jurisdiction_id=_UTTARAKHAND_JURISDICTION_ID,
     ),
     _SourceSeed(
@@ -470,11 +470,12 @@ def build_authoritative_legal_knowledge_seed(
         country="India",
         state="Uttarakhand",
         jurisdiction_basis=(
-            "The cited tenancy statute is territorially limited to Uttarakhand. Its section "
-            "1(3) requires commencement by State Government Gazette notification; that "
-            "notification and current operation have not been verified."
+            "The Uttarakhand Tenancy Act, 2021 extends to the whole State under section 1(2) "
+            "and commenced on 2023-01-01 under the State Gazette notification cited in the "
+            "official Act PDF. Section 3 exclusions and case-specific subject-matter, tenancy "
+            "date and venue applicability still require separate assessment."
         ),
-        status=KnowledgeStatus.UNVERIFIED,
+        status=KnowledgeStatus.VERIFIED,
         provenance=tuple(
             reference for spec, reference in zip(effective_sources, jurisdiction_refs)
             if spec.jurisdiction_id == _UTTARAKHAND_JURISDICTION_ID

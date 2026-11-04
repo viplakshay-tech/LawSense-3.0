@@ -19,14 +19,14 @@
       "verificationDate": "2026-11-04",
       "verificationStatus": "verified_official",
       "catalogPage": "https://udd.uk.gov.in/document/uttarakhand-tenancy-act-2021/",
-      "version": "Act No. 02 of 2022; official Uttarakhand UDD copy listed 2025-12-29; commencement notification under section 1(3) not verified",
+      "version": "Act No. 02 of 2022; official Uttarakhand UDD copy listed 2025-12-29; commenced 2023-01-01 under Notification No. 67/iv(2)-sh.Vi.-2023-53 (sha)/2021 dated 2023-01-13",
       "jurisdiction": "Uttarakhand, India",
       "applicabilityStatus": "not_verified",
-      "verificationNote": "Matched Act No. 02 of 2022 and the Act title against the official Uttarakhand Urban Development Department listing and linked PDF on 2026-11-04. Section 1(3) commencement notification remains unverified; this does not establish current operation.",
-      "retrievedAt": "2026-10-27T00:00:00+00:00",
-      "freshnessStatus": "unknown",
-      "freshnessCheckedAt": null,
-      "freshnessEvidence": null
+      "verificationNote": "Matched Act No. 02 of 2022 and the Act title against the official Uttarakhand Urban Development Department listing and linked PDF on 2026-11-04. Verified the section 1(3) commencement footnote in the official Uttarakhand Act PDF: the Act came into force on 2023-01-01 under Notification No. 67/iv(2)-sh.Vi.-2023-53 (sha)/2021 dated 2023-01-13. Case-specific applicability, statutory exceptions and the facts of any tenancy still require separate assessment.",
+      "retrievedAt": "2026-11-04T13:45:00+05:30",
+      "freshnessStatus": "current",
+      "freshnessCheckedAt": "2026-11-04T13:50:00+05:30",
+      "freshnessEvidence": "Compared the current official Uttarakhand Urban Development Department listing and linked Act PDF (listed 2025-12-29) with the official Uttarakhand Act PDF containing the section 1(3) commencement footnote and the India Code Act copy. The official Uttarakhand PDF states that the whole Act came into force on 2023-01-01 vide Notification No. 67/iv(2)-sh.Vi.-2023-53 (sha)/2021 dated 2023-01-13. The official copies reviewed on 2026-11-04 agree on Act No. 02 of 2022 and the Act text; no later amending Act or amendment notification was identified in the official sources reviewed. This establishes statutory commencement and source-text currentness for the recorded Act snapshot only; case-specific applicability, exemptions under section 3, and any tenancy-specific procedural conditions remain unassessed. Official commencement-bearing Uttarakhand Act PDF: https://cdnbbsr.s3waas.gov.in/s3bc7f621451b4f5df308a8e098112185d/uploads/2025/03/202503251012941681.pdf. Official India Code Act PDF: https://www.indiacode.nic.in/bitstream/123456789/20015/1/uk_tenancy_act%2C_2021_eng.pdf. Current UDD document listing: https://udd.uk.gov.in/document/uttarakhand-tenancy-act-2021/."
     },
     {
       "id": "source-india-code-consumer-protection-act-2019",
