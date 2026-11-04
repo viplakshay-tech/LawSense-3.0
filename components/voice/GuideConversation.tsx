@@ -5,9 +5,9 @@ import { Mic, MicOff, RotateCcw, Send } from 'lucide-react';
 import type { GuideVoiceEvent, VoiceLanguage } from '@/components/guide-runtime/voice-adapter/events';
 import type { RecognitionLanguage } from './VoiceCapture';
 import { sendGuideMessage, type GuideActionName } from '@/lib/api';
+import { createGuideChatContext } from '@/lib/guide-chat-context';
 import { GuideModelStatusBanner } from '@/components/guide-presence/GuideModelStatusBanner';
 import {
-  getGuideConversationHistory,
   beginGuideTurn,
   finishGuideTurn,
   isGuideTurnCurrent,
@@ -417,7 +417,7 @@ export default function GuideConversation({
     if (!statement) return;
 
     const turnToken = beginGuideTurn(caseId);
-    const previousHistory = getGuideConversationHistory(caseId);
+    const { conversationHistory, availableActions: allowedActions } = createGuideChatContext(caseId, availableActions);
     appendUserTurn(statement, inputMethod);
 
     const questions = questionsRef.current;
@@ -429,16 +429,12 @@ export default function GuideConversation({
     let responseText: string;
     let proposedAction: GuideActionName | undefined;
     let responseStatus: 'ok' | 'unavailable' = 'ok';
-    const allowedActions = availableActions.reduce<GuideActionName[]>((items, action) => {
-      if (action.type !== 'SPEAK_RESPONSE') items.push(action.type);
-      return items;
-    }, []);
     try {
       const result = await sendGuideMessage(
         statement,
         languageRef.current.toLowerCase() as 'english' | 'hindi' | 'hinglish',
         caseId,
-        previousHistory,
+        conversationHistory,
         allowedActions,
         turnToken.signal,
       );
