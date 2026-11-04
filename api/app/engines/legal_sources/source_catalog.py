@@ -171,6 +171,7 @@ def record_source_freshness_review(
     checked_at: datetime | str | None = None,
     evidence: str | None = None,
     retrieved_at: datetime | str | None = None,
+    version: str | None = None,
     path: Path | None = None,
 ) -> SourceCatalogRecord:
     """Persist a human-entered review; this function performs no source fetch."""
@@ -201,17 +202,22 @@ def record_source_freshness_review(
         parsed_retrieved_at = _parse_datetime(
             retrieved_at.isoformat() if isinstance(retrieved_at, datetime) else retrieved_at,
             "retrievedAt",
-        )
+        ) if retrieved_at is not None else record.retrieved_at
         if parsed_checked_at is None or parsed_retrieved_at is None:
             raise SourceCatalogError(
-                "Current or stale freshness requires timezone-aware checked_at and retrieved_at values."
+                "Current or stale freshness requires timezone-aware checked_at and a recorded source snapshot."
             )
         if parsed_checked_at < parsed_retrieved_at:
             raise SourceCatalogError("Freshness review must not precede the retrieved source snapshot.")
         if not isinstance(evidence, str) or len(evidence.strip()) < 30:
             raise SourceCatalogError("Freshness evidence must describe the review in at least 30 characters.")
         if freshness_status is SourceFreshnessStatus.CURRENT:
+            if retrieved_at is None:
+                raise SourceCatalogError("A current review must record when the matching official snapshot was retrieved.")
+            if not isinstance(version, str) or not version.strip():
+                raise SourceCatalogError("A current review must record the exact source snapshot version.")
             raw_record["retrievedAt"] = parsed_retrieved_at.isoformat()
+            raw_record["version"] = version.strip()
         raw_record["freshnessStatus"] = freshness_status.value
         raw_record["freshnessCheckedAt"] = parsed_checked_at.isoformat()
         raw_record["freshnessEvidence"] = evidence.strip()
