@@ -150,6 +150,7 @@ class LegalSourceRegistryTests(unittest.TestCase):
         )
 
         self.assertEqual(entry.source_type, SourceType.LEGISLATION)
+        self.assertEqual(entry.current_version.verification_date, date(2026, 10, 8))
         self.assertEqual(entry.title, "Fixture Act")
         self.assertEqual(entry.publisher_name, "Fixture publisher")
         self.assertEqual(entry.canonical_reference, "Fixture Act, section 1")
