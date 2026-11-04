@@ -110,6 +110,15 @@ class AuthoritativeLegalKnowledgeSeedTests(unittest.TestCase):
                 self.assertTrue(entry.canonical_reference)
                 self.assertEqual(version.source_url, entry.source_url)
 
+    def test_verified_seed_snapshots_carry_source_specific_evidence(self) -> None:
+        versions = [item for item in self.store.items if isinstance(item, SourceVersion)]
+        self.assertEqual(len(versions), 8)
+        for version in versions:
+            with self.subTest(source=version.source):
+                self.assertEqual(version.status, KnowledgeStatus.VERIFIED)
+                self.assertTrue(version.verification_evidence)
+                self.assertNotIn("catalog snapshot", version.verification_evidence.lower())
+
     def test_seed_retrieval_is_deterministic_and_uses_issue_terms(self) -> None:
         cases = {
             "housing": "provision-uttarakhand-tenancy-act-2021-section-11-security-deposit",
@@ -177,11 +186,11 @@ class AuthoritativeLegalKnowledgeSeedTests(unittest.TestCase):
             "source-india-code-consumer-protection-act-2019":
                 "https://www.indiacode.nic.in/indiacode/handle/123456789/16103?view_type=browse",
             "source-india-code-code-on-wages-2019":
-                "https://indiacode.gov.in/handle/123456789/496699",
+                "https://www.indiacode.nic.in/indiacode/handle/123456789/15793?view_type=browse",
             "source-india-code-posh-act-2013":
-                "https://indiacode.gov.in/handle/123456789/496008",
+                "https://www.indiacode.nic.in/bitstream/123456789/2104/1/A2013-14.pdf",
             "source-india-code-domestic-violence-act-2005":
-                "https://indiacode.gov.in/handle/123456789/496007",
+                "https://www.indiacode.nic.in/bitstream/123456789/2021/5/A2005-43.pdf",
         }
         for source_id, expected_url in expected_urls.items():
             with self.subTest(source=source_id):
