@@ -48,6 +48,7 @@ class _SourceSeed:
     version: str
     publication_date: date
     effective_date: date | None
+    verification_date: date | None = None
     verification_evidence: str | None = None
     status: KnowledgeStatus = KnowledgeStatus.VERIFIED
     authority_tier: SourceAuthorityTier = SourceAuthorityTier.TIER_1_PRIMARY_OFFICIAL
@@ -388,6 +389,7 @@ def _apply_source_catalog_record(
         spec,
         status=status,
         version=record.version,
+        verification_date=record.verification_date,
         verification_evidence=record.verification_evidence,
         retrieved_at=record.retrieved_at,
         freshness_status=record.freshness_status,
@@ -524,6 +526,7 @@ def build_authoritative_legal_knowledge_seed(
                 publication_date=spec.publication_date,
                 publisher_name=spec.publisher_name,
                 authority_tier=spec.authority_tier,
+                verification_date=spec.verification_date,
                 verification_evidence=spec.verification_evidence,
                 freshness_status=spec.freshness_status,
                 freshness_checked_at=spec.freshness_checked_at,
