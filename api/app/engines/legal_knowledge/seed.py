@@ -125,6 +125,7 @@ _SOURCES = (
         verification_evidence="Matched India Code Act ID 201929, Act No. 29 of 2019, enactment date 2019-08-08, and title against the official India Code record on 2026-11-04. Commencement is staged; Gazette S.O. 5322(E) supports only the provisions it expressly lists.",
         publication_date=date(2019, 8, 8),
         effective_date=None,
+        retrieved_at=datetime(2026, 11, 4, 6, 42, tzinfo=timezone.utc),
     ),
     _SourceSeed(
         id="source-pib-labour-codes-commencement-2025",
@@ -169,6 +170,7 @@ _SOURCES = (
         verification_evidence="Matched Act No. 14 of 2013, title, and last-updated date 2021-08-31 against the official India Code PDF A2013-14.pdf and corroborated the Act listing on the Ministry of Women and Child Development site on 2026-11-04. Freshness and subsequent amendments are not assessed.",
         publication_date=date(2013, 4, 22),
         effective_date=date(2013, 12, 9),
+        retrieved_at=datetime(2026, 11, 4, 6, 42, tzinfo=timezone.utc),
     ),
     _SourceSeed(
         id="source-india-code-domestic-violence-act-2005",
@@ -181,6 +183,7 @@ _SOURCES = (
         verification_evidence="Matched Act No. 43 of 2005 and title against the official India Code PDF A2005-43.pdf and corroborated the Act listing on the Ministry of Women and Child Development site on 2026-11-04. Freshness and subsequent amendments are not assessed.",
         publication_date=date(2005, 9, 13),
         effective_date=date(2006, 10, 26),
+        retrieved_at=datetime(2026, 11, 4, 6, 42, tzinfo=timezone.utc),
     ),
 )
 
