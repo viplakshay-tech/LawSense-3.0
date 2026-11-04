@@ -124,5 +124,10 @@ test('a voice statement enters shared Guide history only after explicit case con
   await expect(conversation).toContainText('I have added this statement to the case after your confirmation.');
 
   await page.goto(`/case/${caseId}/guide`);
+  const guideConversation = page.getByRole('log', { name: 'Guide conversation' });
+  await expect(guideConversation).toContainText(confirmedStatement);
+  await expect(guideConversation).toContainText('I have added this statement to the case after your confirmation.');
+
+  await page.reload();
   await expect(page.getByRole('log', { name: 'Guide conversation' })).toContainText(confirmedStatement);
 });
