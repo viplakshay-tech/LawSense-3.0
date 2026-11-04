@@ -427,3 +427,20 @@ test('document finding deep links select only a finding returned for the request
   await expect(page.locator('article button[aria-pressed="true"]')).toHaveCount(1);
   await expect(page.locator('article button[aria-pressed="true"]')).toContainText('Source selected');
 });
+
+
+test('Guide workspace opens the current case Legal Advisory from its quick switch', async ({ page }) => {
+  const caseId = await enterCase(page);
+  await page.goto(`/case/${caseId}/guide`);
+
+  const quickSwitch = page.getByRole('button', {
+    name: 'Open Legal Advisory based on information so far',
+  });
+  await expect(quickSwitch).toBeVisible();
+  await quickSwitch.click();
+
+  const advisory = page.getByRole('dialog');
+  await expect(advisory).toBeVisible();
+  await expect(advisory.getByRole('heading', { name: 'Legal Advisory' })).toBeVisible();
+  await expect(advisory).toContainText('Based on information recorded so far');
+});
