@@ -438,6 +438,12 @@ test('shared Guide session rejects malformed or oversized persisted turn data at
 });
 
 
+test('Guide always exposes a direct current-case Legal Advisory action', () => {
+  assert.match(guideControlSurfaceSource, /snapshot\.availableActions\.find\(\(action\) => action\.type === 'OPEN_LEGAL_ADVISORY'\)/);
+  assert.match(guideControlSurfaceSource, /Get Legal Advisory using current case information/);
+  assert.match(guideControlSurfaceSource, /runAction\(legalAdvisoryAction\)/);
+});
+
 test('text Guide transport failures are recorded as unavailable shared-session turns', () => {
   const catchBlock = guideControlSurfaceSource.slice(
     guideControlSurfaceSource.indexOf('} catch {'),
