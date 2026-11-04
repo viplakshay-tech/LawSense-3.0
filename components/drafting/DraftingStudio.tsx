@@ -232,7 +232,7 @@ export function DraftingStudio({ caseId }: { caseId: string }) {
   const selectedFacts = sourceFacts.filter((fact) => previewDraft?.includedFactIds.includes(fact.id));
   const safeLegalSources = (caseState.analysis?.legalKnowledge.records ?? [])
     .map((record) => ({ record, url: safeSourceUrl(record.sourceUrl || record.provenance.find((item) => item.sourceUrl)?.sourceUrl) }))
-    .filter((item) => item.url && item.record.status === 'verified' && (!item.record.sourceVerificationStatus || item.record.sourceVerificationStatus === 'verified'));
+    .filter((item) => item.url && item.record.status === 'verified' && item.record.sourceVerificationStatus === 'verified');
 
   function changeField(field: keyof DraftFields, value: string) {
     setDraft((current) => current ? {
