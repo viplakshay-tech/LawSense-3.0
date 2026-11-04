@@ -470,11 +470,12 @@ def build_authoritative_legal_knowledge_seed(
         country="India",
         state="Uttarakhand",
         jurisdiction_basis=(
-            "The cited tenancy statute is territorially limited to Uttarakhand. Its section "
-            "1(3) requires commencement by State Government Gazette notification; that "
-            "notification and current operation have not been verified."
+            "The Uttarakhand Tenancy Act, 2021 extends to the whole State under section 1(2) "
+            "and commenced on 2023-01-01 under the State Gazette notification cited in the "
+            "official Act PDF. Section 3 exclusions and case-specific subject-matter, tenancy "
+            "date and venue applicability still require separate assessment."
         ),
-        status=KnowledgeStatus.UNVERIFIED,
+        status=KnowledgeStatus.VERIFIED,
         provenance=tuple(
             reference for spec, reference in zip(effective_sources, jurisdiction_refs)
             if spec.jurisdiction_id == _UTTARAKHAND_JURISDICTION_ID
