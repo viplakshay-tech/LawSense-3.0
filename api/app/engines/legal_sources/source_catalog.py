@@ -218,7 +218,9 @@ def record_source_identity_review(
     raw_record["verificationStatus"] = "verified_official"
     raw_record["verificationDate"] = parsed_date.isoformat()
     raw_record["verificationNote"] = evidence.strip()
-    raw_catalog["catalogVersion"] = parsed_date.isoformat()
+    existing_catalog_date = _parse_date(raw_catalog.get("catalogVersion"), "catalogVersion")
+    if existing_catalog_date is None or parsed_date > existing_catalog_date:
+        raw_catalog["catalogVersion"] = parsed_date.isoformat()
 
     temporary_path = catalog_path.with_suffix(catalog_path.suffix + ".tmp")
     temporary_path.write_text(json.dumps(raw_catalog, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
