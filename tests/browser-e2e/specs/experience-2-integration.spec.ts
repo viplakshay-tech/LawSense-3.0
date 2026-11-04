@@ -486,14 +486,15 @@ test('Legal Advisory traps keyboard focus and restores it to the opener', async 
 
   const dialog = page.getByRole('dialog', { name: 'Legal Advisory' });
   await expect(dialog).toBeVisible();
-  // The refresh control is disabled during the initial fetch, so only
-  // enabled controls belong in the tab order and initial-focus assertion.
+  // The close control is a stable initial-focus target while refresh loads.
+  const close = dialog.getByRole('button', { name: 'Close legal advisory' });
+  await expect(close).toBeFocused();
+  await expect(dialog.getByRole('button', { name: 'Refresh legal advisory' })).toBeEnabled();
   const focusable = dialog.locator(
     'button:not([disabled]):visible, a[href]:visible, input:not([disabled]):visible, select:not([disabled]):visible, textarea:not([disabled]):visible, [tabindex]:not([tabindex="-1"]):visible',
   );
   const first = focusable.first();
   const last = focusable.last();
-  await expect(first).toBeFocused();
 
   await last.focus();
   await page.keyboard.press('Tab');
