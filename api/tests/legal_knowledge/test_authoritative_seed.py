@@ -336,6 +336,27 @@ class AuthoritativeLegalKnowledgeSeedTests(unittest.TestCase):
             self.assertTrue(provisions)
             self.assertTrue(all(item.status == KnowledgeStatus.UNVERIFIED for item in provisions))
 
+    def test_seed_fails_closed_when_catalog_version_drifts_from_curated_snapshot(self) -> None:
+        catalog_path = (
+            Path(__file__).resolve().parents[3]
+            / "data"
+            / "knowledge"
+            / "source_catalog"
+            / "sources.json"
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            temporary_catalog = Path(directory) / "sources.json"
+            shutil.copyfile(catalog_path, temporary_catalog)
+            catalog = json.loads(temporary_catalog.read_text(encoding="utf-8"))
+            record = next(
+                item for item in catalog["sources"]
+                if item["id"] == "source-india-code-consumer-protection-act-2019"
+            )
+            record["version"] = "Act No. 35 of 2019; unreviewed newer snapshot"
+            temporary_catalog.write_text(json.dumps(catalog, indent=2), encoding="utf-8")
+            with self.assertRaisesRegex(SourceCatalogError, "version does not match"):
+                build_authoritative_legal_knowledge_seed(temporary_catalog)
+
     def test_seed_fails_closed_when_a_source_is_missing_from_the_catalog(self) -> None:
         catalog_path = (
             Path(__file__).resolve().parents[3]
