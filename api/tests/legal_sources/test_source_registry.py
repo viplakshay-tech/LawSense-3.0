@@ -184,6 +184,10 @@ class LegalSourceRegistryTests(unittest.TestCase):
         with self.assertRaises(SourceRegistryValidationError):
             validate_registry_version(replace(self.version, source_type="made_up"))
 
+    def test_verification_date_must_be_a_calendar_date(self) -> None:
+        with self.assertRaisesRegex(SourceRegistryValidationError, "verification_date must be a date"):
+            validate_registry_version(replace(self.version, verification_date=RETRIEVED_AT))
+
     def test_unverified_records_can_be_retained_but_never_authoritative(self) -> None:
         version = make_version(
             self.source,
