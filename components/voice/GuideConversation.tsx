@@ -8,7 +8,6 @@ import { sendGuideMessage, type GuideActionName } from '@/lib/api';
 import {
   getGuideConversationHistory,
   beginGuideTurn,
-  isGuideSessionGenerationCurrent,
   isGuideTurnCurrent,
   useGuideSession,
   type GuideSessionTurn,
