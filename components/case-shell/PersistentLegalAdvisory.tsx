@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { AlertTriangle, CircleHelp, FileText, LoaderCircle, RefreshCw, Scale, ShieldAlert, X } from 'lucide-react';
 import { useCaseState } from '@/app/case/[id]/CaseStateProvider';
@@ -137,6 +137,7 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
   const [legalKnowledgeStatus, setLegalKnowledgeStatus] = useState('');
   const loadRequestIdRef = useRef(0);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const dialogRef = useRef<HTMLElement | null>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
 
@@ -225,7 +226,7 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
     };
   }, [open, loadAdvisory]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!open) return;
     const dialog = dialogRef.current;
     const focusableElements = () => Array.from(
@@ -233,11 +234,10 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
         'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
       ) ?? [],
     ).filter((element) => element.getClientRects().length > 0 && element.getAttribute('aria-hidden') !== 'true');
-    const frame = window.requestAnimationFrame(() => {
-      const first = focusableElements()[0];
-      if (first) first.focus({ preventScroll: true });
-      else dialog?.focus({ preventScroll: true });
-    });
+    // Focus the stable close control rather than the refresh control, which
+    // changes enabled state while the first advisory request is in flight.
+    if (closeButtonRef.current) closeButtonRef.current.focus({ preventScroll: true });
+    else dialog?.focus({ preventScroll: true });
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setOpen(false);
@@ -265,7 +265,6 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => {
-      window.cancelAnimationFrame(frame);
       window.removeEventListener('keydown', onKeyDown);
       (previousFocusRef.current ?? triggerRef.current)?.focus({ preventScroll: true });
       previousFocusRef.current = null;
@@ -368,6 +367,7 @@ export function PersistentLegalAdvisory({ caseId }: { caseId: string }) {
                   <RefreshCw aria-hidden="true" className={'h-4 w-4 ' + (loading ? 'animate-spin' : '')} />
                 </button>
                 <button
+                  ref={closeButtonRef}
                   type="button"
                   onClick={() => setOpen(false)}
                   aria-label="Close legal advisory"
