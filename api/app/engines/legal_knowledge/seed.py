@@ -81,10 +81,10 @@ _SOURCES = (
         reference="Act No. 02 of 2022; Sections 1(3) and 11",
         version=(
             "Act No. 02 of 2022; official Uttarakhand UDD copy listed 2025-12-29; "
-            "commencement notification under section 1(3) not verified"
+            "commenced 2023-01-01 under Notification No. 67/iv(2)-sh.Vi.-2023-53 (sha)/2021 dated 2023-01-13"
         ),
         publication_date=date(2022, 1, 27),
-        effective_date=None,
+        effective_date=date(2023, 1, 1),
         jurisdiction_id=_UTTARAKHAND_JURISDICTION_ID,
     ),
     _SourceSeed(
