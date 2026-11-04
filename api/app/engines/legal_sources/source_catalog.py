@@ -190,6 +190,8 @@ def record_source_freshness_review(
 
     raw_catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
     raw_record = next(item for item in raw_catalog["sources"] if item["id"] == source_id)
+    if freshness_status is SourceFreshnessStatus.STALE and retrieved_at is not None:
+        raise SourceCatalogError("A stale review must preserve the last retrieved snapshot timestamp.")
     if freshness_status is SourceFreshnessStatus.UNKNOWN:
         raw_record["freshnessStatus"] = "unknown"
         raw_record["freshnessCheckedAt"] = None
