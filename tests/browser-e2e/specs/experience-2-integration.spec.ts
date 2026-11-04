@@ -449,7 +449,11 @@ test('the local Guide can propose and open the active case Legal Advisory action
   await page.getByRole('button', { name: 'Send to local Guide' }).click();
   await expect(page.getByText('I can open the source-aware Legal Advisory for this case.')).toBeVisible();
 
-  await page.getByRole('button', { name: 'Open Legal Advisory', exact: true }).click();
+  const proposedActionMessage = page.getByText(
+    'I can open the source-aware Legal Advisory for this case.',
+    { exact: true },
+  ).locator('xpath=..');
+  await proposedActionMessage.getByRole('button', { name: 'Open Legal Advisory', exact: true }).click();
   const advisory = page.getByRole('dialog');
   await expect(advisory).toBeVisible();
   await expect(advisory.getByRole('heading', { name: 'Legal Advisory' })).toBeVisible();
