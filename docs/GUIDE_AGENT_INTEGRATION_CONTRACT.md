@@ -218,6 +218,10 @@ The case-scoped browser session is untrusted persistence, not an authorization s
 Text workspace messages and dedicated voice turns now call the same case-scoped context builder in `lib/guide-chat-context.ts`. It reads conversation history from the shared session store, excludes unavailable assistant replies through the session history policy, deduplicates the model-visible action allowlist, and keeps the presentation-only speech action out of model requests. Both input modes retain their existing turn cancellation and explicit voice-statement confirmation behavior.
 
 
+## Serialized action execution
+
+The shared Guide runtime now serializes action execution across its interactive surfaces. A synchronous in-flight guard is acquired before action availability is checked and released in a `finally` path, so rapid taps, keyboard activation or multiple surfaces cannot execute overlapping commands. The action is still revalidated against the current runtime registry immediately before the bridge dispatch. This prevents duplicate concurrent dispatch; it does not grant the model authority to execute actions or change case data.
+
 ## Advisory handoff and unavailable turns
 
 The Guide conversation panel always exposes a direct action to open the source-governed Legal Advisory using the current saved case information. The optional local language model does not make legal decisions; the advisory remains the decision boundary and must preserve missing-source and uncertainty states. Text-mode transport failures are recorded as unavailable assistant turns in the shared session for a consistent transcript across the text and voice surfaces. Unavailable replies are excluded from the model-visible continuity history.
