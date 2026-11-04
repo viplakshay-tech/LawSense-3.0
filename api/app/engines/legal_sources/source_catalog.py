@@ -188,6 +188,42 @@ def load_source_catalog(path: Path | None = None) -> dict[str, SourceCatalogReco
     return records
 
 
+def record_source_identity_review(
+    source_id: str,
+    *,
+    verification_date: date | str,
+    evidence: str,
+    path: Path | None = None,
+) -> SourceCatalogRecord:
+    """Persist a human-entered identity review without fetching or refreshing the source."""
+    catalog_path = path or default_source_catalog_path()
+    records = load_source_catalog(catalog_path)
+    record = records.get(source_id)
+    if record is None:
+        raise SourceCatalogError(f"Unknown legal source id: {source_id}")
+
+    parsed_date = _parse_date(
+        verification_date.isoformat() if isinstance(verification_date, date) else verification_date,
+        "verificationDate",
+    )
+    if parsed_date is None:
+        raise SourceCatalogError("Identity verification requires a calendar verification date.")
+    if not isinstance(evidence, str) or len(evidence.strip()) < 30:
+        raise SourceCatalogError("Identity verification evidence must describe the official identity check in at least 30 characters.")
+
+    raw_catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+    raw_record = next(item for item in raw_catalog["sources"] if item["id"] == source_id)
+    raw_record["verificationStatus"] = "verified_official"
+    raw_record["verificationDate"] = parsed_date.isoformat()
+    raw_record["verificationNote"] = evidence.strip()
+    raw_catalog["catalogVersion"] = parsed_date.isoformat()
+
+    temporary_path = catalog_path.with_suffix(catalog_path.suffix + ".tmp")
+    temporary_path.write_text(json.dumps(raw_catalog, indent=2, ensure_ascii=False) + "\\n", encoding="utf-8")
+    temporary_path.replace(catalog_path)
+    return load_source_catalog(catalog_path)[source_id]
+
+
 def record_source_freshness_review(
     source_id: str,
     status: SourceFreshnessStatus | str,
@@ -268,5 +304,6 @@ __all__ = [
     "SourceCatalogRecord",
     "default_source_catalog_path",
     "load_source_catalog",
+    "record_source_identity_review",
     "record_source_freshness_review",
 ]
