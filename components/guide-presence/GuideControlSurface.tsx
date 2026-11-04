@@ -5,7 +5,8 @@ import type { FormEvent, KeyboardEvent } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Activity, ArrowLeft, ChevronDown, ChevronUp, CircleHelp, Loader2, MessageCircle, Mic2, Radio, Send, ShieldAlert, Trash2, Volume2, VolumeX } from 'lucide-react';
 import { guidePresenceStateFromSnapshot, useGuideRuntime } from '@/components/guide-runtime';
-import { sendGuideMessage, type GuideActionName, type GuideChatLanguage } from '@/lib/api';
+import { sendGuideMessage, type GuideChatLanguage } from '@/lib/api';
+import { createGuideChatContext } from '@/lib/guide-chat-context';
 import {
   beginGuideTurn,
   finishGuideTurn,
@@ -67,7 +68,6 @@ export function GuideConversationPanel({
   const {
     turns,
     language: chatLanguage,
-    history,
     requestSequence: sessionRequestSequence,
     appendTurn,
     setLanguage: setChatLanguage,
@@ -113,6 +113,7 @@ export function GuideConversationPanel({
     chatInFlightRef.current = true;
     const requestToken = ++chatRequestSequenceRef.current;
     const turnToken = beginGuideTurn(caseId);
+    const chatContext = createGuideChatContext(caseId, snapshot.availableActions);
     activeSessionRequestRef.current = turnToken.sequence;
     setChatDraft('');
     setChatSending(true);
@@ -127,15 +128,12 @@ export function GuideConversationPanel({
     dispatch({ type: 'GUIDE_PROCESSING_STARTED' });
 
     try {
-      const availableActions = snapshot.availableActions
-        .filter((action) => action.type !== 'SPEAK_RESPONSE')
-        .map((action) => action.type as GuideActionName);
       const response = await sendGuideMessage(
         message,
         chatLanguage,
         caseId,
-        history,
-        availableActions,
+        chatContext.conversationHistory,
+        chatContext.availableActions,
         turnToken.signal,
       );
       if (requestToken !== chatRequestSequenceRef.current) return;
