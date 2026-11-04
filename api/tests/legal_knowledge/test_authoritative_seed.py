@@ -292,6 +292,8 @@ class AuthoritativeLegalKnowledgeSeedTests(unittest.TestCase):
                     self.assertIn("Mediation Act, 2023", source["freshnessEvidence"])
                     self.assertIn("S.O. 4506(E)", source["freshnessEvidence"])
                     self.assertIn("Tenth Schedule", source["freshnessEvidence"])
+                    self.assertIn("https://egazette.gov.in/WriteReadData/2023/248775.pdf", source["freshnessEvidence"])
+                    self.assertIn("https://upload.indiacode.nic.in/view-casepdf?id=AC_CEN_3_46_00011_A2023-32_1697800640677&type=act", source["freshnessEvidence"])
                 elif source_id == "source-india-code-code-on-wages-2019":
                     self.assertEqual(source["freshnessCheckedAt"], "2026-11-04T13:20:08+05:30")
                     self.assertIn("S.O. 454(E)", source["freshnessEvidence"])
