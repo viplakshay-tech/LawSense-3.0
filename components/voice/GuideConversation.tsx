@@ -452,7 +452,11 @@ export default function GuideConversation({
       responseText = `${localUnavailable}${createGuideConversationResponse(statement, question, languageRef.current)}`;
       proposedAction = undefined;
     }
-    if (!mountedRef.current || !isGuideTurnCurrent(caseId, turnToken)) return;
+    if (!mountedRef.current) return;
+    if (!isGuideTurnCurrent(caseId, turnToken)) {
+      transition('paused', 'A newer text or voice turn started. This older reply was discarded.');
+      return;
+    }
     const responseId = createId('response');
     appendTurn({ id: responseId, role: 'assistant', content: responseText, inputMode: inputMethod, status: responseStatus, ...(proposedAction ? { proposedAction } : {}), audio: 'queued' });
     const response = { id: responseId, text: responseText };
