@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.schemas.case_state import CaseState
 from app.services.case_service import get_case_state
-from app.services.local_assistant import AssistantResult, chat_with_local_model
+from app.services.local_assistant import AssistantResult, chat_with_local_model, check_local_model_status
 
 
 GuideActionName = Literal[
@@ -79,6 +79,14 @@ class GuideChatResponse(BaseModel):
     proposed_action: GuideActionName | None = None
 
 
+class GuideModelStatusResponse(BaseModel):
+    status: Literal["available", "model_missing", "unavailable", "misconfigured"]
+    model: str = Field(min_length=1, max_length=128)
+    reachable: bool
+    model_available: bool
+    message: str = Field(min_length=1, max_length=300)
+
+
 def _case_context(case_state: CaseState) -> list[dict[str, str]]:
     """Build a small context window from the saved case without changing it."""
     entries: list[dict[str, str]] = []
@@ -124,6 +132,19 @@ def _case_context(case_state: CaseState) -> list[dict[str, str]]:
         bounded.append({**entry, "text": value})
         remaining -= overhead + len(value)
     return bounded
+
+
+@router.get("/status", response_model=GuideModelStatusResponse)
+def guide_model_status() -> GuideModelStatusResponse:
+    """Report local Ollama reachability and model installation without sending a prompt."""
+    status = check_local_model_status()
+    return GuideModelStatusResponse(
+        status=status.status,
+        model=status.model,
+        reachable=status.reachable,
+        model_available=status.model_available,
+        message=status.message,
+    )
 
 
 @router.post("/chat", response_model=GuideChatResponse, response_model_exclude_none=True)
