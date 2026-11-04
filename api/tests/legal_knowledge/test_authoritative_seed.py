@@ -115,6 +115,11 @@ class AuthoritativeLegalKnowledgeSeedTests(unittest.TestCase):
                     self.assertIsNotNone(version.freshness_checked_at)
                     self.assertIn("Mediation Act, 2023", version.freshness_evidence or "")
                     self.assertIn("S.O. 4506(E)", version.freshness_evidence or "")
+                elif version.source == "source-indiacode-uttarakhand-tenancy-act-2021":
+                    self.assertEqual(version.freshness_status, SourceFreshnessStatus.CURRENT)
+                    self.assertIsNotNone(version.freshness_checked_at)
+                    self.assertIn("2023-01-01", version.freshness_evidence or "")
+                    self.assertIn("67/iv(2)-sh.Vi.-2023-53", version.freshness_evidence or "")
                 else:
                     self.assertEqual(version.freshness_status, SourceFreshnessStatus.UNKNOWN)
                     self.assertIsNone(version.freshness_checked_at)
@@ -199,8 +204,8 @@ class AuthoritativeLegalKnowledgeSeedTests(unittest.TestCase):
             housing_source.source_url,
             "https://cdnbbsr.s3waas.gov.in/s38208974663db80265e9bfe7b222dcb18/uploads/2025/12/202512292052328583.pdf",
         )
-        self.assertIsNone(housing_source.effective_from)
-        self.assertIn("commencement notification", housing_source.version)
+        self.assertEqual(housing_source.effective_from, date(2023, 1, 1))
+        self.assertIn("commenced 2023-01-01", housing_source.version)
 
     def test_migrated_india_code_links_match_verified_act_records(self) -> None:
         expected_urls = {
@@ -263,7 +268,11 @@ class AuthoritativeLegalKnowledgeSeedTests(unittest.TestCase):
             "https://cdnbbsr.s3waas.gov.in/s38208974663db80265e9bfe7b222dcb18/uploads/2025/12/202512292052328583.pdf",
         )
         self.assertEqual(tenancy["verificationDate"], "2026-11-04")
-        self.assertIn("commencement notification under section 1(3) not verified", tenancy["version"])
+        self.assertIn("commenced 2023-01-01", tenancy["version"])
+        self.assertEqual(tenancy["freshnessStatus"], "current")
+        self.assertEqual(tenancy["freshnessCheckedAt"], "2026-11-04T13:50:00+05:30")
+        self.assertIn("67/iv(2)-sh.Vi.-2023-53", tenancy["freshnessEvidence"])
+        self.assertIn("https://cdnbbsr.s3waas.gov.in/s3bc7f621451b4f5df308a8e098112185d/uploads/2025/03/202503251012941681.pdf", tenancy["freshnessEvidence"])
 
         for source_id in (
             "source-india-code-consumer-protection-act-2019",
