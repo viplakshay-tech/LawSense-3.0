@@ -206,6 +206,13 @@ class AuthoritativeLegalKnowledgeSeedTests(unittest.TestCase):
         )
         self.assertEqual(housing_source.effective_from, date(2023, 1, 1))
         self.assertIn("commenced 2023-01-01", housing_source.version)
+        housing_snapshot = next(
+            item for item in self.store.items
+            if isinstance(item, RegistrySourceVersion)
+            and item.source == "source-indiacode-uttarakhand-tenancy-act-2021"
+        )
+        self.assertEqual(housing_snapshot.effective_from, date(2023, 1, 1))
+        self.assertEqual(housing_snapshot.freshness_status, SourceFreshnessStatus.CURRENT)
 
     def test_migrated_india_code_links_match_verified_act_records(self) -> None:
         expected_urls = {
