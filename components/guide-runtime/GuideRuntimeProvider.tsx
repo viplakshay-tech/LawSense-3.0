@@ -216,7 +216,7 @@ export function GuideRuntimeProvider({ caseId, children }: { caseId: string; chi
       openEvidence: (evidenceId) => {
         const unavailable = activeCaseUnavailable();
         if (unavailable) return unavailable;
-        if (evidenceId && !caseState.evidence.some((item) => item.id === evidenceId)) {
+        if (evidenceId && !caseState?.evidence.some((item) => item.id === evidenceId)) {
           return { status: 'unavailable', reason: 'The requested evidence item is not present in the current CaseState.' };
         }
         push(`${base}/documents${evidenceId ? `?evidenceId=${encodeURIComponent(evidenceId)}` : ''}`);
