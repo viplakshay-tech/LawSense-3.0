@@ -35,6 +35,7 @@ def make_verified_source(**overrides: object) -> GovernedLegalSource:
         "publication_date": date(2026, 1, 2),
         "effective_date": date(2026, 2, 1),
         "retrieved_at": RETRIEVED_AT,
+        "verification_date": date(2026, 10, 8),
         "verification_status": SourceVerificationStatus.VERIFIED,
         "verification_evidence": "Manually matched title and citation to the official record.",
     }
