@@ -283,6 +283,8 @@ class AuthoritativeLegalKnowledgeSeedTests(unittest.TestCase):
                 SourceFreshnessStatus.CURRENT,
                 checked_at=checked_at,
                 evidence=evidence,
+                retrieved_at=datetime(2026, 11, 4, 7, 0, tzinfo=timezone.utc),
+                version="Act No. 35 of 2019; India Code record 123456789/16103",
                 path=temporary_catalog,
             )
 
