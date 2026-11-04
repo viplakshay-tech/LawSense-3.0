@@ -438,6 +438,14 @@ test('shared Guide session rejects malformed or oversized persisted turn data at
 });
 
 
+test('text Guide offers non-destructive cancellation that invalidates the shared request', () => {
+  assert.match(guideControlSurfaceSource, /function stopChat\(\)/);
+  assert.match(guideControlSurfaceSource, /invalidateGuideTurn\(caseId\)/);
+  assert.match(guideControlSurfaceSource, /Stop the current Guide response/);
+  assert.match(guideControlSurfaceSource, /Your message remains in this session/);
+  assert.match(guideControlSurfaceSource, /status: 'unavailable'/);
+});
+
 test('Guide action execution is serialized even if multiple surfaces activate the same control', () => {
   assert.match(guideRuntimeProvider, /const actionExecutionRef = useRef\(false\)/);
   assert.match(guideRuntimeProvider, /if \(actionExecutionRef\.current\) return null/);
