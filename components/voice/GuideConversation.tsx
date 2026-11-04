@@ -5,6 +5,7 @@ import { Mic, MicOff, RotateCcw, Send } from 'lucide-react';
 import type { GuideVoiceEvent, VoiceLanguage } from '@/components/guide-runtime/voice-adapter/events';
 import type { RecognitionLanguage } from './VoiceCapture';
 import { sendGuideMessage, type GuideActionName } from '@/lib/api';
+import { GuideModelStatusBanner } from '@/components/guide-presence/GuideModelStatusBanner';
 import {
   getGuideConversationHistory,
   beginGuideTurn,
@@ -852,6 +853,7 @@ export default function GuideConversation({
           <span aria-hidden="true" />{statusLabel}
         </span>
       </div>
+      <GuideModelStatusBanner />
 
       <p className="ls-guide-call__conversationDetail" aria-live="polite">{presentation.detail}</p>
 
