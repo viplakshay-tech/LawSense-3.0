@@ -307,16 +307,25 @@ export function GuideControlSurface() {
     expandedRef.current = false;
     setExpanded(false);
     if (!restoreFocus) return;
+    let secondFrame = 0;
     const frame = window.requestAnimationFrame(() => {
-      const heading = document.querySelector<HTMLElement>('main h1, main h2');
-      if (heading) {
-        if (!heading.hasAttribute('tabindex')) heading.tabIndex = -1;
-        heading.focus({ preventScroll: true });
-        return;
-      }
-      toggleRef.current?.focus({ preventScroll: true });
+      // Next.js may publish the pathname before the destination page has
+      // replaced its outgoing main content. Wait one additional paint so
+      // focus lands on the destination heading rather than stale content.
+      secondFrame = window.requestAnimationFrame(() => {
+        const heading = document.querySelector<HTMLElement>('main h1, main h2');
+        if (heading) {
+          if (!heading.hasAttribute('tabindex')) heading.tabIndex = -1;
+          heading.focus({ preventScroll: true });
+          return;
+        }
+        toggleRef.current?.focus({ preventScroll: true });
+      });
     });
-    return () => window.cancelAnimationFrame(frame);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      if (secondFrame) window.cancelAnimationFrame(secondFrame);
+    };
   }, [pathname]);
   const primaryAction = model.nextAction
     ? snapshot.availableActions.find((action) => action.type === model.nextAction?.actionType)
