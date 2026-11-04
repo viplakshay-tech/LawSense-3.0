@@ -49,6 +49,7 @@ class RegistrySourceVersion(SourceVersion):
     publication_date: date | None = None
     publisher_name: str | None = None
     authority_tier: SourceAuthorityTier | None = None
+    verification_date: date | None = None
     verification_evidence: str | None = None
     freshness_status: SourceFreshnessStatus = SourceFreshnessStatus.UNKNOWN
     freshness_checked_at: datetime | None = None
