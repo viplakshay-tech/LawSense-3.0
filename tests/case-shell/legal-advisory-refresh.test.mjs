@@ -39,5 +39,6 @@ test('Legal Advisory traps keyboard focus and restores the opener when closed', 
 test('Legal Advisory shows the structured source identity verification date', () => {
   assert.match(advisorySource, /const verificationDate = textValue\(record\.sourceVerificationDate\)/);
   assert.match(advisorySource, /Identity verification date/);
+  assert.match(advisorySource, /new Map\([\s\S]*textValue\(record\.source, textValue\(record\.id\)\)/);
   assert.match(advisorySource, /\{verificationDate \|\| 'Not recorded'\}/);
 });
