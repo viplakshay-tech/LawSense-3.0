@@ -208,6 +208,8 @@ def record_source_identity_review(
     )
     if parsed_date is None:
         raise SourceCatalogError("Identity verification requires a calendar verification date.")
+    if record.verification_date is not None and parsed_date < record.verification_date:
+        raise SourceCatalogError("An identity review date cannot move backwards from the previously recorded review.")
     if not isinstance(evidence, str) or len(evidence.strip()) < 30:
         raise SourceCatalogError("Identity verification evidence must describe the official identity check in at least 30 characters.")
 
