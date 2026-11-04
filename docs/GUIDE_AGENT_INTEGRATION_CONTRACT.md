@@ -211,3 +211,8 @@ Every release note must separate implemented, tested, experimental and planned c
 ## Persisted conversation boundary validation
 
 The case-scoped browser session is untrusted persistence, not an authorization source. On both restore and append, turns are accepted only when they have a bounded non-empty identifier and body, a supported user/assistant role and input mode, and recognized optional status, audio, and proposed-action values. Unknown action names are discarded rather than reinterpreted. Invalid turns are excluded from the visible transcript and from model conversation history. The backend remains authoritative for legal facts, case updates, source access, and every consequential action; client-side action names never grant permission.
+
+
+## Shared text/voice request context
+
+Text workspace messages and dedicated voice turns now call the same case-scoped context builder. It reads conversation history from the shared session store, excludes unavailable assistant replies through the session history policy, deduplicates the model-visible action allowlist, and keeps the presentation-only speech action out of model requests. Both input modes retain their existing turn cancellation and explicit voice-statement confirmation behavior.
