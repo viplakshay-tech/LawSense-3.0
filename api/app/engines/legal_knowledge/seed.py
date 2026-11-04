@@ -8,8 +8,9 @@ legal-source registry.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from dataclasses import dataclass, replace
+from datetime import date, datetime
+from pathlib import Path
 
 from app.engines.legal_knowledge.models import (
     Authority,
@@ -25,9 +26,9 @@ from app.engines.legal_knowledge.models import (
 )
 from app.engines.legal_knowledge.store import InMemoryLegalKnowledgeStore
 from app.engines.legal_sources import LegalSourceRegistry, RegistrySourceVersion, SourceFreshnessStatus, SourceType
+from app.engines.legal_sources.source_catalog import SourceCatalogError, SourceCatalogRecord, load_source_catalog
 
 
-_VERIFIED_AT = datetime(2026, 10, 7, 21, 1, 55, tzinfo=timezone.utc)
 _INDIA_JURISDICTION_ID = "jurisdiction-india"
 _UTTARAKHAND_JURISDICTION_ID = "jurisdiction-uttarakhand"
 _PARLIAMENT_AUTHORITY_ID = "authority-parliament-of-india"
@@ -45,9 +46,10 @@ class _SourceSeed:
     source_url: str
     reference: str
     version: str
-    verification_evidence: str
     publication_date: date
     effective_date: date | None
+    verification_evidence: str | None = None
+    status: KnowledgeStatus = KnowledgeStatus.VERIFIED
     authority_tier: SourceAuthorityTier = SourceAuthorityTier.TIER_1_PRIMARY_OFFICIAL
     source_type: SourceType = SourceType.LEGISLATION
     jurisdiction_id: str = _INDIA_JURISDICTION_ID
@@ -80,11 +82,9 @@ _SOURCES = (
             "Act No. 02 of 2022; official Uttarakhand UDD copy listed 2025-12-29; "
             "commencement notification under section 1(3) not verified"
         ),
-        verification_evidence="Matched Act No. 02 of 2022 and the Act title against the official Uttarakhand Urban Development Department listing and linked PDF on 2026-11-04. Section 1(3) commencement notification remains unverified; this does not establish current operation.",
         publication_date=date(2022, 1, 27),
         effective_date=None,
         jurisdiction_id=_UTTARAKHAND_JURISDICTION_ID,
-        retrieved_at=datetime(2026, 10, 27, 0, 0, tzinfo=timezone.utc),
     ),
     _SourceSeed(
         id="source-pib-model-tenancy-act-adoption-2021",
@@ -94,7 +94,6 @@ _SOURCES = (
         source_url="https://www.pib.gov.in/PressReleasePage.aspx?PRID=1723636&lang=2&reg=48",
         reference="PIB release ID 1723636, 2 June 2021",
         version="Official PIB release published 2021-06-02",
-        verification_evidence="Matched PIB release ID 1723636, its 2021-06-02 publication date, and its statement that the Model Tenancy Act was circulated to States/UTs for adoption against the official PIB release on 2026-11-04. This is an institutional announcement, not enacted State tenancy law.",
         publication_date=date(2021, 6, 2),
         effective_date=None,
         authority_tier=SourceAuthorityTier.TIER_2_OFFICIAL_INSTITUTIONAL,
@@ -108,7 +107,6 @@ _SOURCES = (
         source_url="https://www.indiacode.nic.in/indiacode/handle/123456789/16103?view_type=browse",
         reference="The Consumer Protection Act, 2019 (Act No. 35 of 2019)",
         version="Act No. 35 of 2019; India Code record 123456789/16103",
-        verification_evidence="Matched India Code Act ID 201935, Act No. 35 of 2019, enactment date 2019-08-09, and title against the official India Code record on 2026-11-04. Staged commencement is separate; freshness and later amendments are not assessed.",
         publication_date=date(2019, 8, 9),
         # The Act's provisions had staged commencement; no single effective
         # date is assigned to this document snapshot.
@@ -122,10 +120,8 @@ _SOURCES = (
         source_url="https://www.indiacode.nic.in/indiacode/handle/123456789/15793?view_type=browse",
         reference="The Code on Wages, 2019 (Act No. 29 of 2019)",
         version="Act No. 29 of 2019; India Code Act ID 201929; staged commencement includes S.O. 5322(E) for specified provisions",
-        verification_evidence="Matched India Code Act ID 201929, Act No. 29 of 2019, enactment date 2019-08-08, and title against the official India Code record on 2026-11-04. Commencement is staged; Gazette S.O. 5322(E) supports only the provisions it expressly lists.",
         publication_date=date(2019, 8, 8),
         effective_date=None,
-        retrieved_at=datetime(2026, 11, 4, 6, 42, tzinfo=timezone.utc),
     ),
     _SourceSeed(
         id="source-pib-labour-codes-commencement-2025",
@@ -135,7 +131,6 @@ _SOURCES = (
         source_url="https://www.pib.gov.in/PressReleasePage.aspx?PRID=2194018&lang=1&reg=1",
         reference="PIB release ID 2194018, 25 November 2025",
         version="Official PIB release published 2025-11-25",
-        verification_evidence="Matched PIB release ID 2194018, Ministry of Labour & Employment, publication date 2025-11-25, and its announcement concerning the four Labour Codes against the official PIB release on 2026-11-04. The release is institutional context, not a substitute for commencement notifications.",
         publication_date=date(2025, 11, 25),
         effective_date=None,
         authority_tier=SourceAuthorityTier.TIER_2_OFFICIAL_INSTITUTIONAL,
@@ -149,12 +144,10 @@ _SOURCES = (
         source_url="https://egazette.gov.in/WriteReadData/2025/267885.pdf",
         reference="S.O. 5322(E), dated 21 November 2025; Code on Wages, 2019 commencement and repeal/transition provisions",
         version="Official Gazette PDF; notification S.O. 5322(E)",
-        verification_evidence="Matched official Gazette of India PDF CG-DL-E-21112025-267885, notification S.O. 5322(E), dated 2025-11-21, against the primary Gazette publication on 2026-11-04. The notification lists specified Code on Wages provisions; it does not make every provision effective.",
         publication_date=date(2025, 11, 21),
         effective_date=date(2025, 11, 21),
         authority_tier=SourceAuthorityTier.TIER_1_PRIMARY_OFFICIAL,
         source_type=SourceType.GOVERNMENT_NOTIFICATION,
-        retrieved_at=datetime(2026, 10, 10, 0, 0, tzinfo=timezone.utc),
     ),
     _SourceSeed(
         id="source-india-code-posh-act-2013",
@@ -167,10 +160,8 @@ _SOURCES = (
         source_url="https://www.indiacode.nic.in/bitstream/123456789/2104/1/A2013-14.pdf",
         reference="The Sexual Harassment of Women at Workplace Act, 2013 (Act No. 14 of 2013)",
         version="Act No. 14 of 2013; India Code text last updated 2021-08-31",
-        verification_evidence="Matched Act No. 14 of 2013, title, and last-updated date 2021-08-31 against the official India Code PDF A2013-14.pdf and corroborated the Act listing on the Ministry of Women and Child Development site on 2026-11-04. Freshness and subsequent amendments are not assessed.",
         publication_date=date(2013, 4, 22),
         effective_date=date(2013, 12, 9),
-        retrieved_at=datetime(2026, 11, 4, 6, 42, tzinfo=timezone.utc),
     ),
     _SourceSeed(
         id="source-india-code-domestic-violence-act-2005",
@@ -180,10 +171,8 @@ _SOURCES = (
         source_url="https://www.indiacode.nic.in/bitstream/123456789/2021/5/A2005-43.pdf",
         reference="The Protection of Women from Domestic Violence Act, 2005 (Act No. 43 of 2005)",
         version="Act No. 43 of 2005; official India Code text",
-        verification_evidence="Matched Act No. 43 of 2005 and title against the official India Code PDF A2005-43.pdf and corroborated the Act listing on the Ministry of Women and Child Development site on 2026-11-04. Freshness and subsequent amendments are not assessed.",
         publication_date=date(2005, 9, 13),
         effective_date=date(2006, 10, 26),
-        retrieved_at=datetime(2026, 11, 4, 6, 42, tzinfo=timezone.utc),
     ),
 )
 
@@ -368,14 +357,60 @@ _PROVISIONS = (
 )
 
 
-def build_authoritative_legal_knowledge_seed() -> InMemoryLegalKnowledgeStore:
-    """Create a fresh deterministic repository containing the verified seed."""
+def _required_retrieved_at(value: datetime | None, source_id: str) -> datetime:
+    if value is None:
+        raise SourceCatalogError(
+            f"{source_id}: catalog retrievedAt is required; retrieval time is never synthesized."
+        )
+    return value
 
-    source_by_id = {source.id: source for source in _SOURCES}
+
+def _apply_source_catalog_record(
+    spec: _SourceSeed,
+    record: SourceCatalogRecord | None,
+) -> _SourceSeed:
+    if record is None:
+        raise SourceCatalogError(f"Seed source is missing from the source catalog: {spec.id}")
+    if record.retrieved_at is None:
+        raise SourceCatalogError(f"{spec.id}: catalog retrievedAt is required; retrieval time is never synthesized.")
+    if record.title != spec.title:
+        raise SourceCatalogError(f"{spec.id}: catalog title does not match the curated source.")
+    if record.official_url != spec.source_url:
+        raise SourceCatalogError(f"{spec.id}: catalog officialUrl does not match the curated source.")
+    if record.version != spec.version:
+        raise SourceCatalogError(f"{spec.id}: catalog version does not match the curated source snapshot.")
+    status = (
+        KnowledgeStatus.VERIFIED
+        if record.verification_status == "verified_official"
+        else KnowledgeStatus.UNVERIFIED
+    )
+    return replace(
+        spec,
+        status=status,
+        version=record.version,
+        verification_evidence=record.verification_evidence,
+        retrieved_at=record.retrieved_at,
+        freshness_status=record.freshness_status,
+        freshness_checked_at=record.freshness_checked_at,
+        freshness_evidence=record.freshness_evidence,
+    )
+
+
+def build_authoritative_legal_knowledge_seed(
+    source_catalog_path: Path | None = None,
+) -> InMemoryLegalKnowledgeStore:
+    """Create a deterministic repository whose governance state comes from the reviewed catalog."""
+
+    catalog = load_source_catalog(source_catalog_path)
+    effective_sources = tuple(
+        _apply_source_catalog_record(spec, catalog.get(spec.id))
+        for spec in _SOURCES
+    )
+    source_by_id = {source.id: source for source in effective_sources}
     authority_source_refs: dict[str, list[SourceReference]] = {}
     jurisdiction_refs = []
-    for spec in _SOURCES:
-        retrieved_at = spec.retrieved_at or _VERIFIED_AT
+    for spec in effective_sources:
+        retrieved_at = _required_retrieved_at(spec.retrieved_at, spec.id)
         reference = SourceReference(
             source_id=spec.id,
             retrieval_time=retrieved_at,
@@ -423,7 +458,7 @@ def build_authoritative_legal_knowledge_seed() -> InMemoryLegalKnowledgeStore:
         ),
         status=KnowledgeStatus.VERIFIED,
         provenance=tuple(
-            reference for spec, reference in zip(_SOURCES, jurisdiction_refs)
+            reference for spec, reference in zip(effective_sources, jurisdiction_refs)
             if spec.jurisdiction_id == _INDIA_JURISDICTION_ID
         ),
     )
@@ -439,7 +474,7 @@ def build_authoritative_legal_knowledge_seed() -> InMemoryLegalKnowledgeStore:
         ),
         status=KnowledgeStatus.UNVERIFIED,
         provenance=tuple(
-            reference for spec, reference in zip(_SOURCES, jurisdiction_refs)
+            reference for spec, reference in zip(effective_sources, jurisdiction_refs)
             if spec.jurisdiction_id == _UTTARAKHAND_JURISDICTION_ID
         ),
     )
@@ -448,8 +483,8 @@ def build_authoritative_legal_knowledge_seed() -> InMemoryLegalKnowledgeStore:
     store.add_many((parliament, uttarakhand_assembly, pib, labour_ministry, india, uttarakhand))
     registry = LegalSourceRegistry(store)
 
-    for spec in _SOURCES:
-        retrieved_at = spec.retrieved_at or _VERIFIED_AT
+    for spec in effective_sources:
+        retrieved_at = _required_retrieved_at(spec.retrieved_at, spec.id)
         source_reference = SourceReference(
             source_id=spec.id,
             retrieval_time=retrieved_at,
@@ -465,7 +500,7 @@ def build_authoritative_legal_knowledge_seed() -> InMemoryLegalKnowledgeStore:
             version=spec.version,
             effective_from=spec.effective_date,
             retrieved_at=retrieved_at,
-            status=KnowledgeStatus.VERIFIED,
+            status=spec.status,
             provenance=(source_reference,),
             authority_tier=spec.authority_tier,
             publisher_name=spec.publisher_name,
@@ -482,7 +517,7 @@ def build_authoritative_legal_knowledge_seed() -> InMemoryLegalKnowledgeStore:
                 version=spec.version,
                 effective_from=spec.effective_date,
                 retrieved_at=retrieved_at,
-                status=KnowledgeStatus.VERIFIED,
+                status=spec.status,
                 provenance=(source_reference,),
                 source_type=spec.source_type,
                 canonical_reference=spec.reference,
@@ -497,8 +532,8 @@ def build_authoritative_legal_knowledge_seed() -> InMemoryLegalKnowledgeStore:
         )
 
     document_by_source: dict[str, LegalDocument] = {}
-    for spec in _SOURCES:
-        retrieved_at = spec.retrieved_at or _VERIFIED_AT
+    for spec in effective_sources:
+        retrieved_at = _required_retrieved_at(spec.retrieved_at, spec.id)
         document_id = f"document-{spec.id.removeprefix('source-')}"
         document_by_source[spec.id] = LegalDocument(
             id=document_id,
@@ -510,7 +545,7 @@ def build_authoritative_legal_knowledge_seed() -> InMemoryLegalKnowledgeStore:
             version=spec.version,
             effective_from=spec.effective_date,
             retrieved_at=retrieved_at,
-            status=KnowledgeStatus.VERIFIED,
+            status=spec.status,
             search_text=f"{spec.title} {spec.reference} {spec.version}",
             document_kind=(
                 "official legislation"
@@ -532,7 +567,7 @@ def build_authoritative_legal_knowledge_seed() -> InMemoryLegalKnowledgeStore:
     for spec in _PROVISIONS:
         source = source_by_id[spec.source_id]
         document = document_by_source[spec.source_id]
-        source_retrieved_at = source.retrieved_at or _VERIFIED_AT
+        source_retrieved_at = _required_retrieved_at(source.retrieved_at, source.id)
         supporting_provenance = (
             SourceReference(
                 source_id=source.id,
@@ -551,9 +586,7 @@ def build_authoritative_legal_knowledge_seed() -> InMemoryLegalKnowledgeStore:
                         "PIB release ID 2194018: four Labour Codes made effective "
                         "from 2025-11-21"
                     ),
-                    retrieval_time=source_by_id[
-                        "source-pib-labour-codes-commencement-2025"
-                    ].retrieved_at or _VERIFIED_AT,
+                    retrieval_time=_required_retrieved_at(source_by_id["source-pib-labour-codes-commencement-2025"].retrieved_at, "source-pib-labour-codes-commencement-2025"),
                     source_url=source_by_id[
                         "source-pib-labour-codes-commencement-2025"
                     ].source_url,
@@ -566,9 +599,7 @@ def build_authoritative_legal_knowledge_seed() -> InMemoryLegalKnowledgeStore:
                         "S.O. 5322(E): Code on Wages commencement from 21 November 2025; "
                         "section 69 repeals the Payment of Wages Act, 1936 subject to transition/savings"
                     ),
-                    retrieval_time=source_by_id[
-                        "source-gazette-code-on-wages-commencement-2025"
-                    ].retrieved_at or _VERIFIED_AT,
+                    retrieval_time=_required_retrieved_at(source_by_id["source-gazette-code-on-wages-commencement-2025"].retrieved_at, "source-gazette-code-on-wages-commencement-2025"),
                     source_url=source_by_id[
                         "source-gazette-code-on-wages-commencement-2025"
                     ].source_url,
@@ -584,7 +615,7 @@ def build_authoritative_legal_knowledge_seed() -> InMemoryLegalKnowledgeStore:
             version=source.version,
             effective_from=source.effective_date,
             retrieved_at=source_retrieved_at,
-            status=KnowledgeStatus.VERIFIED,
+            status=source.status,
             search_text=spec.search_text,
             document_id=document.id,
             provision_reference=spec.reference,

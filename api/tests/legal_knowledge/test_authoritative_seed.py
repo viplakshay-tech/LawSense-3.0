@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import json
+import shutil
+import tempfile
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
 
 from app.engines.legal_knowledge.models import (
@@ -15,6 +18,7 @@ from app.engines.legal_knowledge.models import (
 )
 from app.engines.legal_knowledge.seed import build_authoritative_legal_knowledge_seed
 from app.engines.legal_sources import LegalSourceRegistry, RegistrySourceVersion, SourceFreshnessStatus
+from app.engines.legal_sources.source_catalog import SourceCatalogError, record_source_freshness_review
 from app.services.legal_knowledge_service import search_legal_knowledge
 
 
@@ -233,22 +237,22 @@ class AuthoritativeLegalKnowledgeSeedTests(unittest.TestCase):
 
         self.assertEqual(sources["india-code"]["officialUrl"], "https://indiacode.gov.in/")
         self.assertEqual(sources["india-code"]["verificationDate"], "2026-10-09")
-        tenancy = sources["uttarakhand-tenancy-act-2021"]
+        tenancy = sources["source-indiacode-uttarakhand-tenancy-act-2021"]
         self.assertEqual(
             tenancy["officialUrl"],
             "https://cdnbbsr.s3waas.gov.in/s38208974663db80265e9bfe7b222dcb18/uploads/2025/12/202512292052328583.pdf",
         )
-        self.assertEqual(tenancy["verificationDate"], "2026-10-27")
+        self.assertEqual(tenancy["verificationDate"], "2026-11-04")
         self.assertIn("commencement notification under section 1(3) not verified", tenancy["version"])
 
         for source_id in (
-            "consumer-protection-act-2019",
-            "code-on-wages-2019",
-            "posh-act-2013",
-            "domestic-violence-act-2005",
-            "model-tenancy-act-pib-2021",
-            "four-labour-codes-pib-2025",
-            "code-on-wages-so-5322-2025",
+            "source-india-code-consumer-protection-act-2019",
+            "source-india-code-code-on-wages-2019",
+            "source-india-code-posh-act-2013",
+            "source-india-code-domestic-violence-act-2005",
+            "source-pib-model-tenancy-act-adoption-2021",
+            "source-pib-labour-codes-commencement-2025",
+            "source-gazette-code-on-wages-commencement-2025",
         ):
             with self.subTest(source=source_id):
                 source = sources[source_id]
@@ -256,6 +260,143 @@ class AuthoritativeLegalKnowledgeSeedTests(unittest.TestCase):
                 self.assertEqual(source["verificationDate"], "2026-11-04")
                 self.assertEqual(source["freshnessStatus"], "unknown")
                 self.assertIn("matched", source["verificationNote"].lower())
+
+
+    def test_source_catalog_review_flows_into_runtime_governance(self) -> None:
+        catalog_path = (
+            Path(__file__).resolve().parents[3]
+            / "data"
+            / "knowledge"
+            / "source_catalog"
+            / "sources.json"
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            temporary_catalog = Path(directory) / "sources.json"
+            shutil.copyfile(catalog_path, temporary_catalog)
+            checked_at = datetime(2026, 11, 4, 7, 10, tzinfo=timezone.utc)
+            evidence = (
+                "Reviewed the current consolidated Act text, published amendments and "
+                "commencement notifications against the official India Code record."
+            )
+            record_source_freshness_review(
+                "source-india-code-consumer-protection-act-2019",
+                SourceFreshnessStatus.CURRENT,
+                checked_at=checked_at,
+                evidence=evidence,
+                retrieved_at=datetime(2026, 11, 4, 7, 0, tzinfo=timezone.utc),
+                version="Act No. 35 of 2019; India Code record 123456789/16103",
+                path=temporary_catalog,
+            )
+
+            reviewed_store = build_authoritative_legal_knowledge_seed(temporary_catalog)
+            reviewed_source = reviewed_store.get("source-india-code-consumer-protection-act-2019")
+            self.assertIsInstance(reviewed_source, LegalSource)
+            self.assertEqual(reviewed_source.status, KnowledgeStatus.VERIFIED)
+            reviewed_version = next(
+                item for item in reviewed_store.items
+                if isinstance(item, RegistrySourceVersion)
+                and item.source == "source-india-code-consumer-protection-act-2019"
+            )
+            self.assertEqual(reviewed_version.freshness_status, SourceFreshnessStatus.CURRENT)
+            self.assertEqual(reviewed_version.freshness_checked_at, checked_at)
+            self.assertEqual(reviewed_version.freshness_evidence, evidence)
+
+    def test_unverified_catalog_record_downgrades_its_source_document_and_provisions(self) -> None:
+        catalog_path = (
+            Path(__file__).resolve().parents[3]
+            / "data"
+            / "knowledge"
+            / "source_catalog"
+            / "sources.json"
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            temporary_catalog = Path(directory) / "sources.json"
+            shutil.copyfile(catalog_path, temporary_catalog)
+            catalog = json.loads(temporary_catalog.read_text(encoding="utf-8"))
+            source_id = "source-india-code-consumer-protection-act-2019"
+            record = next(item for item in catalog["sources"] if item["id"] == source_id)
+            record["verificationStatus"] = "unverified"
+            record["verificationDate"] = None
+            record["verificationNote"] = None
+            temporary_catalog.write_text(json.dumps(catalog, indent=2), encoding="utf-8")
+
+            downgraded_store = build_authoritative_legal_knowledge_seed(temporary_catalog)
+            source = downgraded_store.get(source_id)
+            self.assertIsInstance(source, LegalSource)
+            self.assertEqual(source.status, KnowledgeStatus.UNVERIFIED)
+            document = next(
+                item for item in downgraded_store.items
+                if isinstance(item, LegalDocument) and item.source == source_id
+            )
+            self.assertEqual(document.status, KnowledgeStatus.UNVERIFIED)
+            provisions = [
+                item for item in downgraded_store.items
+                if isinstance(item, LegalProvision) and item.source == source_id
+            ]
+            self.assertTrue(provisions)
+            self.assertTrue(all(item.status == KnowledgeStatus.UNVERIFIED for item in provisions))
+
+    def test_seed_fails_closed_when_catalog_version_drifts_from_curated_snapshot(self) -> None:
+        catalog_path = (
+            Path(__file__).resolve().parents[3]
+            / "data"
+            / "knowledge"
+            / "source_catalog"
+            / "sources.json"
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            temporary_catalog = Path(directory) / "sources.json"
+            shutil.copyfile(catalog_path, temporary_catalog)
+            catalog = json.loads(temporary_catalog.read_text(encoding="utf-8"))
+            record = next(
+                item for item in catalog["sources"]
+                if item["id"] == "source-india-code-consumer-protection-act-2019"
+            )
+            record["version"] = "Act No. 35 of 2019; unreviewed newer snapshot"
+            temporary_catalog.write_text(json.dumps(catalog, indent=2), encoding="utf-8")
+            with self.assertRaisesRegex(SourceCatalogError, "version does not match"):
+                build_authoritative_legal_knowledge_seed(temporary_catalog)
+
+    def test_seed_fails_closed_when_catalog_omits_the_actual_retrieval_time(self) -> None:
+        catalog_path = (
+            Path(__file__).resolve().parents[3]
+            / "data"
+            / "knowledge"
+            / "source_catalog"
+            / "sources.json"
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            temporary_catalog = Path(directory) / "sources.json"
+            shutil.copyfile(catalog_path, temporary_catalog)
+            catalog = json.loads(temporary_catalog.read_text(encoding="utf-8"))
+            record = next(
+                item for item in catalog["sources"]
+                if item["id"] == "source-india-code-consumer-protection-act-2019"
+            )
+            record["retrievedAt"] = None
+            temporary_catalog.write_text(json.dumps(catalog, indent=2), encoding="utf-8")
+            with self.assertRaisesRegex(SourceCatalogError, "retrievedAt is required"):
+                build_authoritative_legal_knowledge_seed(temporary_catalog)
+
+    def test_seed_fails_closed_when_a_source_is_missing_from_the_catalog(self) -> None:
+        catalog_path = (
+            Path(__file__).resolve().parents[3]
+            / "data"
+            / "knowledge"
+            / "source_catalog"
+            / "sources.json"
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            temporary_catalog = Path(directory) / "sources.json"
+            shutil.copyfile(catalog_path, temporary_catalog)
+            catalog = json.loads(temporary_catalog.read_text(encoding="utf-8"))
+            catalog["sources"] = [
+                item for item in catalog["sources"]
+                if item["id"] != "source-india-code-consumer-protection-act-2019"
+            ]
+            temporary_catalog.write_text(json.dumps(catalog, indent=2), encoding="utf-8")
+            with self.assertRaisesRegex(SourceCatalogError, "missing from the source catalog"):
+                build_authoritative_legal_knowledge_seed(temporary_catalog)
 
 
 if __name__ == "__main__":
