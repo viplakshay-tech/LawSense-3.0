@@ -255,7 +255,7 @@ class AuthoritativeLegalKnowledgeSeedTests(unittest.TestCase):
                 self.assertEqual(source["verificationStatus"], "verified_official")
                 self.assertEqual(source["verificationDate"], "2026-11-04")
                 self.assertEqual(source["freshnessStatus"], "unknown")
-                self.assertIn("identity", source["verificationNote"].lower())
+                self.assertIn("matched", source["verificationNote"].lower())
 
 
 if __name__ == "__main__":
