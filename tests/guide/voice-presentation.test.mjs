@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
 import { validateGuideActionCommand } from '../../components/guide-actions/validation.ts';
 import { createGuideActionBridge } from '../../components/guide-actions/bridge.ts';
-import { beginGuideTurn, clearGuideSession, finishGuideTurn, getGuideSessionSnapshot, invalidateGuideTurn, isGuideTurnCurrent } from '../../lib/guide-session.ts';
+import { appendGuideSessionTurn, beginGuideTurn, clearGuideSession, finishGuideTurn, getGuideConversationHistory, getGuideSessionSnapshot, invalidateGuideTurn, isGuideTurnCurrent } from '../../lib/guide-session.ts';
 import { guideVoiceSnapshotForEvent } from '../../components/guide-runtime/voice-adapter/visual-state.ts';
 import {
   createGuideConversationResponse,
@@ -342,4 +342,55 @@ test('Guide surfaces local model readiness without a cloud fallback', () => {
   assert.match(guideModelStatusBanner, /Guide chat does not fall back to a cloud model/);
   assert.match(guideControlSurfaceSource, /<GuideModelStatusBanner \/>/);
   assert.match(voiceConversationSource, /<GuideModelStatusBanner \/>/);
+});
+
+
+test('shared Guide session deduplicates turn IDs and excludes unavailable assistant replies from model history', () => {
+  const caseId = 'guide-session-turn-retention-test';
+  clearGuideSession(caseId);
+  const initialGeneration = getGuideSessionSnapshot(caseId).generation;
+
+  appendGuideSessionTurn(caseId, {
+    id: 'confirmed-voice-turn',
+    role: 'user',
+    content: 'The employer confirmed the salary due date.',
+    inputMode: 'voice',
+  });
+  appendGuideSessionTurn(caseId, {
+    id: 'confirmed-voice-turn',
+    role: 'user',
+    content: 'This duplicate must not replace the original.',
+    inputMode: 'text',
+  });
+  appendGuideSessionTurn(caseId, {
+    id: 'unavailable-reply',
+    role: 'assistant',
+    content: 'The local Guide is unavailable.',
+    inputMode: 'voice',
+    status: 'unavailable',
+  });
+  appendGuideSessionTurn(caseId, {
+    id: 'confirmation-reply',
+    role: 'assistant',
+    content: 'I have added this statement to the case after your confirmation.',
+    inputMode: 'voice',
+    status: 'ok',
+  });
+
+  const snapshot = getGuideSessionSnapshot(caseId);
+  assert.equal(snapshot.turns.length, 3);
+  assert.equal(snapshot.turns[0].content, 'The employer confirmed the salary due date.');
+  assert.equal(snapshot.turns[0].inputMode, 'voice');
+  assert.deepEqual(
+    getGuideConversationHistory(caseId),
+    [
+      { role: 'user', content: 'The employer confirmed the salary due date.' },
+      { role: 'assistant', content: 'I have added this statement to the case after your confirmation.' },
+    ],
+  );
+
+  clearGuideSession(caseId);
+  const cleared = getGuideSessionSnapshot(caseId);
+  assert.equal(cleared.turns.length, 0);
+  assert.ok(cleared.generation > initialGeneration);
 });
