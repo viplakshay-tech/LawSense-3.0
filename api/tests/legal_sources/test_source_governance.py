@@ -129,6 +129,10 @@ class SourceGovernanceTests(unittest.TestCase):
         with self.assertRaisesRegex(SourceGovernanceValidationError, "verification_evidence"):
             validate_governed_source(make_verified_source(verification_evidence=None))
 
+    def test_verification_date_must_be_a_calendar_date(self) -> None:
+        with self.assertRaisesRegex(SourceGovernanceValidationError, "verification_date must be a date"):
+            validate_governed_source(make_verified_source(verification_date=RETRIEVED_AT))
+
     def test_jurisdiction_mismatch_is_rejected_without_inference(self) -> None:
         source = make_verified_source(jurisdiction="IN-KA")
 
