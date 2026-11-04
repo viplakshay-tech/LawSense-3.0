@@ -190,9 +190,10 @@ _PROVISIONS = (
             "months' rent for non-residential premises. Section 11(2) provides for return "
             "of the deposit when vacant possession is delivered, after permitted deductions. "
             "This is Uttarakhand-specific text and cannot be generalized to other States or "
-            "Union Territories. The Act came into force on 2023-01-01 under State Government "
-            "Notification No. 67/iv(2)-sh.Vi.-2023-53 (sha)/2021 dated 2023-01-13, as recorded "
-            "in the official Uttarakhand Government publication. Whether this provision "
+            "Union Territories. Under Section 1(3), the Act came into force on 2023-01-01 "
+            "under State Government Notification No. 67/iv(2)-sh.Vi.-2023-53 (sha)/2021 "
+            "dated 2023-01-13, as recorded in the official Uttarakhand Government publication. "
+            "Whether this provision "
             "applies to a particular tenancy still depends on the property location, statutory "
             "exemptions, relevant facts, and any later applicable legal changes."
         ),
