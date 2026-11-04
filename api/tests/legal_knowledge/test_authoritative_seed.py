@@ -319,7 +319,7 @@ class AuthoritativeLegalKnowledgeSeedTests(unittest.TestCase):
                 checked_at=checked_at,
                 evidence=evidence,
                 retrieved_at=datetime(2026, 11, 4, 8, 25, tzinfo=timezone.utc),
-                version="Act No. 35 of 2019; India Code record 123456789/16103; updated consolidated snapshot",
+                version="Act No. 35 of 2019; India Code record 123456789/16103",
                 path=temporary_catalog,
             )
 
@@ -353,6 +353,9 @@ class AuthoritativeLegalKnowledgeSeedTests(unittest.TestCase):
             record["verificationStatus"] = "unverified"
             record["verificationDate"] = None
             record["verificationNote"] = None
+            record["freshnessStatus"] = "unknown"
+            record["freshnessCheckedAt"] = None
+            record["freshnessEvidence"] = None
             temporary_catalog.write_text(json.dumps(catalog, indent=2), encoding="utf-8")
 
             downgraded_store = build_authoritative_legal_knowledge_seed(temporary_catalog)
@@ -409,6 +412,9 @@ class AuthoritativeLegalKnowledgeSeedTests(unittest.TestCase):
                 if item["id"] == "source-india-code-consumer-protection-act-2019"
             )
             record["retrievedAt"] = None
+            record["freshnessStatus"] = "unknown"
+            record["freshnessCheckedAt"] = None
+            record["freshnessEvidence"] = None
             temporary_catalog.write_text(json.dumps(catalog, indent=2), encoding="utf-8")
             with self.assertRaisesRegex(SourceCatalogError, "retrievedAt is required"):
                 build_authoritative_legal_knowledge_seed(temporary_catalog)
