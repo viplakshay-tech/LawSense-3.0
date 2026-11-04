@@ -427,3 +427,34 @@ test('document finding deep links select only a finding returned for the request
   await expect(page.locator('article button[aria-pressed="true"]')).toHaveCount(1);
   await expect(page.locator('article button[aria-pressed="true"]')).toContainText('Source selected');
 });
+
+
+test('Legal Advisory traps keyboard focus and restores it to the opener', async ({ page }) => {
+  await enterCase(page);
+  const trigger = page.getByRole('button', {
+    name: 'Open Legal Advisory based on information recorded so far',
+  });
+  await trigger.focus();
+  await trigger.click();
+
+  const dialog = page.getByRole('dialog', { name: 'Legal Advisory' });
+  await expect(dialog).toBeVisible();
+  // The refresh control is disabled during the initial fetch, so only
+  // enabled controls belong in the tab order and initial-focus assertion.
+  const focusable = dialog.locator(
+    'button:not([disabled]):visible, a[href]:visible, input:not([disabled]):visible, select:not([disabled]):visible, textarea:not([disabled]):visible, [tabindex]:not([tabindex="-1"]):visible',
+  );
+  const first = focusable.first();
+  const last = focusable.last();
+  await expect(first).toBeFocused();
+
+  await last.focus();
+  await page.keyboard.press('Tab');
+  await expect(first).toBeFocused();
+  await page.keyboard.press('Shift+Tab');
+  await expect(last).toBeFocused();
+
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await expect(trigger).toBeFocused();
+});
