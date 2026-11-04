@@ -51,7 +51,7 @@ function describeLanguage(value: string | null | undefined): string {
 export default function VoiceCaseClient({ id }: { id: string }) {
   const { caseState: caseData, loading, error: caseError, revision, replaceCaseState, refreshCaseState } = useCaseState();
   const { snapshot: guideRuntimeSnapshot, dispatch: dispatchCaseGuideEvent, runAction: runGuideAction, actionRunning: guideActionRunning } = useGuideRuntime();
-  const { language: sessionLanguage, setLanguage: setSessionLanguage } = useGuideSession(id);
+  const { language: sessionLanguage, setLanguage: setSessionLanguage, appendTurn } = useGuideSession(id);
   const [transcript, setTranscript] = useState('');
   const [inputMethod, setInputMethod] = useState<VoiceInputMethod>('text');
   const language: RecognitionLanguage = sessionLanguage === 'hindi' ? 'Hindi' : sessionLanguage === 'english' ? 'English' : 'Hinglish';
@@ -289,6 +289,12 @@ export default function VoiceCaseClient({ id }: { id: string }) {
         setRequestWorking(false);
         return;
       }
+      appendTurn({
+        id: createId('turn'),
+        role: 'user',
+        content: committedTranscript.trim(),
+        inputMode,
+      });
       setPendingCommit({
         draftId,
         caseState: response.caseState,
