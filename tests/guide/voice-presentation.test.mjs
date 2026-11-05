@@ -523,7 +523,7 @@ test('text and voice Guide requests share one case-scoped history and model-acti
 
 
 test('every Guide surface uses the professional feminine AI portrait and not the old illustrated avatar', () => {
-  assert.match(guidePresenceSource, /lawsense-guide-feminine\\.webp/);
+  assert.match(guidePresenceSource, /lawsense-guide-feminine\.webp/);
   assert.doesNotMatch(guidePresenceSource, /AvatarSurface|IllustratedAvatarRenderer|ILLUSTRATED GUIDE/);
   assert.match(guidePresenceSource, /<Image/);
 });
