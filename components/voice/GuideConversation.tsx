@@ -1149,7 +1149,7 @@ export default function GuideConversation({
       </div>
 
       <p className="ls-guide-call__conversationPrivacy">
-        On Android, speech recognition and spoken replies use installed on-device Android services only; the app will report if an offline service is unavailable. Desktop browser speech may use that browser’s configured provider. Guide replies use the configured LawSense server’s local Ollama model. Audio is not added to the case, and recognized words stay editable until you confirm them.
+        On Android, speech recognition and spoken replies use installed on-device Android services only; the app reports when an offline service is unavailable. On desktop, configured local Whisper is preferred for microphone transcription; browser speech recognition is the fallback when local Whisper is not ready. Guide replies use the configured LawSense server’s local Ollama model. Audio is not added to the case, and recognized words stay editable until you confirm them.
       </p>
     </section>
   );
