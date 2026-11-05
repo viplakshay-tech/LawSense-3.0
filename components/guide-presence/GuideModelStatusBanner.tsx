@@ -43,8 +43,14 @@ export function GuideModelStatusBanner() {
     const frame = window.requestAnimationFrame(() => {
       void check();
     });
+    // Ollama may be started after LawSense is already open. Recheck quietly
+    // so the model banner recovers without a page reload or manual refresh.
+    const poll = window.setInterval(() => {
+      void check();
+    }, 15_000);
     return () => {
       window.cancelAnimationFrame(frame);
+      window.clearInterval(poll);
       requestControllerRef.current?.abort();
     };
   }, [check]);
