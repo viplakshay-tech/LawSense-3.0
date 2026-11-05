@@ -149,6 +149,7 @@ class FasterWhisperLocalAdapter:
 
     @staticmethod
     def _suffix(media_type: str) -> str:
+        normalized_type = media_type.split(";", 1)[0].strip().casefold()
         return {
             "audio/wav": ".wav",
             "audio/x-wav": ".wav",
@@ -159,7 +160,7 @@ class FasterWhisperLocalAdapter:
             "audio/ogg": ".ogg",
             "audio/webm": ".webm",
             "audio/flac": ".flac",
-        }.get(media_type.casefold(), ".audio")
+        }.get(normalized_type, ".audio")
 
     def _get_model(self):
         if self._model is None:
