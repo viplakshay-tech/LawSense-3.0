@@ -526,6 +526,7 @@ test('every Guide surface uses the professional feminine AI portrait and not the
   assert.match(guidePresenceSource, /lawsense-guide-feminine\.webp/);
   assert.doesNotMatch(guidePresenceSource, /AvatarSurface|IllustratedAvatarRenderer|ILLUSTRATED GUIDE/);
   assert.match(guidePresenceSource, /<Image/);
+  assert.doesNotMatch(guidePresenceSource, /portraitStatus/);
 });
 
 
