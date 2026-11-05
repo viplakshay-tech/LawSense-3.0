@@ -294,6 +294,10 @@ class VoicePipelineTests(unittest.TestCase):
         self.assertTrue(provider.is_available)
         self.assertEqual(provider.synthesize("नमस्ते", VoiceLanguage.HINDI), b"mock synthesized audio")
 
+    def test_faster_whisper_normalizes_media_type_codec_parameters(self) -> None:
+        self.assertEqual(FasterWhisperLocalAdapter._suffix("audio/webm;codecs=opus"), ".webm")
+        self.assertEqual(FasterWhisperLocalAdapter._suffix(" Audio/WAV ; codecs=1"), ".wav")
+
     def test_local_whisper_availability_requires_model_files_and_installed_runtime(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             model_dir = Path(directory)
