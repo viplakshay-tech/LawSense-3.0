@@ -45,7 +45,6 @@ export function GuidePresence({
             className="ls-guide-presence__portraitImage"
           />
           <span className="ls-guide-presence__portraitHalo" />
-          <span className="ls-guide-presence__portraitStatus" />
         </div>
         {size !== 'compact' && (
           <span className="ls-guide-presence__stageCaption">YOUR LAWSENSE AI GUIDE</span>
