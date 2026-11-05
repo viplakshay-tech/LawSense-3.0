@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { Mic, MicOff, RotateCcw, Send } from 'lucide-react';
 import type { GuideVoiceEvent, VoiceLanguage } from '@/components/guide-runtime/voice-adapter/events';
 import type { RecognitionLanguage } from './VoiceCapture';
-import { type GuideActionName } from '@/lib/api';
+import { getVoiceProviderAvailability, transcribeVoiceAudio, type GuideActionName } from '@/lib/api';
 import { sendCaseScopedGuideMessage } from '@/lib/guide-chat-context';
 import { GuideModelStatusBanner } from '@/components/guide-presence/GuideModelStatusBanner';
 import {
@@ -138,6 +138,10 @@ export default function GuideConversation({
   const [nativeCapabilities, setNativeCapabilities] = useState<NativeGuideAudioCapabilities | null>(null);
   const [speechUnavailable, setSpeechUnavailable] = useState(false);
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const transcriptionAbortRef = useRef<AbortController | null>(null);
+  const recorderErrorRef = useRef<string | null>(null);
+  const localSpeechAvailabilityRef = useRef<Promise<boolean> | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const speechStartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
