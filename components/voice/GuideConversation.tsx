@@ -841,6 +841,11 @@ export default function GuideConversation({
       transition('paused', 'Recording stopped. Your transcript and conversation remain here.');
       return;
     }
+    if (mediaRecorderRef.current?.state === 'recording') {
+      stopReasonRef.current = 'pause';
+      mediaRecorderRef.current.stop();
+      return;
+    }
     stopReasonRef.current = 'pause';
     if (recognitionRef.current) recognitionRef.current.stop();
     else transition('paused', 'Recording stopped. Your conversation remains here.');
@@ -864,6 +869,24 @@ export default function GuideConversation({
     setCallActive(false);
     shouldListenRef.current = false;
     onActiveChangeRef.current?.(false);
+    const localRecorder = mediaRecorderRef.current;
+    if (localRecorder) {
+      stopReasonRef.current = 'end';
+      localRecorder.ondataavailable = null;
+      localRecorder.onerror = null;
+      localRecorder.onstop = null;
+      mediaRecorderRef.current = null;
+      try { if (localRecorder.state === 'recording') localRecorder.stop(); } catch { /* Recorder may already have stopped. */ }
+      releaseStream();
+      onRuntimeEventRef.current?.({
+        type: 'capture_cancelled',
+        draftId: draftIdRef.current,
+        captureId: currentCaptureIdRef.current,
+        transcriptRetained: hasDraftRef.current,
+      });
+    }
+    transcriptionAbortRef.current?.abort();
+    transcriptionAbortRef.current = null;
     const recognition = recognitionRef.current;
     if (recognition) {
       const captureId = currentCaptureIdRef.current;
@@ -942,6 +965,16 @@ export default function GuideConversation({
         try { recognition.abort(); } catch { /* The browser may already have ended this capture. */ }
       }
       recognitionRef.current = null;
+      const localRecorder = mediaRecorderRef.current;
+      if (localRecorder) {
+        localRecorder.ondataavailable = null;
+        localRecorder.onerror = null;
+        localRecorder.onstop = null;
+        try { if (localRecorder.state === 'recording') localRecorder.stop(); } catch { /* Recorder may already have stopped. */ }
+      }
+      mediaRecorderRef.current = null;
+      transcriptionAbortRef.current?.abort();
+      transcriptionAbortRef.current = null;
       releaseStream();
       if (nativeCapabilitiesRef.current) {
         void requestNativeGuideAudio('stopListening').catch(() => undefined);
