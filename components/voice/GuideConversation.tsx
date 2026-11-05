@@ -647,7 +647,7 @@ export default function GuideConversation({
       localSpeechReady &&
       typeof window !== 'undefined' &&
       'MediaRecorder' in window &&
-      navigator.mediaDevices?.getUserMedia
+      typeof navigator.mediaDevices?.getUserMedia === 'function'
     ) {
       await startLocalRecording();
       return;
