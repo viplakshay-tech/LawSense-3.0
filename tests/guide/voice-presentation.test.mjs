@@ -527,3 +527,10 @@ test('every Guide surface uses the professional feminine AI portrait and not the
   assert.doesNotMatch(guidePresenceSource, /AvatarSurface|IllustratedAvatarRenderer|ILLUSTRATED GUIDE/);
   assert.match(guidePresenceSource, /<Image/);
 });
+
+
+test('Guide model status recovers automatically when Ollama starts after the page is open', () => {
+  assert.match(guideModelStatusBanner, /window\.setInterval/);
+  assert.match(guideModelStatusBanner, /15_000/);
+  assert.match(guideModelStatusBanner, /window\.clearInterval/);
+});
