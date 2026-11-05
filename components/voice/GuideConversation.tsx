@@ -633,6 +633,18 @@ export default function GuideConversation({
       return;
     }
 
+    const localSpeechReady = await detectLocalSpeechProvider();
+    if (!mountedRef.current || !callActiveRef.current || !shouldListenRef.current) return;
+    if (
+      localSpeechReady &&
+      typeof window !== 'undefined' &&
+      'MediaRecorder' in window &&
+      navigator.mediaDevices?.getUserMedia
+    ) {
+      await startLocalRecording();
+      return;
+    }
+
     const Recognition = recognitionConstructor();
     if (!Recognition) {
       transition('unsupported', 'This browser does not provide speech recognition. You can continue with the text box below.');
@@ -767,7 +779,7 @@ export default function GuideConversation({
       onRuntimeEventRef.current?.({ type: 'capture_failed', draftId: draftIdRef.current, captureId, detail });
       transition(denied ? 'permission_denied' : 'error', detail);
     }
-  }, [releaseStream, transition, updateTranscriptDraft]);
+  }, [detectLocalSpeechProvider, releaseStream, startLocalRecording, transition, updateTranscriptDraft]);
 
   const startCall = useCallback(async () => {
     if (disabled || disabledRef.current) return;
@@ -795,8 +807,10 @@ export default function GuideConversation({
       onRuntimeEventRef.current?.({ type: 'speech_unavailable', responseId: createId('response') });
       return;
     }
-    if (!recognitionConstructor()) {
-      transition('unsupported', 'This browser does not provide live speech recognition. You can still have a text conversation below.');
+    const localSpeechReady = await detectLocalSpeechProvider();
+    const canRecordLocally = localSpeechReady && typeof window !== 'undefined' && 'MediaRecorder' in window;
+    if (!recognitionConstructor() && !canRecordLocally) {
+      transition('unsupported', 'This browser does not provide speech recognition, and local transcription is not configured. You can still have a text conversation below.');
       onRuntimeEventRef.current?.({ type: 'capture_failed', draftId: draftIdRef.current, captureId: createId('capture'), detail: 'This browser does not provide live speech recognition.' });
       return;
     }
@@ -816,7 +830,7 @@ export default function GuideConversation({
     shouldListenRef.current = true;
     onActiveChangeRef.current?.(true);
     await startListening();
-  }, [detectNativeAudio, disabled, startListening, transition]);
+  }, [detectLocalSpeechProvider, detectNativeAudio, disabled, startListening, transition]);
 
   const pauseListening = useCallback(() => {
     if (!callActiveRef.current) return;
