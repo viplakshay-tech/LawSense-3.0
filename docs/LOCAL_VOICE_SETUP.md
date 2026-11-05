@@ -49,11 +49,9 @@ The first transcription loads the model and can take longer than later turns. CP
 
 ## 4. Verify the provider
 
-Open this URL on the demo PC:
+Open the LawSense voice workspace while signed in. Its voice-provider status should report speech-to-text as available and processing location as local. The frontend calls the authenticated same-origin API route; do not test the backend route in a separate unauthenticated browser tab.
 
-`http://127.0.0.1:8000/cases/voice/status`
-
-The status should report speech-to-text as available and processing location as local. If it reports unavailable, check that the configured folder contains `model.bin`, `config.json`, and `tokenizer.json`, and that the API was restarted after setting the environment variables.
+If the UI still reports unavailable, check that the configured folder contains `model.bin`, `config.json`, and `tokenizer.json`, and that the API was restarted after setting the environment variables.
 
 ## 5. Test the Guide
 
