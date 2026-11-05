@@ -101,7 +101,7 @@ test('Guide voice input is turn-based, editable, and explicitly confirmed before
   await page.goto(`/case/${caseId}/voice`);
   const conversation = page.locator('[aria-label="Guide voice and text conversation"]');
   await expect(conversation.getByRole('button', { name: 'Tap to speak', exact: true })).toBeVisible();
-  await expect(conversation).toContainText('Desktop browser speech may use that browser’s configured provider.');
+  await expect(conversation).toContainText('On desktop, configured local Whisper is preferred for microphone transcription; browser speech recognition is the fallback when local Whisper is not ready.');
 
   await conversation.getByRole('button', { name: 'Tap to speak', exact: true }).click();
   const transcriptReview = conversation.getByLabel('Recognized words · review before sending');
