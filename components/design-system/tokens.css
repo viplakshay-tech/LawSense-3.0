@@ -37,23 +37,23 @@
   --ls-elevation-float: 0 22px 64px -34px rgb(0 0 0 / 70%), 0 0 0 1px rgb(255 255 255 / 3%);
 
   /* Neutral surfaces */
-  --ls-canvas: #090d13;
-  --ls-canvas-raised: #0c121a;
-  --ls-surface: #101722;
-  --ls-surface-raised: #141d29;
-  --ls-surface-strong: #1a2533;
-  --ls-surface-glass: rgb(16 23 34 / 82%);
-  --ls-ink: #f2f4f6;
-  --ls-text-reading: #d7dde4;
-  --ls-text-secondary: #9ca9b7;
-  --ls-text-subtle: #7d8b9a;
-  --ls-accent: #e6c38d;
-  --ls-accent-bright: #f4d8a9;
-  --ls-accent-soft: rgb(230 195 141 / 14%);
-  --ls-teal: #9dc8bf;
-  --ls-border: rgb(211 222 233 / 10%);
-  --ls-border-strong: rgb(211 222 233 / 16%);
-  --ls-border-accent: rgb(230 195 141 / 25%);
+  --ls-canvas: #0b0a11;
+  --ls-canvas-raised: #100e17;
+  --ls-surface: #15121d;
+  --ls-surface-raised: #1a1723;
+  --ls-surface-strong: #24202e;
+  --ls-surface-glass: rgb(22 18 29 / 86%);
+  --ls-ink: #f5f1f5;
+  --ls-text-reading: #ded8e2;
+  --ls-text-secondary: #b0a7b7;
+  --ls-text-subtle: #8e8496;
+  --ls-accent: #c99eb8;
+  --ls-accent-bright: #e5bfd3;
+  --ls-accent-soft: rgb(201 158 184 / 16%);
+  --ls-teal: #8bcbd4;
+  --ls-border: rgb(210 190 216 / 11%);
+  --ls-border-strong: rgb(210 190 216 / 19%);
+  --ls-border-accent: rgb(201 158 184 / 30%);
 
   /* Semantic status */
   --ls-status-neutral-bg: rgb(148 163 184 / 9%);
@@ -77,7 +77,7 @@
   --ls-motion-standard: 240ms;
   --ls-motion-emphasis: 420ms;
   --ls-ease-standard: cubic-bezier(0.2, 0.7, 0.2, 1);
-  --ls-focus-ring: #f1cb91;
+  --ls-focus-ring: #a7dce1;
   --ls-focus-width: 2px;
   --ls-focus-offset: 3px;
 }
