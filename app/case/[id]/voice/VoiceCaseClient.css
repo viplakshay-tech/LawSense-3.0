@@ -1,6 +1,6 @@
 .ls-guide-call__callPage {
   color:#f5f1ef;
-  background:radial-gradient(at 12% 10%,#6f304333,#0000 34rem),radial-gradient(at 92% 38%,#3b485b33,#0000 42rem),#0b1017;
+  background:radial-gradient(at 12% 10%,#7542673b,#0000 34rem),radial-gradient(at 92% 38%,#2f69713b,#0000 42rem),#0b0a11;
   min-height:calc(100dvh - 4rem);
   padding:clamp(1.1rem,3vw,2.6rem) clamp(1rem,4vw,3.5rem);
   position:relative;
@@ -49,7 +49,7 @@
   border-color:#e6a6b747
 }
 .ls-guide-call__callExperience {
-  background:linear-gradient(145deg,#171b23fa,#0e1219fc 66%);
+  background:linear-gradient(145deg,#211925fa,#100e17fc 66%);
   border:1px solid #e2c9d01f;
   border-radius:1.65rem;
   margin-top:1.2rem;
@@ -57,7 +57,7 @@
   box-shadow:0 2rem 6rem #01040973,inset 0 1px #ffffff09
 }
 .ls-guide-call__callHeader {
-  background:radial-gradient(at 0 0,#833b4f26,#0000 34rem),linear-gradient(120deg,#241d25ad,#10141c40 72%);
+  background:radial-gradient(at 0 0,#8a4a7530,#0000 34rem),linear-gradient(120deg,#2a1d2bad,#12101a40 72%);
   border-bottom:1px solid #fff1;
   justify-content:space-between;
   align-items:flex-end;
@@ -69,7 +69,7 @@
   min-width:0
 }
 .ls-guide-call__eyebrow {
-  color:#d6aab5;
+  color:#d9b0cc;
   letter-spacing:.17em;
   text-transform:uppercase;
   align-items:center;
@@ -114,13 +114,13 @@
   font-weight:650
 }
 .ls-guide-call__legalGuideLink svg {
-  color:#d5a4b0;
+  color:#d9b0cc;
   width:.9rem;
   height:.9rem
 }
 .ls-guide-call__legalGuideLink:hover {
-  background:#e5a6b70f;
-  border-color:#e5a6b74d
+  background:#c99eb815;
+  border-color:#c99eb84d
 }
 .ls-guide-call__sessionGrid {
   gap:clamp(1rem,2vw,1.5rem);
@@ -128,7 +128,7 @@
   display:grid
 }
 .ls-guide-call__guideCard,.ls-guide-call__transcriptCard {
-  background:linear-gradient(158deg,#12161ef0,#0c1017fa);
+  background:linear-gradient(158deg,#1b1622f0,#100d16fa);
   border:1px solid #ddcdd118;
   border-radius:1.3rem;
   min-width:0;
@@ -157,8 +157,8 @@
 }
 .ls-guide-call__guideStage {
   isolation:isolate;
-  background:radial-gradient(at 50% 40%,#76384b42,#0000 57%),radial-gradient(at 50% 100%,#3f2f3c42,#0000 54%),linear-gradient(150deg,#151923,#10141c 76%);
-  border:1px solid #dfabb721;
+  background:radial-gradient(at 50% 40%,#75466b42,#0000 57%),radial-gradient(at 50% 100%,#315e6342,#0000 54%),linear-gradient(150deg,#1a1520,#100e17 76%);
+  border:1px solid #c99eb82b;
   border-radius:1.05rem;
   place-items:center;
   min-height:25.5rem;
@@ -199,7 +199,7 @@
 }
 .ls-guide-call__guideCard[data-guide-state=LISTENING] .ls-guide-call__guideStage {
   background:radial-gradient(at 50% 40%,#88394f4d,#0000 57%),radial-gradient(at 50% 100%,#3f2f3c42,#0000 54%),linear-gradient(150deg,#151923,#10141c 76%);
-  border-color:#df99ab4d
+  border-color:#c99eb85a
 }
 .ls-guide-call__guideCard[data-guide-state=THINKING] .ls-guide-call__guideStage:before {
   opacity:.58;
