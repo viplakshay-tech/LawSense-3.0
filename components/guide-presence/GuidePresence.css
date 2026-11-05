@@ -76,24 +76,6 @@
   pointer-events:none;
   background:linear-gradient(180deg,transparent 55%,rgba(4,10,18,.32)),linear-gradient(120deg,rgba(61,160,210,.08),transparent 46%)
 }
-.ls-guide-presence__portraitStatus {
-  position:absolute;
-  z-index:2;
-  right:.65rem;
-  bottom:.65rem;
-  width:.62rem;
-  height:.62rem;
-  border:2px solid #0d1724;
-  border-radius:50%;
-  background:#52d6a2;
-  box-shadow:0 0 0 4px rgba(82,214,162,.13)
-}
-.ls-guide-presence__presence[data-size=compact] .ls-guide-presence__portraitStatus {
-  right:.28rem;
-  bottom:.28rem;
-  width:.55rem;
-  height:.55rem
-}
 .ls-guide-presence__stageCaption {
   color:#91aebb;
   letter-spacing:.2em;
