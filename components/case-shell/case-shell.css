@@ -1,13 +1,13 @@
 .ls-case-shell {
-  --case-rail: #101722;
+  --case-rail: #15111d;
   --case-divider: rgb(204 218 231 / 9%);
   --case-text: #f1f3f5;
   --case-muted: #9aa8b7;
   --case-faint: #788797;
   min-height: 100vh;
   background:
-    radial-gradient(ellipse at 80% -24%, rgb(87 116 126 / 12%), transparent 42rem),
-    linear-gradient(155deg, #0b1119 0%, var(--ls-canvas) 52%, #090d13 100%);
+    radial-gradient(ellipse at 80% -24%, rgb(147 93 139 / 13%), transparent 42rem),
+    linear-gradient(155deg, #15101b 0%, var(--ls-canvas) 52%, #0b0a11 100%);
   color: var(--case-text);
 }
 
@@ -20,8 +20,8 @@
   overflow-y: auto;
   border-color: var(--case-divider);
   background:
-    radial-gradient(ellipse at 0% 0%, rgb(137 159 166 / 7%), transparent 60%),
-    linear-gradient(180deg, #111a25 0%, var(--case-rail) 64%, #0d141e 100%);
+    radial-gradient(ellipse at 0% 0%, rgb(180 132 174 / 8%), transparent 60%),
+    linear-gradient(180deg, #1b1522 0%, var(--case-rail) 64%, #100d16 100%);
   box-shadow: var(--ls-elevation-rail);
   scrollbar-color: rgb(151 170 187 / 24%) transparent;
   scrollbar-width: thin;
@@ -116,7 +116,7 @@
 }
 
 .ls-case-navigation > div > a[aria-current="page"] {
-  background: linear-gradient(100deg, rgb(230 195 141 / 12%), rgb(230 195 141 / 4%));
+  background: linear-gradient(100deg, rgb(201 158 184 / 14%), rgb(201 158 184 / 5%));
   color: var(--ls-ink);
   box-shadow: inset 2px 0 var(--ls-accent);
 }
@@ -171,15 +171,15 @@
 .ls-case-main {
   min-height: 100vh;
   background:
-    radial-gradient(ellipse at 57% -22%, rgb(130 151 159 / 8%), transparent 48rem),
-    linear-gradient(160deg, #0b1119 0%, #090d13 62%);
+    radial-gradient(ellipse at 57% -22%, rgb(151 104 150 / 9%), transparent 48rem),
+    linear-gradient(160deg, #15101b 0%, #0b0a11 62%);
 }
 
 .ls-case-topbar {
   position: relative;
   z-index: 10;
   border-color: var(--case-divider);
-  background: rgb(10 15 22 / 88%);
+  background: rgb(16 12 21 / 90%);
   color: var(--case-text);
   backdrop-filter: blur(18px);
 }
@@ -207,7 +207,7 @@
   border-bottom: 1px solid var(--case-divider);
   background:
     radial-gradient(ellipse at 12% 0%, rgb(230 195 141 / 7%), transparent 32rem),
-    linear-gradient(90deg, rgb(17 25 36 / 82%), rgb(12 18 26 / 66%));
+    linear-gradient(90deg, rgb(29 20 34 / 84%), rgb(15 12 21 / 72%));
 }
 
 .ls-case-context-copy {
@@ -285,7 +285,7 @@
 
 .ls-case-mobile-dock {
   border-color: var(--case-divider);
-  background: rgb(10 15 22 / 95%);
+  background: rgb(16 12 21 / 96%);
   backdrop-filter: blur(20px);
 }
 

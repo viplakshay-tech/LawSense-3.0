@@ -1,0 +1,3 @@
+# Optional, fully local speech-to-text runtime for the Guide.
+# Install this only when enabling local microphone transcription.
+faster-whisper>=1.1,<2

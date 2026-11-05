@@ -3,7 +3,8 @@ import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
 import { validateGuideActionCommand } from '../../components/guide-actions/validation.ts';
 import { createGuideActionBridge } from '../../components/guide-actions/bridge.ts';
-import { beginGuideTurn, clearGuideSession, finishGuideTurn, getGuideSessionSnapshot, invalidateGuideTurn, isGuideTurnCurrent } from '../../lib/guide-session.ts';
+import { appendGuideSessionTurn, beginGuideTurn, clearGuideSession, finishGuideTurn, getGuideConversationHistory, getGuideSessionSnapshot, invalidateGuideTurn, isGuideTurnCurrent } from '../../lib/guide-session.ts';
+import { createGuideChatContext } from '../../lib/guide-chat-context.ts';
 import { guideVoiceSnapshotForEvent } from '../../components/guide-runtime/voice-adapter/visual-state.ts';
 import {
   createGuideConversationResponse,
@@ -12,6 +13,7 @@ import {
   resolveGuideActionProposal,
 } from '../../components/voice/conversation.ts';
 
+const guidePresenceSource = await readFile(new URL('../../components/guide-presence/GuidePresence.tsx', import.meta.url), 'utf8');
 const guidePresenceCss = await readFile(new URL('../../components/guide-presence/GuidePresence.css', import.meta.url), 'utf8');
 const avatarCss = await readFile(new URL('../../components/guide-presence/avatar/IllustratedAvatarRenderer.css', import.meta.url), 'utf8');
 const callCss = await readFile(new URL('../../app/case/[id]/voice/VoiceCaseClient.css', import.meta.url), 'utf8');
@@ -29,6 +31,7 @@ const persistentLegalAdvisorySource = await readFile(new URL('../../components/c
 const guideSessionSource = await readFile(new URL('../../lib/guide-session.ts', import.meta.url), 'utf8');
 const guideApiSource = await readFile(new URL('../../lib/api.ts', import.meta.url), 'utf8');
 const voiceConversationSource = await readFile(new URL('../../components/voice/GuideConversation.tsx', import.meta.url), 'utf8');
+const voiceCaseClientSource = await readFile(new URL('../../app/case/[id]/voice/VoiceCaseClient.tsx', import.meta.url), 'utf8');
 const guideControlSurfaceSource = await readFile(new URL('../../components/guide-presence/GuideControlSurface.tsx', import.meta.url), 'utf8');
 const persistentLegalAdvisory = await readFile(new URL('../../components/case-shell/PersistentLegalAdvisory.tsx', import.meta.url), 'utf8');
 const guideModelStatusBanner = await readFile(new URL('../../components/guide-presence/GuideModelStatusBanner.tsx', import.meta.url), 'utf8');
@@ -272,6 +275,17 @@ test('voice conversation preserves an unavailable local assistant response statu
   assert.match(voiceConversationSource, /responseStatus = result\.status/);
 });
 
+test('desktop Guide microphone prefers configured local transcription and keeps browser fallback', () => {
+  assert.match(voiceConversationSource, /getVoiceProviderAvailability/);
+  assert.match(voiceConversationSource, /availability\.processingLocation === 'local'/);
+  assert.match(voiceConversationSource, /new MediaRecorder\(acquiredStream\)/);
+  assert.match(voiceConversationSource, /transcribeVoiceAudio\(audio, controller\.signal\)/);
+  assert.match(voiceConversationSource, /provider: 'server'/);
+  assert.match(voiceConversationSource, /const Recognition = recognitionConstructor\(\)/);
+  assert.match(voiceConversationSource, /Confirm transcript and send to Guide/);
+  assert.match(voiceConversationSource, /transcriptionAbortRef\.current\?\.abort\(\)/);
+});
+
 
 test('Legal Advisory distinguishes catalog record status from source verification and freshness', () => {
   assert.match(persistentLegalAdvisorySource, /sourceVerificationStatus/);
@@ -342,4 +356,193 @@ test('Guide surfaces local model readiness without a cloud fallback', () => {
   assert.match(guideModelStatusBanner, /Guide chat does not fall back to a cloud model/);
   assert.match(guideControlSurfaceSource, /<GuideModelStatusBanner \/>/);
   assert.match(voiceConversationSource, /<GuideModelStatusBanner \/>/);
+});
+
+
+test('shared Guide session deduplicates turn IDs and excludes unavailable assistant replies from model history', () => {
+  const caseId = 'guide-session-turn-retention-test';
+  clearGuideSession(caseId);
+  const initialGeneration = getGuideSessionSnapshot(caseId).generation;
+
+  appendGuideSessionTurn(caseId, {
+    id: 'confirmed-voice-turn',
+    role: 'user',
+    content: 'The employer confirmed the salary due date.',
+    inputMode: 'voice',
+  });
+  appendGuideSessionTurn(caseId, {
+    id: 'confirmed-voice-turn',
+    role: 'user',
+    content: 'This duplicate must not replace the original.',
+    inputMode: 'text',
+  });
+  appendGuideSessionTurn(caseId, {
+    id: 'unavailable-reply',
+    role: 'assistant',
+    content: 'The local Guide is unavailable.',
+    inputMode: 'voice',
+    status: 'unavailable',
+  });
+  appendGuideSessionTurn(caseId, {
+    id: 'confirmation-reply',
+    role: 'assistant',
+    content: 'I have added this statement to the case after your confirmation.',
+    inputMode: 'voice',
+    status: 'ok',
+  });
+
+  const snapshot = getGuideSessionSnapshot(caseId);
+  assert.equal(snapshot.turns.length, 3);
+  assert.equal(snapshot.turns[0].content, 'The employer confirmed the salary due date.');
+  assert.equal(snapshot.turns[0].inputMode, 'voice');
+  assert.deepEqual(
+    getGuideConversationHistory(caseId),
+    [
+      { role: 'user', content: 'The employer confirmed the salary due date.' },
+      { role: 'assistant', content: 'I have added this statement to the case after your confirmation.' },
+    ],
+  );
+
+  clearGuideSession(caseId);
+  const cleared = getGuideSessionSnapshot(caseId);
+  assert.equal(cleared.turns.length, 0);
+  assert.ok(cleared.generation > initialGeneration);
+});
+
+
+test('dedicated voice statement drafts enter shared Guide history only after successful explicit confirmation', () => {
+  const commitStart = voiceCaseClientSource.indexOf('const commitTranscript = async () =>');
+  const acceptedIndex = voiceCaseClientSource.indexOf('const accepted = replaceCaseState(response.caseState);', commitStart);
+  const rejectionIndex = voiceCaseClientSource.indexOf('if (!accepted)', acceptedIndex);
+  const appendIndex = voiceCaseClientSource.indexOf("appendTurn({", rejectionIndex);
+  const pendingCommitIndex = voiceCaseClientSource.indexOf('setPendingCommit({', appendIndex);
+
+  assert.ok(commitStart >= 0);
+  assert.ok(acceptedIndex > commitStart);
+  assert.ok(rejectionIndex > acceptedIndex);
+  assert.ok(appendIndex > rejectionIndex);
+  assert.ok(pendingCommitIndex > appendIndex);
+  assert.match(voiceCaseClientSource, /role: 'user',[\s\S]*?content: committedTranscript\.trim\(\),[\s\S]*?inputMode: 'voice'/);
+  assert.match(voiceCaseClientSource, /role: 'assistant',[\s\S]*?I have added this statement to the case after your confirmation/);
+  assert.match(voiceCaseClientSource, /const \{ language: sessionLanguage, setLanguage: setSessionLanguage, appendTurn \} = useGuideSession\(id\)/);
+});
+
+
+test('shared Guide session rejects malformed or oversized persisted turn data at its boundary', () => {
+  const caseId = 'guide-session-validation-test';
+  clearGuideSession(caseId);
+  const appendUntrusted = (turn) => appendGuideSessionTurn(caseId, turn);
+
+  appendUntrusted({ id: 'valid-user', role: 'user', content: 'A reviewed statement.', inputMode: 'text' });
+  appendUntrusted({ id: 'bad-role', role: 'system', content: 'Must not enter history.', inputMode: 'text' });
+  appendUntrusted({ id: 'bad-status', role: 'assistant', content: 'Invalid status.', inputMode: 'text', status: 'trusted' });
+  appendUntrusted({ id: 'bad-action', role: 'assistant', content: 'Invalid action.', inputMode: 'text', proposedAction: 'RUN_ARBITRARY_CODE' });
+  appendUntrusted({ id: 'bad-audio', role: 'assistant', content: 'Invalid audio state.', inputMode: 'text', audio: 'auto_send' });
+  appendUntrusted({ id: 'oversized-id-' + 'x'.repeat(220), role: 'user', content: 'Oversized identifier.', inputMode: 'text' });
+  appendUntrusted({ id: 'oversized-content', role: 'user', content: 'x'.repeat(10_001), inputMode: 'text' });
+  appendUntrusted({ id: 'empty-content', role: 'user', content: '   ', inputMode: 'text' });
+
+  const turns = getGuideSessionSnapshot(caseId).turns;
+  assert.deepEqual(turns.map((turn) => turn.id), ['valid-user']);
+  assert.deepEqual(getGuideConversationHistory(caseId), [
+    { role: 'user', content: 'A reviewed statement.' },
+  ]);
+});
+
+
+test('text Guide offers non-destructive cancellation that invalidates the shared request', () => {
+  assert.match(guideControlSurfaceSource, /function stopChat\(\)/);
+  assert.match(guideControlSurfaceSource, /invalidateGuideTurn\(caseId\)/);
+  assert.match(guideControlSurfaceSource, /Stop the current Guide response/);
+  assert.match(guideControlSurfaceSource, /Your message remains in this session/);
+  assert.match(guideControlSurfaceSource, /status: 'unavailable'/);
+});
+
+test('invalidating a pending Guide turn aborts work but preserves the confirmed session transcript', () => {
+  const caseId = 'guide-stop-preserves-session';
+  clearGuideSession(caseId);
+  appendGuideSessionTurn(caseId, {
+    id: 'confirmed-before-stop',
+    role: 'user',
+    content: 'I want to understand my notice.',
+    inputMode: 'text',
+  });
+  const pending = beginGuideTurn(caseId);
+  invalidateGuideTurn(caseId);
+  assert.equal(pending.signal.aborted, true);
+  assert.equal(isGuideTurnCurrent(caseId, pending), false);
+  assert.deepEqual(getGuideSessionSnapshot(caseId).turns.map((turn) => turn.id), ['confirmed-before-stop']);
+  clearGuideSession(caseId);
+});
+
+test('Guide action execution is serialized even if multiple surfaces activate the same control', () => {
+  assert.match(guideRuntimeProvider, /const actionExecutionRef = useRef\(false\)/);
+  assert.match(guideRuntimeProvider, /if \(actionExecutionRef\.current\) return null/);
+  assert.match(guideRuntimeProvider, /actionExecutionRef\.current = true/);
+  assert.match(guideRuntimeProvider, /actionExecutionRef\.current = false/);
+  assert.match(guideRuntimeProvider, /dispatch\(\{ type: 'GUIDE_ACTION_SELECTED', action \}\)/);
+});
+
+test('Guide always exposes a direct current-case Legal Advisory action', () => {
+  assert.match(guideControlSurfaceSource, /snapshot\.availableActions\.find\(\(action\) => action\.type === 'OPEN_LEGAL_ADVISORY'\)/);
+  assert.match(guideControlSurfaceSource, /Get Legal Advisory using current case information/);
+  assert.match(guideControlSurfaceSource, /runAction\(legalAdvisoryAction\)/);
+});
+
+test('text Guide transport failures are recorded as unavailable shared-session turns', () => {
+  const catchBlock = guideControlSurfaceSource.slice(
+    guideControlSurfaceSource.indexOf('} catch {'),
+    guideControlSurfaceSource.indexOf('} finally {'),
+  );
+  assert.match(catchBlock, /status: 'unavailable'/);
+  assert.match(catchBlock, /appendTurn\(/);
+  assert.match(catchBlock, /No cloud fallback was used/);
+});
+
+test('text and voice Guide surfaces use the same case-scoped message transport', () => {
+  assert.match(voiceConversationSource, /sendCaseScopedGuideMessage/);
+  assert.match(guideControlSurfaceSource, /sendCaseScopedGuideMessage/);
+  assert.doesNotMatch(voiceConversationSource, /sendGuideMessage\(/);
+  assert.doesNotMatch(guideControlSurfaceSource, /sendGuideMessage\(/);
+  assert.match(guideControlSurfaceSource, /status: 'unavailable'/);
+});
+
+test('text and voice Guide requests share one case-scoped history and model-action context', () => {
+  const caseId = 'guide-chat-context-test';
+  clearGuideSession(caseId);
+  appendGuideSessionTurn(caseId, {
+    id: 'context-user', role: 'user', content: 'My landlord kept the deposit.', inputMode: 'text',
+  });
+  appendGuideSessionTurn(caseId, {
+    id: 'context-unavailable', role: 'assistant', content: 'Local model unavailable.', inputMode: 'voice', status: 'unavailable',
+  });
+  appendGuideSessionTurn(caseId, {
+    id: 'context-assistant', role: 'assistant', content: 'When did the tenancy end?', inputMode: 'voice', status: 'ok',
+  });
+
+  const advisory = { type: 'OPEN_LEGAL_ADVISORY', payload: { caseId } };
+  const speech = { type: 'SPEAK_RESPONSE', payload: { response: { id: 'response-1', text: 'Read this aloud.' } } };
+  const context = createGuideChatContext(caseId, [advisory, speech, advisory]);
+
+  assert.deepEqual(context.conversationHistory, [
+    { role: 'user', content: 'My landlord kept the deposit.' },
+    { role: 'assistant', content: 'When did the tenancy end?' },
+  ]);
+  assert.deepEqual(context.availableActions, ['OPEN_LEGAL_ADVISORY']);
+  assert.equal(context.availableActions.includes('SPEAK_RESPONSE'), false);
+});
+
+
+test('every Guide surface uses the professional feminine AI portrait and not the old illustrated avatar', () => {
+  assert.match(guidePresenceSource, /lawsense-guide-feminine\.webp/);
+  assert.doesNotMatch(guidePresenceSource, /AvatarSurface|IllustratedAvatarRenderer|ILLUSTRATED GUIDE/);
+  assert.match(guidePresenceSource, /<Image/);
+  assert.doesNotMatch(guidePresenceSource, /portraitStatus/);
+});
+
+
+test('Guide model status recovers automatically when Ollama starts after the page is open', () => {
+  assert.match(guideModelStatusBanner, /window\.setInterval/);
+  assert.match(guideModelStatusBanner, /15_000/);
+  assert.match(guideModelStatusBanner, /window\.clearInterval/);
 });

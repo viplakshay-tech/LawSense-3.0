@@ -2,11 +2,11 @@
   --room-ink:#edf3f7;
   --room-muted:#9baab7;
   --room-dim:#718092;
-  --room-border:#c4d6e51a;
-  --room-panel:#0f1721e0;
+  --room-border:#d6c5dc1a;
+  --room-panel:#181420e8;
   min-height:100%;
   color:var(--room-ink);
-  background:radial-gradient(at 47% 4%,#4e7d9b21,#0000 42rem),linear-gradient(145deg,#0d141d 0%,#090f17 57%,#0b121a 100%);
+  background:radial-gradient(at 47% 4%,#75426726,#0000 42rem),linear-gradient(145deg,#15101b 0%,#0b0a11 57%,#0b121a 100%);
   padding:clamp(1rem,2.8vw,2.25rem)
 }
 .ls-guide-room__roomShell {
@@ -30,9 +30,9 @@
   min-width:0
 }
 .ls-guide-room__brandMark {
-  color:#e7c99c;
-  background:#e7c99c12;
-  border:1px solid #e7c99c33;
+  color:#d6afca;
+  background:#d6afca14;
+  border:1px solid #d6afca38;
   border-radius:.95rem;
   flex:none;
   justify-content:center;
@@ -89,7 +89,7 @@
   font-weight:620
 }
 .ls-guide-room__cameraOff svg {
-  color:#d8b883;
+  color:#9bd6df;
   width:.95rem;
   height:.95rem
 }
@@ -120,11 +120,11 @@
 }
 .ls-guide-room__workspaceLink:hover {
   color:#fff;
-  background:#e7c99c0e;
-  border-color:#e7c99c40
+  background:#d6afca12;
+  border-color:#d6afca4a
 }
 .ls-guide-room__workspaceLink>svg:first-child {
-  color:#d4b985;
+  color:#cfa5c4;
   flex:none;
   width:1rem;
   height:1rem
@@ -143,7 +143,7 @@
 }
 .ls-guide-room__caseStrip {
   border:1px solid var(--room-border);
-  background:#0f1822d1;
+  background:#1b1522d9;
   border-radius:1rem;
   align-items:center;
   gap:clamp(1rem,3vw,2.5rem);
@@ -167,7 +167,7 @@
   margin:0
 }
 .ls-guide-room__liveDot,.ls-guide-room__stateDot {
-  background:#73c8a6;
+  background:#8bcbd4;
   border-radius:50%;
   flex:none;
   width:.46rem;
@@ -182,7 +182,7 @@
   display:grid
 }
 .ls-guide-room__caseStat {
-  border-left:1px solid #c4d6e517;
+  border-left:1px solid #d6c5dc19;
   min-width:0;
   padding-left:.7rem
 }
@@ -254,16 +254,16 @@
   display:inline-flex
 }
 .ls-guide-room__statePill[data-state=listening] .ls-guide-room__stateDot {
-  background:#78d8c5
+  background:#8bcbd4
 }
 .ls-guide-room__statePill[data-state=processing] .ls-guide-room__stateDot {
-  background:#87b9ed
+  background:#bba8d6
 }
 .ls-guide-room__statePill[data-state=speaking] .ls-guide-room__stateDot {
-  background:#74c9d9
+  background:#8bcbd4
 }
 .ls-guide-room__statePill[data-state=safety] .ls-guide-room__stateDot,.ls-guide-room__statePill[data-state=conflict] .ls-guide-room__stateDot {
-  background:#e9bd7b
+  background:#d6afca
 }
 .ls-guide-room__statePill[data-state=error] .ls-guide-room__stateDot {
   background:#df898b
@@ -770,7 +770,7 @@
 }
 .ls-guide-room__workspaceLink:focus-visible,.ls-guide-room__controlButton:focus-visible,.ls-guide-room__actionList button:focus-visible,.ls-guide-room__roomFooter a:focus-visible,.ls-guide-room__refreshError button:focus-visible,.ls-guide-room__secondaryButton:focus-visible {
   outline-offset:3px;
-  outline:2px solid #e9bd7b
+  outline:2px solid #d6afca
 }
 @keyframes room-spin {
   to {

@@ -46,6 +46,12 @@ test('Guide text and voice modes share the same case-scoped conversation across 
   await expect(guidePanel.getByRole('log', { name: 'Guide conversation' })).toContainText('Help me understand what information is missing.');
   await expect(guidePanel.getByRole('log', { name: 'Guide conversation' })).toContainText('When was the first salary payment due?');
 
+  const advisoryShortcut = guidePanel.getByRole('button', { name: 'Get Legal Advisory using current case information' });
+  await expect(advisoryShortcut).toBeVisible();
+  await advisoryShortcut.click();
+  await expect(page.getByRole('heading', { name: 'Legal Advisory' })).toBeVisible();
+  await page.getByRole('button', { name: 'Close', exact: true }).click();
+
   await guidePanel.getByRole('button', { name: 'Voice' }).last().click();
   await expect(page).toHaveURL(`/case/${caseId}/voice`);
 
@@ -97,4 +103,37 @@ test('dedicated Guide workspace has an inline text conversation that continues i
   const voiceConversation = page.getByRole('log', { name: 'Voice conversation transcript' });
   await expect(voiceConversation).toContainText('Help me identify the next missing detail.');
   await expect(voiceConversation).toContainText('When was the first salary payment due?');
+});
+
+
+test('a voice statement enters shared Guide history only after explicit case confirmation', async ({ page }) => {
+  const confirmedStatement = 'My manager confirmed that the unpaid salary was due on 1 October.';
+  await page.route('**/api/**', async (route) => {
+    const response = await fetchFromIsolatedApi(route);
+    await route.fulfill({ response });
+  });
+
+  const caseId = await enterCase(page);
+  await page.goto(`/case/${caseId}/voice`);
+
+  await page.getByLabel('Live transcript · edit anything that was misheard').fill(confirmedStatement);
+  const conversation = page.getByRole('log', { name: 'Voice conversation transcript' });
+  await expect(conversation).not.toContainText(confirmedStatement);
+  await page.getByRole('button', { name: 'Review transcript' }).click();
+  await expect(page.getByRole('heading', { name: 'Review the extracted details' })).toBeVisible();
+  await page.getByRole('button', { name: 'Continue to confirmation' }).click();
+  await expect(page.getByRole('heading', { name: 'Confirm this statement' })).toBeVisible();
+  await page.getByRole('button', { name: 'Confirm and add statement' }).click();
+  await expect(page.getByText('Confirmed and added to the case.')).toBeVisible();
+
+  await expect(conversation).toContainText(confirmedStatement);
+  await expect(conversation).toContainText('I have added this statement to the case after your confirmation.');
+
+  await page.goto(`/case/${caseId}/guide`);
+  const guideConversation = page.getByRole('log', { name: 'Guide conversation' });
+  await expect(guideConversation).toContainText(confirmedStatement);
+  await expect(guideConversation).toContainText('I have added this statement to the case after your confirmation.');
+
+  await page.reload();
+  await expect(page.getByRole('log', { name: 'Guide conversation' })).toContainText(confirmedStatement);
 });

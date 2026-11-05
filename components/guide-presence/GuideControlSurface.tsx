@@ -3,13 +3,15 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import type { FormEvent, KeyboardEvent } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { Activity, ArrowLeft, ChevronDown, ChevronUp, CircleHelp, Loader2, MessageCircle, Mic2, Radio, Send, ShieldAlert, Trash2, Volume2, VolumeX } from 'lucide-react';
+import { Activity, ArrowLeft, ChevronDown, ChevronUp, CircleHelp, Loader2, MessageCircle, Mic2, Radio, Scale, Send, ShieldAlert, Square, Trash2, Volume2, VolumeX } from 'lucide-react';
 import { guidePresenceStateFromSnapshot, useGuideRuntime } from '@/components/guide-runtime';
-import { sendGuideMessage, type GuideActionName, type GuideChatLanguage } from '@/lib/api';
+import { type GuideChatLanguage } from '@/lib/api';
+import { sendCaseScopedGuideMessage } from '@/lib/guide-chat-context';
 import {
   beginGuideTurn,
   finishGuideTurn,
   isGuideTurnCurrent,
+  invalidateGuideTurn,
   useGuideSession,
 } from '@/lib/guide-session';
 import type { GuideAction } from '@/components/guide-runtime/types';
@@ -67,12 +69,12 @@ export function GuideConversationPanel({
   const {
     turns,
     language: chatLanguage,
-    history,
     requestSequence: sessionRequestSequence,
     appendTurn,
     setLanguage: setChatLanguage,
     clear: clearSession,
   } = useGuideSession(caseId ?? '');
+  const legalAdvisoryAction = snapshot.availableActions.find((action) => action.type === 'OPEN_LEGAL_ADVISORY');
   const chatEntries: GuideChatEntry[] = turns.map((turn) => ({
     id: turn.id,
     role: turn.role === 'user' ? 'you' : 'guide',
@@ -127,17 +129,13 @@ export function GuideConversationPanel({
     dispatch({ type: 'GUIDE_PROCESSING_STARTED' });
 
     try {
-      const availableActions = snapshot.availableActions
-        .filter((action) => action.type !== 'SPEAK_RESPONSE')
-        .map((action) => action.type as GuideActionName);
-      const response = await sendGuideMessage(
+      const response = await sendCaseScopedGuideMessage({
         message,
-        chatLanguage,
+        language: chatLanguage,
         caseId,
-        history,
-        availableActions,
-        turnToken.signal,
-      );
+        availableActions: snapshot.availableActions,
+        signal: turnToken.signal,
+      });
       if (requestToken !== chatRequestSequenceRef.current) return;
       if (!isGuideTurnCurrent(caseId, turnToken)) {
         dispatch({ type: 'GUIDE_RESET' });
@@ -169,11 +167,19 @@ export function GuideConversationPanel({
         requestToken === chatRequestSequenceRef.current
         && isGuideTurnCurrent(caseId, turnToken)
       ) {
+        const unavailableMessage = 'The local Guide service could not be reached. No cloud fallback was used.';
+        appendTurn({
+          id: `guide-chat-${Date.now()}-${requestToken}-assistant`,
+          role: 'assistant',
+          content: unavailableMessage,
+          inputMode: 'text',
+          status: 'unavailable',
+        });
         dispatch({
           type: 'GUIDE_ERROR',
-          message: 'The local Guide service could not be reached. No cloud fallback was used.',
+          message: unavailableMessage,
         });
-        setChatError('The local Guide service could not be reached. No cloud fallback was used. Try again or use the existing case actions.');
+        setChatError(`${unavailableMessage} Try again or use the existing case actions.`);
       }
     } finally {
       finishGuideTurn(caseId, turnToken);
@@ -185,6 +191,24 @@ export function GuideConversationPanel({
         setChatSending(false);
       }
     }
+  }
+
+  function stopChat() {
+    if (!caseId || !chatInFlightRef.current) return;
+    invalidateGuideTurn(caseId);
+    chatRequestSequenceRef.current += 1;
+    activeSessionRequestRef.current = null;
+    chatInFlightRef.current = false;
+    appendTurn({
+      id: `guide-chat-${Date.now()}-${chatRequestSequenceRef.current}-stopped`,
+      role: 'assistant',
+      content: 'You stopped this response. Your message remains in this session; send another message whenever you are ready.',
+      inputMode: 'text',
+      status: 'unavailable',
+    });
+    dispatch({ type: 'GUIDE_RESET' });
+    setChatSending(false);
+    setChatError(null);
   }
 
   function clearChat() {
@@ -208,19 +232,42 @@ export function GuideConversationPanel({
                       <p className="mt-1 text-[10px] leading-4 text-slate-400">Uses your saved case context with the configured local assistant. This chat is not saved to the case; legal advice stays in Legal Advisory.</p>
                     </div>
                   </div>
-                  {chatEntries.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={clearChat}
-                      className="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-lg px-2 text-[10px] text-slate-400 hover:bg-white/[0.05] hover:text-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e9bd7b]"
-                      aria-label="Clear Guide chat from this screen"
-                    >
-                      <Trash2 aria-hidden="true" className="h-3 w-3" /> Clear
-                    </button>
-                  )}
+                  <div className="flex shrink-0 items-center gap-1">
+                    {chatSending && (
+                      <button
+                        type="button"
+                        onClick={stopChat}
+                        className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-rose-300/20 px-2 text-[10px] font-semibold text-rose-200 hover:bg-rose-200/[0.08] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e9bd7b]"
+                        aria-label="Stop the current Guide response"
+                      >
+                        <Square aria-hidden="true" className="h-3 w-3" /> Stop
+                      </button>
+                    )}
+                    {chatEntries.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={clearChat}
+                        className="inline-flex min-h-8 items-center gap-1 rounded-lg px-2 text-[10px] text-slate-400 hover:bg-white/[0.05] hover:text-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e9bd7b]"
+                        aria-label="Clear Guide chat from this screen"
+                      >
+                        <Trash2 aria-hidden="true" className="h-3 w-3" /> Clear
+                      </button>
+                    )}
+                  </div>
                 </div>
     
                 <GuideModelStatusBanner />
+                {legalAdvisoryAction && (
+                  <button
+                    type="button"
+                    onClick={() => void runAction(legalAdvisoryAction)}
+                    disabled={actionRunning}
+                    className="mt-3 flex min-h-10 w-full items-center justify-between gap-3 rounded-xl border border-[#e9bd7b]/25 bg-[#e9bd7b]/[0.07] px-3 py-2 text-left text-[11px] font-semibold text-[#f2d4a3] transition hover:bg-[#e9bd7b]/[0.12] disabled:cursor-wait disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e9bd7b] motion-reduce:transition-none"
+                  >
+                    <span className="flex items-center gap-2"><Scale aria-hidden="true" className="h-4 w-4" /> Get Legal Advisory using current case information</span>
+                    <span aria-hidden="true">→</span>
+                  </button>
+                )}
                 
                 <div role="log" aria-label="Guide conversation" aria-live="polite" aria-relevant="additions" className="mt-3 max-h-56 space-y-2 overflow-y-auto">
                   {chatEntries.length === 0 ? (

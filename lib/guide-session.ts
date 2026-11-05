@@ -29,6 +29,20 @@ const EMPTY_SNAPSHOT: GuideSessionSnapshot = Object.freeze({
 
 const MAX_VISIBLE_TURNS = 20;
 const MAX_HISTORY_TURNS = 8;
+const MAX_TURN_ID_LENGTH = 200;
+const MAX_TURN_CONTENT_LENGTH = 10_000;
+const GUIDE_ACTION_NAMES = new Set<GuideActionName>([
+  'ASK_CLARIFICATION',
+  'SHOW_EVIDENCE',
+  'SHOW_LEGAL_GROUNDING',
+  'OPEN_LEGAL_ADVISORY',
+  'OPEN_JOURNEY',
+  'SHOW_TWIN',
+  'START_VOICE',
+  'OPEN_DRAFTING',
+  'OPEN_SAFETY',
+  'NAVIGATE',
+]);
 const sessions = new Map<string, GuideSessionSnapshot>();
 const listeners = new Map<string, Set<() => void>>();
 const turnSequences = new Map<string, number>();
@@ -43,9 +57,18 @@ function isTurn(value: unknown): value is GuideSessionTurn {
   if (!value || typeof value !== 'object') return false;
   const turn = value as Partial<GuideSessionTurn>;
   return typeof turn.id === 'string'
+    && turn.id.trim().length > 0
+    && turn.id.length <= MAX_TURN_ID_LENGTH
     && (turn.role === 'user' || turn.role === 'assistant')
     && typeof turn.content === 'string'
-    && (turn.inputMode === 'text' || turn.inputMode === 'voice');
+    && turn.content.trim().length > 0
+    && turn.content.length <= MAX_TURN_CONTENT_LENGTH
+    && (turn.inputMode === 'text' || turn.inputMode === 'voice')
+    && (turn.status === undefined || turn.status === 'ok' || turn.status === 'unavailable')
+    && (turn.proposedAction === undefined || GUIDE_ACTION_NAMES.has(turn.proposedAction))
+    && (turn.audio === undefined || [
+      'queued', 'speaking', 'spoken', 'unavailable', 'failed',
+    ].includes(turn.audio));
 }
 
 function readSession(caseId: string): GuideSessionSnapshot {
@@ -170,7 +193,9 @@ export function invalidateGuideTurn(caseId: string): void {
 }
 
 export function appendGuideSessionTurn(caseId: string, turn: GuideSessionTurn): void {
+  if (!caseId || !isTurn(turn)) return;
   const current = readSession(caseId);
+  if (current.turns.some((existing) => existing.id === turn.id)) return;
   publish(caseId, { ...current, turns: [...current.turns, turn].slice(-MAX_VISIBLE_TURNS) });
 }
 

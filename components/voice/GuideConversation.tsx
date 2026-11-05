@@ -4,10 +4,10 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { Mic, MicOff, RotateCcw, Send } from 'lucide-react';
 import type { GuideVoiceEvent, VoiceLanguage } from '@/components/guide-runtime/voice-adapter/events';
 import type { RecognitionLanguage } from './VoiceCapture';
-import { sendGuideMessage, type GuideActionName } from '@/lib/api';
+import { getVoiceProviderAvailability, transcribeVoiceAudio, type GuideActionName } from '@/lib/api';
+import { sendCaseScopedGuideMessage } from '@/lib/guide-chat-context';
 import { GuideModelStatusBanner } from '@/components/guide-presence/GuideModelStatusBanner';
 import {
-  getGuideConversationHistory,
   beginGuideTurn,
   finishGuideTurn,
   isGuideTurnCurrent,
@@ -138,6 +138,10 @@ export default function GuideConversation({
   const [nativeCapabilities, setNativeCapabilities] = useState<NativeGuideAudioCapabilities | null>(null);
   const [speechUnavailable, setSpeechUnavailable] = useState(false);
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const transcriptionAbortRef = useRef<AbortController | null>(null);
+  const recorderErrorRef = useRef<string | null>(null);
+  const localSpeechAvailabilityRef = useRef<Promise<boolean> | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const speechStartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -285,6 +289,139 @@ export default function GuideConversation({
     streamRef.current = null;
   }, []);
 
+  const detectLocalSpeechProvider = useCallback(() => {
+    if (!localSpeechAvailabilityRef.current) {
+      localSpeechAvailabilityRef.current = getVoiceProviderAvailability()
+        .then((availability) => {
+          const available = Boolean(
+            availability.speechToTextAvailable &&
+            availability.languageDetectorAvailable &&
+            availability.processingLocation === 'local',
+          );
+          if (!available) localSpeechAvailabilityRef.current = null;
+          return available;
+        })
+        .catch(() => {
+          localSpeechAvailabilityRef.current = null;
+          return false;
+        });
+    }
+    return localSpeechAvailabilityRef.current;
+  }, []);
+
+  const startLocalRecording = useCallback(async () => {
+    const captureId = createId('capture');
+    currentCaptureIdRef.current = captureId;
+    recorderErrorRef.current = null;
+    transition('requesting_permission', 'Requesting microphone access for local speech transcription.');
+    let acquiredStream: MediaStream | null = null;
+
+    try {
+      acquiredStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (!mountedRef.current || !callActiveRef.current || !shouldListenRef.current || disabledRef.current) {
+        acquiredStream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+
+      releaseStream();
+      streamRef.current = acquiredStream;
+      const recorder = new MediaRecorder(acquiredStream);
+      const chunks: Blob[] = [];
+      mediaRecorderRef.current = recorder;
+      stopReasonRef.current = null;
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) chunks.push(event.data);
+      };
+      recorder.onerror = () => {
+        recorderErrorRef.current = 'Audio recording failed. No transcript was created. Try again or type your statement.';
+        try { if (recorder.state === 'recording') recorder.stop(); } catch { /* Recorder may already be stopping. */ }
+      };
+      recorder.onstop = async () => {
+        if (mediaRecorderRef.current === recorder) mediaRecorderRef.current = null;
+        releaseStream();
+        setInterimTranscript('');
+        const stopReason = stopReasonRef.current;
+        stopReasonRef.current = null;
+        if (stopReason === 'end') {
+          onRuntimeEventRef.current?.({
+            type: 'capture_cancelled',
+            draftId: draftIdRef.current,
+            captureId,
+            transcriptRetained: hasDraftRef.current,
+          });
+          return;
+        }
+
+        const recordingError = recorderErrorRef.current;
+        recorderErrorRef.current = null;
+        const audio = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
+        if (recordingError || audio.size === 0) {
+          const detail = recordingError || 'No audio was captured. Nothing was added. Try again or type your statement.';
+          transition('error', detail);
+          onRuntimeEventRef.current?.({ type: 'capture_failed', draftId: draftIdRef.current, captureId, detail });
+          return;
+        }
+
+        transition('processing', 'Transcribing your recording with the local speech model.');
+        const controller = new AbortController();
+        transcriptionAbortRef.current = controller;
+        try {
+          const result = await transcribeVoiceAudio(audio, controller.signal);
+          if (!mountedRef.current || controller.signal.aborted) return;
+          const recognized = result.transcript?.trim() ?? '';
+          if (result.status !== 'success' || !recognized) {
+            const detail = result.detail || 'Local speech transcription did not produce a usable transcript. Try again or type your statement.';
+            transition('error', detail);
+            onRuntimeEventRef.current?.({ type: 'capture_failed', draftId: draftIdRef.current, captureId, detail });
+            return;
+          }
+
+          updateTranscriptDraft(recognized);
+          transition('paused', 'Speech is a draft. Review or edit it, then explicitly confirm before sending it to the Guide.');
+          onRuntimeEventRef.current?.({
+            type: 'transcript_received',
+            draftId: draftIdRef.current,
+            captureId,
+            transcript: recognized,
+            provider: 'server',
+            language: result.language ?? asVoiceLanguage(languageRef.current),
+          });
+        } catch (cause) {
+          if (!controller.signal.aborted && mountedRef.current) {
+            const detail = cause instanceof Error ? cause.message : 'Local speech transcription failed. Try again or type your statement.';
+            transition('error', detail);
+            onRuntimeEventRef.current?.({ type: 'capture_failed', draftId: draftIdRef.current, captureId, detail });
+          }
+        } finally {
+          if (transcriptionAbortRef.current === controller) transcriptionAbortRef.current = null;
+        }
+      };
+
+      recorder.start();
+      onRuntimeEventRef.current?.({
+        type: 'capture_started',
+        draftId: draftIdRef.current,
+        captureId,
+        provider: 'server',
+        language: asVoiceLanguage(languageRef.current),
+      });
+      transition('listening', 'Microphone active. Your recording will be transcribed locally when you stop.');
+    } catch (cause) {
+      acquiredStream?.getTracks().forEach((track) => track.stop());
+      if (streamRef.current === acquiredStream) streamRef.current = null;
+      mediaRecorderRef.current = null;
+      if (!mountedRef.current || !callActiveRef.current || !shouldListenRef.current) return;
+      const denied = cause instanceof DOMException && ['NotAllowedError', 'PermissionDeniedError', 'SecurityError'].includes(cause.name);
+      const detail = denied
+        ? 'Microphone access was denied. Allow it in your browser settings, then try again or type your statement.'
+        : cause instanceof Error
+          ? 'Local microphone capture failed: ' + cause.message
+          : 'Local microphone capture failed. Check the microphone or type your statement.';
+      transition(denied ? 'permission_denied' : 'error', detail);
+      onRuntimeEventRef.current?.({ type: 'capture_failed', draftId: draftIdRef.current, captureId, detail });
+    }
+  }, [releaseStream, transition, updateTranscriptDraft]);
+
   const appendUserTurn = useCallback((statement: string, inputMethod: 'voice' | 'text') => {
     if (!statement.trim()) return;
     appendTurn({ id: createId('turn'), role: 'user', content: statement.trim(), inputMode: inputMethod });
@@ -417,7 +554,6 @@ export default function GuideConversation({
     if (!statement) return;
 
     const turnToken = beginGuideTurn(caseId);
-    const previousHistory = getGuideConversationHistory(caseId);
     appendUserTurn(statement, inputMethod);
 
     const questions = questionsRef.current;
@@ -429,19 +565,14 @@ export default function GuideConversation({
     let responseText: string;
     let proposedAction: GuideActionName | undefined;
     let responseStatus: 'ok' | 'unavailable' = 'ok';
-    const allowedActions = availableActions.reduce<GuideActionName[]>((items, action) => {
-      if (action.type !== 'SPEAK_RESPONSE') items.push(action.type);
-      return items;
-    }, []);
     try {
-      const result = await sendGuideMessage(
-        statement,
-        languageRef.current.toLowerCase() as 'english' | 'hindi' | 'hinglish',
+      const result = await sendCaseScopedGuideMessage({
+        message: statement,
+        language: languageRef.current.toLowerCase() as 'english' | 'hindi' | 'hinglish',
         caseId,
-        previousHistory,
-        allowedActions,
-        turnToken.signal,
-      );
+        availableActions,
+        signal: turnToken.signal,
+      });
       responseText = result.reply;
       responseStatus = result.status;
       proposedAction = result.status === 'ok' ? result.proposed_action ?? undefined : undefined;
@@ -507,6 +638,18 @@ export default function GuideConversation({
         transition(denied ? 'permission_denied' : 'error', detail);
         onRuntimeEventRef.current?.({ type: 'capture_failed', draftId: draftIdRef.current, captureId, detail });
       }
+      return;
+    }
+
+    const localSpeechReady = await detectLocalSpeechProvider();
+    if (!mountedRef.current || !callActiveRef.current || !shouldListenRef.current) return;
+    if (
+      localSpeechReady &&
+      typeof window !== 'undefined' &&
+      'MediaRecorder' in window &&
+      typeof navigator.mediaDevices?.getUserMedia === 'function'
+    ) {
+      await startLocalRecording();
       return;
     }
 
@@ -644,7 +787,7 @@ export default function GuideConversation({
       onRuntimeEventRef.current?.({ type: 'capture_failed', draftId: draftIdRef.current, captureId, detail });
       transition(denied ? 'permission_denied' : 'error', detail);
     }
-  }, [releaseStream, transition, updateTranscriptDraft]);
+  }, [detectLocalSpeechProvider, releaseStream, startLocalRecording, transition, updateTranscriptDraft]);
 
   const startCall = useCallback(async () => {
     if (disabled || disabledRef.current) return;
@@ -672,8 +815,10 @@ export default function GuideConversation({
       onRuntimeEventRef.current?.({ type: 'speech_unavailable', responseId: createId('response') });
       return;
     }
-    if (!recognitionConstructor()) {
-      transition('unsupported', 'This browser does not provide live speech recognition. You can still have a text conversation below.');
+    const localSpeechReady = await detectLocalSpeechProvider();
+    const canRecordLocally = localSpeechReady && typeof window !== 'undefined' && 'MediaRecorder' in window;
+    if (!recognitionConstructor() && !canRecordLocally) {
+      transition('unsupported', 'This browser does not provide speech recognition, and local transcription is not configured. You can still have a text conversation below.');
       onRuntimeEventRef.current?.({ type: 'capture_failed', draftId: draftIdRef.current, captureId: createId('capture'), detail: 'This browser does not provide live speech recognition.' });
       return;
     }
@@ -693,7 +838,7 @@ export default function GuideConversation({
     shouldListenRef.current = true;
     onActiveChangeRef.current?.(true);
     await startListening();
-  }, [detectNativeAudio, disabled, startListening, transition]);
+  }, [detectLocalSpeechProvider, detectNativeAudio, disabled, startListening, transition]);
 
   const pauseListening = useCallback(() => {
     if (!callActiveRef.current) return;
@@ -702,6 +847,11 @@ export default function GuideConversation({
       void requestNativeGuideAudio('stopListening').catch(() => undefined);
       setInterimTranscript('');
       transition('paused', 'Recording stopped. Your transcript and conversation remain here.');
+      return;
+    }
+    if (mediaRecorderRef.current?.state === 'recording') {
+      stopReasonRef.current = 'pause';
+      mediaRecorderRef.current.stop();
       return;
     }
     stopReasonRef.current = 'pause';
@@ -727,6 +877,24 @@ export default function GuideConversation({
     setCallActive(false);
     shouldListenRef.current = false;
     onActiveChangeRef.current?.(false);
+    const localRecorder = mediaRecorderRef.current;
+    if (localRecorder) {
+      stopReasonRef.current = 'end';
+      localRecorder.ondataavailable = null;
+      localRecorder.onerror = null;
+      localRecorder.onstop = null;
+      mediaRecorderRef.current = null;
+      try { if (localRecorder.state === 'recording') localRecorder.stop(); } catch { /* Recorder may already have stopped. */ }
+      releaseStream();
+      onRuntimeEventRef.current?.({
+        type: 'capture_cancelled',
+        draftId: draftIdRef.current,
+        captureId: currentCaptureIdRef.current,
+        transcriptRetained: hasDraftRef.current,
+      });
+    }
+    transcriptionAbortRef.current?.abort();
+    transcriptionAbortRef.current = null;
     const recognition = recognitionRef.current;
     if (recognition) {
       const captureId = currentCaptureIdRef.current;
@@ -805,6 +973,16 @@ export default function GuideConversation({
         try { recognition.abort(); } catch { /* The browser may already have ended this capture. */ }
       }
       recognitionRef.current = null;
+      const localRecorder = mediaRecorderRef.current;
+      if (localRecorder) {
+        localRecorder.ondataavailable = null;
+        localRecorder.onerror = null;
+        localRecorder.onstop = null;
+        try { if (localRecorder.state === 'recording') localRecorder.stop(); } catch { /* Recorder may already have stopped. */ }
+      }
+      mediaRecorderRef.current = null;
+      transcriptionAbortRef.current?.abort();
+      transcriptionAbortRef.current = null;
       releaseStream();
       if (nativeCapabilitiesRef.current) {
         void requestNativeGuideAudio('stopListening').catch(() => undefined);
@@ -971,7 +1149,7 @@ export default function GuideConversation({
       </div>
 
       <p className="ls-guide-call__conversationPrivacy">
-        On Android, speech recognition and spoken replies use installed on-device Android services only; the app will report if an offline service is unavailable. Desktop browser speech may use that browser’s configured provider. Guide replies use the configured LawSense server’s local Ollama model. Audio is not added to the case, and recognized words stay editable until you confirm them.
+        On Android, speech recognition and spoken replies use installed on-device Android services only; the app reports when an offline service is unavailable. On desktop, configured local Whisper is preferred for microphone transcription; browser speech recognition is the fallback when local Whisper is not ready. Guide replies use the configured LawSense server’s local Ollama model. Audio is not added to the case, and recognized words stay editable until you confirm them.
       </p>
     </section>
   );

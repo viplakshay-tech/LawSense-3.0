@@ -26,7 +26,7 @@ The integration branch already provides useful foundations:
 - `GuidePresence` renders runtime state through an avatar adapter and respects reduced-motion preferences.
 - `/guide/chat` can call a configured loopback Ollama service. It has no cloud fallback and receives a bounded case context.
 - Guide chat may propose only actions supplied by the frontend allowlist. The user must click to execute a proposal.
-- The voice route retains its own microphone capture, transcript review, confirmation and playback lifecycle; confirmed turns and language are shared with the floating text Guide through the case-scoped session.
+- The voice route retains its own microphone capture, transcript review, confirmation and playback lifecycle. Confirmed Guide turns and language are shared through the case-scoped session; a transcript from the separate case-statement workflow is appended to that same history only after the backend accepts the explicit user confirmation. Unreviewed voice drafts remain route-local and are not conversation turns.
 - `OPEN_DRAFTING` opens the active case's existing document studio only after user approval.
 - `SHOW_LEGAL_GROUNDING` focuses one exact source record when unambiguous; with zero or multiple candidate records, it opens the persistent Legal Advisory for the active case.
 - `OPEN_LEGAL_ADVISORY` is a distinct, always-available, read-only action for opening the existing case-scoped Legal Advisory; it does not create or approve advice.
@@ -36,7 +36,7 @@ Important gaps confirmed by the current code:
 
 1. Confirmed turns and language are shared between the floating text Guide and dedicated voice workspace in case-scoped `sessionStorage`; active microphone capture and unreviewed transcript drafts remain route-local.
 2. The shared session survives route changes and page refresh within the same browser tab, but is not durable across tabs/devices or stored as a canonical case record.
-3. Voice capture, transcript review and case mutation are implemented as a separate workflow. They are not yet a mode adapter over the same agent turn/session.
+3. Voice capture, transcript review and case mutation remain a separate workflow rather than a mode adapter over the same agent turn/session. The confirmed statement is bridged into shared conversation history only after successful case acceptance; microphone capture, review drafts, extracted previews and commit state remain owned by the voice workflow.
 4. The current action registry is navigation and read-only inspection, including validated document finding and Legal Twin node/time deep links. It does not constitute unrestricted app control or permission to change facts, evidence, documents or case records.
 5. The local assistant is an optional laptop/Ollama integration. It is not an embedded Android model or a standalone phone runtime.
 6. The current Capacitor APK is a connection shell that relies on a computer-hosted frontend/API. It is not the requested standalone, cable-free Android application.
@@ -206,3 +206,26 @@ This contract does not authorize:
 - Claiming the current Capacitor shell is a standalone Android app.
 
 Every release note must separate implemented, tested, experimental and planned capabilities.
+
+
+## Persisted conversation boundary validation
+
+The case-scoped browser session is untrusted persistence, not an authorization source. On both restore and append, turns are accepted only when they have a bounded non-empty identifier and body, a supported user/assistant role and input mode, and recognized optional status, audio, and proposed-action values. Unknown action names are discarded rather than reinterpreted. Invalid turns are excluded from the visible transcript and from model conversation history. The backend remains authoritative for legal facts, case updates, source access, and every consequential action; client-side action names never grant permission.
+
+
+## Shared text/voice request context
+
+Text workspace messages and dedicated voice turns now call the same case-scoped context builder in `lib/guide-chat-context.ts`. It reads conversation history from the shared session store, excludes unavailable assistant replies through the session history policy, deduplicates the model-visible action allowlist, and keeps the presentation-only speech action out of model requests. Both input modes retain their existing turn cancellation and explicit voice-statement confirmation behavior.
+
+
+## Text-turn cancellation
+
+The floating text Guide exposes a non-destructive **Stop** control while a local response is pending. It invalidates and aborts the active case-scoped request, preserves the user's submitted message and earlier confirmed turns, and records a visible unavailable/stopped assistant entry that is excluded from subsequent model history. Clearing the conversation remains a separate destructive-to-session action. Starting a newer text or voice turn continues to supersede older pending work.
+
+## Serialized action execution
+
+The shared Guide runtime now serializes action execution across its interactive surfaces. A synchronous in-flight guard is acquired before action availability is checked and released in a `finally` path, so rapid taps, keyboard activation or multiple surfaces cannot execute overlapping commands. The action is still revalidated against the current runtime registry immediately before the bridge dispatch. This prevents duplicate concurrent dispatch; it does not grant the model authority to execute actions or change case data.
+
+## Advisory handoff and unavailable turns
+
+The Guide conversation panel always exposes a direct action to open the source-governed Legal Advisory using the current saved case information. The optional local language model does not make legal decisions; the advisory remains the decision boundary and must preserve missing-source and uncertainty states. Text-mode transport failures are recorded as unavailable assistant turns in the shared session for a consistent transcript across the text and voice surfaces. Unavailable replies are excluded from the model-visible continuity history.

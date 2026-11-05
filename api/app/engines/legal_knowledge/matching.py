@@ -156,7 +156,7 @@ def build_law_matches(
             and not conflict_present
         ):
             evidence_assessment = "supported"
-        elif matched_cues and verification_status == "verified" and catalog_records_verified and freshness_current and jurisdiction_match != "mismatch":
+        elif matched_cues and verification_status == "verified" and catalog_records_verified and freshness_current and jurisdiction_match == "matched":
             evidence_assessment = "plausible"
         else:
             evidence_assessment = "unclear"

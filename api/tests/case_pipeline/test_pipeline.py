@@ -170,7 +170,13 @@ class CasePipelineTests(unittest.TestCase):
         self.assertTrue(provisions)
         self.assertTrue(all(item.source_verification_status == "verified" for item in provisions))
         self.assertTrue(all(item.source_verification_evidence for item in provisions))
-        self.assertTrue(all(item.source_freshness_status == "unknown" for item in provisions))
+        self.assertTrue(all(
+            item.source_freshness_status == (
+                "current" if item.id == "provision-uttarakhand-tenancy-act-2021-section-11-security-deposit"
+                else "unknown"
+            )
+            for item in provisions
+        ))
         self.assertTrue(all(
             item.source_applicability_status == "applicability_not_established"
             for item in provisions
@@ -535,11 +541,18 @@ class CasePipelineTests(unittest.TestCase):
                 self.assertTrue(records[provision_id].provenance)
                 self.assertIsNotNone(records[provision_id].source_url)
                 self.assertEqual(result.legal_reasoning.legal_knowledge_status, "insufficient_or_blocked")
-                self.assertIn("SOURCE_FRESHNESS_NOT_CURRENT", result.legal_reasoning.reason_codes)
-                self.assertTrue(any(
+                if category == "housing":
+                    self.assertNotIn("SOURCE_FRESHNESS_NOT_CURRENT", result.legal_reasoning.reason_codes)
+                else:
+                    self.assertIn("SOURCE_FRESHNESS_NOT_CURRENT", result.legal_reasoning.reason_codes)
+                has_current_source_block = any(
                     item.subject == "current_legal_source_use"
                     for item in result.legal_reasoning.blocked_conclusions
-                ))
+                )
+                if category == "housing":
+                    self.assertFalse(has_current_source_block)
+                else:
+                    self.assertTrue(has_current_source_block)
 
     def test_matching_local_legal_record_is_retrieved_with_its_original_text_and_provenance(self) -> None:
         authority = Authority(id="authority-consumer", title="Fixture authority", status=KnowledgeStatus.VERIFIED)
@@ -657,7 +670,7 @@ class CasePipelineTests(unittest.TestCase):
         self.assertTrue(any(ref.source_id == source.id for ref in statement.source_references))
         self.assertIn("JURISDICTION_UNKNOWN", statement.reason_codes)
         candidate = next(item for item in result.case_analysis.legal_knowledge.law_matches if item.candidate_id == provision.id)
-        self.assertEqual(candidate.evidence_assessment, "plausible")
+        self.assertEqual(candidate.evidence_assessment, "unclear")
         self.assertEqual(candidate.assessment_factors["source_freshness"], "current")
         governed = next(item for item in result.legal_knowledge.governed_sources if item.source_id == source.id)
         self.assertEqual(governed.freshness_status, SourceFreshnessStatus.CURRENT)
