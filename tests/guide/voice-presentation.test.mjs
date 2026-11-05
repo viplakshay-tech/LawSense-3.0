@@ -275,6 +275,17 @@ test('voice conversation preserves an unavailable local assistant response statu
   assert.match(voiceConversationSource, /responseStatus = result\.status/);
 });
 
+test('desktop Guide microphone prefers configured local transcription and keeps browser fallback', () => {
+  assert.match(voiceConversationSource, /getVoiceProviderAvailability/);
+  assert.match(voiceConversationSource, /availability\.processingLocation === 'local'/);
+  assert.match(voiceConversationSource, /new MediaRecorder\(acquiredStream\)/);
+  assert.match(voiceConversationSource, /transcribeVoiceAudio\(audio, controller\.signal\)/);
+  assert.match(voiceConversationSource, /provider: 'server'/);
+  assert.match(voiceConversationSource, /const Recognition = recognitionConstructor\(\)/);
+  assert.match(voiceConversationSource, /Confirm transcript and send to Guide/);
+  assert.match(voiceConversationSource, /transcriptionAbortRef\.current\?\.abort\(\)/);
+});
+
 
 test('Legal Advisory distinguishes catalog record status from source verification and freshness', () => {
   assert.match(persistentLegalAdvisorySource, /sourceVerificationStatus/);
