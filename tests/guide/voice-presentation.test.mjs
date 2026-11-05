@@ -13,6 +13,7 @@ import {
   resolveGuideActionProposal,
 } from '../../components/voice/conversation.ts';
 
+const guidePresenceSource = await readFile(new URL('../../components/guide-presence/GuidePresence.tsx', import.meta.url), 'utf8');
 const guidePresenceCss = await readFile(new URL('../../components/guide-presence/GuidePresence.css', import.meta.url), 'utf8');
 const avatarCss = await readFile(new URL('../../components/guide-presence/avatar/IllustratedAvatarRenderer.css', import.meta.url), 'utf8');
 const callCss = await readFile(new URL('../../app/case/[id]/voice/VoiceCaseClient.css', import.meta.url), 'utf8');
@@ -518,4 +519,11 @@ test('text and voice Guide requests share one case-scoped history and model-acti
   ]);
   assert.deepEqual(context.availableActions, ['OPEN_LEGAL_ADVISORY']);
   assert.equal(context.availableActions.includes('SPEAK_RESPONSE'), false);
+});
+
+
+test('every Guide surface uses the professional feminine AI portrait and not the old illustrated avatar', () => {
+  assert.match(guidePresenceSource, /lawsense-guide-feminine\\.webp/);
+  assert.doesNotMatch(guidePresenceSource, /AvatarSurface|IllustratedAvatarRenderer|ILLUSTRATED GUIDE/);
+  assert.match(guidePresenceSource, /<Image/);
 });
