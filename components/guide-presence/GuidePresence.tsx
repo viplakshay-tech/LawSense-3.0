@@ -1,18 +1,11 @@
 'use client';
 
+import Image from 'next/image';
 import { useReducedMotion } from 'framer-motion';
-import { Activity, ShieldCheck, MessageCircle, Mic } from 'lucide-react';
 import './GuidePresence.css';
 import { GUIDE_PRESENCE_LABELS } from './types';
 import type { GuidePresenceProps } from './types';
 import { canonicalGuidePresenceState } from './presentation-contract';
-
-function stateIcon(state: string) {
-  if (state === 'IMMEDIATE_DANGER' || state === 'SAFETY') return ShieldCheck;
-  if (state === 'LISTENING') return Mic;
-  if (state === 'CLARIFYING' || state === 'UNCERTAIN' || state === 'CONFLICT') return MessageCircle;
-  return Activity;
-}
 
 export function GuidePresence({
   state,
@@ -27,7 +20,6 @@ export function GuidePresence({
   const shouldReduceMotion = reducedMotion || systemReducedMotion;
   const label = accessibleLabel ?? GUIDE_PRESENCE_LABELS[state];
   const canonicalState = canonicalGuidePresenceState(state);
-  const StateIcon = stateIcon(canonicalState);
   const rootClassName = ['ls-guide-presence__presence', className].filter(Boolean).join(' ');
 
   return (
@@ -43,14 +35,21 @@ export function GuidePresence({
       aria-label={`${label}${detail ? `. ${detail}` : ''}`}
     >
       <div className="ls-guide-presence__stage" aria-hidden="true">
-        <div className="ls-guide-presence__mark">
-          <div className="ls-guide-presence__markCore">
-            <StateIcon className="ls-guide-presence__markIcon" strokeWidth={1.55} />
-          </div>
-          <span className="ls-guide-presence__signal ls-guide-presence__signal--one" />
-          <span className="ls-guide-presence__signal ls-guide-presence__signal--two" />
+        <div className="ls-guide-presence__portrait">
+          <Image
+            src="/guide/lawsense-guide-feminine.webp"
+            alt=""
+            fill
+            priority={size === 'hero'}
+            sizes={size === 'compact' ? '80px' : '(max-width: 768px) 55vw, 280px'}
+            className="ls-guide-presence__portraitImage"
+          />
+          <span className="ls-guide-presence__portraitHalo" />
+          <span className="ls-guide-presence__portraitStatus" />
         </div>
-        <span className="ls-guide-presence__stageCaption">LAWSENSE GUIDE SYSTEM</span>
+        {size !== 'compact' && (
+          <span className="ls-guide-presence__stageCaption">YOUR LAWSENSE AI GUIDE</span>
+        )}
       </div>
       <div className="ls-guide-presence__caption">
         <span className="ls-guide-presence__eyebrow">LAWSENSE · GUIDE</span>
