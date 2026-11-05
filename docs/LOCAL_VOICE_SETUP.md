@@ -7,7 +7,7 @@ LawSense uses separate local components for conversation and microphone transcri
 - **Case extraction:** LawSense's existing deterministic case-intake pipeline.
 - **Review:** the transcript remains a draft until the user explicitly confirms it.
 
-The browser's built-in speech recognition can depend on browser speech services. For a local-first demo, configure Faster-Whisper so LawSense prefers the local API transcription provider.
+The browser's built-in speech recognition can depend on browser speech services. For a local-first demo, configure Faster-Whisper so LawSense prefers the local API transcription provider. This applies to both the dedicated case Voice workspace and **Speak with your Guide** on desktop. If local Whisper is unavailable, the Guide may fall back to the browser's speech-recognition service; the UI continues to identify that path as browser speech.
 
 ## 1. Install the optional Python dependency
 
