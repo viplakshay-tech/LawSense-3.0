@@ -289,6 +289,131 @@ export default function GuideConversation({
     streamRef.current = null;
   }, []);
 
+  const detectLocalSpeechProvider = useCallback(() => {
+    if (!localSpeechAvailabilityRef.current) {
+      localSpeechAvailabilityRef.current = getVoiceProviderAvailability()
+        .then((availability) => Boolean(
+          availability.speechToTextAvailable &&
+          availability.languageDetectorAvailable &&
+          availability.processingLocation === 'local',
+        ))
+        .catch(() => false);
+    }
+    return localSpeechAvailabilityRef.current;
+  }, []);
+
+  const startLocalRecording = useCallback(async () => {
+    const captureId = createId('capture');
+    currentCaptureIdRef.current = captureId;
+    recorderErrorRef.current = null;
+    transition('requesting_permission', 'Requesting microphone access for local speech transcription.');
+    let acquiredStream: MediaStream | null = null;
+
+    try {
+      acquiredStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (!mountedRef.current || !callActiveRef.current || !shouldListenRef.current || disabledRef.current) {
+        acquiredStream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+
+      releaseStream();
+      streamRef.current = acquiredStream;
+      const recorder = new MediaRecorder(acquiredStream);
+      const chunks: Blob[] = [];
+      mediaRecorderRef.current = recorder;
+      stopReasonRef.current = null;
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) chunks.push(event.data);
+      };
+      recorder.onerror = () => {
+        recorderErrorRef.current = 'Audio recording failed. No transcript was created. Try again or type your statement.';
+      };
+      recorder.onstop = async () => {
+        if (mediaRecorderRef.current === recorder) mediaRecorderRef.current = null;
+        releaseStream();
+        setInterimTranscript('');
+        const stopReason = stopReasonRef.current;
+        stopReasonRef.current = null;
+        if (stopReason === 'end') {
+          onRuntimeEventRef.current?.({
+            type: 'capture_cancelled',
+            draftId: draftIdRef.current,
+            captureId,
+            transcriptRetained: hasDraftRef.current,
+          });
+          return;
+        }
+
+        const recordingError = recorderErrorRef.current;
+        recorderErrorRef.current = null;
+        const audio = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
+        if (recordingError || audio.size === 0) {
+          const detail = recordingError || 'No audio was captured. Nothing was added. Try again or type your statement.';
+          transition('error', detail);
+          onRuntimeEventRef.current?.({ type: 'capture_failed', draftId: draftIdRef.current, captureId, detail });
+          return;
+        }
+
+        transition('processing', 'Transcribing your recording with the local speech model.');
+        const controller = new AbortController();
+        transcriptionAbortRef.current = controller;
+        try {
+          const result = await transcribeVoiceAudio(audio, controller.signal);
+          if (!mountedRef.current || controller.signal.aborted) return;
+          const recognized = result.transcript?.trim() ?? '';
+          if (result.status !== 'success' || !recognized) {
+            const detail = result.detail || 'Local speech transcription did not produce a usable transcript. Try again or type your statement.';
+            transition('error', detail);
+            onRuntimeEventRef.current?.({ type: 'capture_failed', draftId: draftIdRef.current, captureId, detail });
+            return;
+          }
+
+          updateTranscriptDraft(recognized);
+          transition('paused', 'Speech is a draft. Review or edit it, then explicitly confirm before sending it to the Guide.');
+          onRuntimeEventRef.current?.({
+            type: 'transcript_received',
+            draftId: draftIdRef.current,
+            captureId,
+            transcript: recognized,
+            provider: 'server',
+            language: result.language ?? asVoiceLanguage(languageRef.current),
+          });
+        } catch (cause) {
+          if (!controller.signal.aborted && mountedRef.current) {
+            const detail = cause instanceof Error ? cause.message : 'Local speech transcription failed. Try again or type your statement.';
+            transition('error', detail);
+            onRuntimeEventRef.current?.({ type: 'capture_failed', draftId: draftIdRef.current, captureId, detail });
+          }
+        } finally {
+          if (transcriptionAbortRef.current === controller) transcriptionAbortRef.current = null;
+        }
+      };
+
+      recorder.start();
+      onRuntimeEventRef.current?.({
+        type: 'capture_started',
+        draftId: draftIdRef.current,
+        captureId,
+        provider: 'server',
+        language: asVoiceLanguage(languageRef.current),
+      });
+      transition('listening', 'Microphone active. Your recording will be transcribed locally when you stop.');
+    } catch (cause) {
+      acquiredStream?.getTracks().forEach((track) => track.stop());
+      if (streamRef.current === acquiredStream) streamRef.current = null;
+      mediaRecorderRef.current = null;
+      if (!mountedRef.current || !callActiveRef.current || !shouldListenRef.current) return;
+      const denied = cause instanceof DOMException && ['NotAllowedError', 'PermissionDeniedError', 'SecurityError'].includes(cause.name);
+      const detail = denied
+        ? 'Microphone access was denied. Allow it in your browser settings, then try again or type your statement.'
+        : cause instanceof Error
+          ? 'Local microphone capture failed: ' + cause.message
+          : 'Local microphone capture failed. Check the microphone or type your statement.';
+      transition(denied ? 'permission_denied' : 'error', detail);
+      onRuntimeEventRef.current?.({ type: 'capture_failed', draftId: draftIdRef.current, captureId, detail });
+    }
+  }, [releaseStream, transition, updateTranscriptDraft]);
+
   const appendUserTurn = useCallback((statement: string, inputMethod: 'voice' | 'text') => {
     if (!statement.trim()) return;
     appendTurn({ id: createId('turn'), role: 'user', content: statement.trim(), inputMode: inputMethod });
