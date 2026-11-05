@@ -292,12 +292,19 @@ export default function GuideConversation({
   const detectLocalSpeechProvider = useCallback(() => {
     if (!localSpeechAvailabilityRef.current) {
       localSpeechAvailabilityRef.current = getVoiceProviderAvailability()
-        .then((availability) => Boolean(
-          availability.speechToTextAvailable &&
-          availability.languageDetectorAvailable &&
-          availability.processingLocation === 'local',
-        ))
-        .catch(() => false);
+        .then((availability) => {
+          const available = Boolean(
+            availability.speechToTextAvailable &&
+            availability.languageDetectorAvailable &&
+            availability.processingLocation === 'local',
+          );
+          if (!available) localSpeechAvailabilityRef.current = null;
+          return available;
+        })
+        .catch(() => {
+          localSpeechAvailabilityRef.current = null;
+          return false;
+        });
     }
     return localSpeechAvailabilityRef.current;
   }, []);
@@ -327,6 +334,7 @@ export default function GuideConversation({
       };
       recorder.onerror = () => {
         recorderErrorRef.current = 'Audio recording failed. No transcript was created. Try again or type your statement.';
+        try { if (recorder.state === 'recording') recorder.stop(); } catch { /* Recorder may already be stopping. */ }
       };
       recorder.onstop = async () => {
         if (mediaRecorderRef.current === recorder) mediaRecorderRef.current = null;
