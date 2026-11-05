@@ -1,13 +1,13 @@
 .ls-guide-presence__presence {
-  --presence-accent:#83c9df;
-  --presence-accent-rgb:131,201,223;
+  --presence-accent:#9bd6df;
+  --presence-accent-rgb:155,214,223;
   --presence-ink:#f3f6f8;
-  --presence-muted:#9aa9b3;
+  --presence-muted:#b5a8b9;
   width:min(100%,29rem);
   min-width:0;
   color:var(--presence-ink);
-  background:radial-gradient(ellipse at 50% 42%,rgba(var(--presence-accent-rgb),.12),transparent 58%),linear-gradient(145deg,#151c25fa,#0b1017fc 72%);
-  border:1px solid rgba(var(--presence-accent-rgb),.16);
+  background:radial-gradient(ellipse at 50% 30%,rgba(171,119,158,.16),transparent 58%),linear-gradient(145deg,#1b1622fa,#0d0b13fc 72%);
+  border:1px solid rgba(201,158,184,.2);
   border-radius:1.35rem;
   grid-template-rows:minmax(0,1fr) auto;
   gap:.7rem;
@@ -46,13 +46,13 @@
 .ls-guide-presence__portrait {
   position:relative;
   isolation:isolate;
-  width:clamp(9rem,30vw,13rem);
-  height:clamp(11rem,38vw,16rem);
+  width:clamp(10rem,30vw,14rem);
+  height:clamp(12rem,38vw,17rem);
   overflow:hidden;
-  border:1px solid rgba(var(--presence-accent-rgb),.32);
+  border:1px solid rgba(201,158,184,.38);
   border-radius:1.35rem;
-  background:#0e1827;
-  box-shadow:0 18px 42px rgba(0,0,0,.34),0 0 42px rgba(var(--presence-accent-rgb),.1)
+  background:#17121e;
+  box-shadow:0 22px 52px rgba(0,0,0,.42),0 0 48px rgba(164,113,157,.15)
 }
 .ls-guide-presence__presence[data-size=compact] .ls-guide-presence__portrait {
   width:4.8rem;
@@ -77,7 +77,7 @@
   background:linear-gradient(180deg,transparent 55%,rgba(4,10,18,.32)),linear-gradient(120deg,rgba(61,160,210,.08),transparent 46%)
 }
 .ls-guide-presence__stageCaption {
-  color:#91aebb;
+  color:#b9a4b8;
   letter-spacing:.2em;
   font-size:.58rem;
   font-weight:700
@@ -104,7 +104,7 @@
   line-height:1.3
 }
 .ls-guide-presence__detail {
-  color:#b3c0c8;
+  color:#c4b8c8;
   text-wrap:pretty;
   max-width:31rem;
   font-size:.875rem;
@@ -113,7 +113,7 @@
 .ls-guide-presence__presence[data-size=compact] .ls-guide-presence__eyebrow { font-size:.6875rem }
 .ls-guide-presence__presence[data-size=compact] .ls-guide-presence__stateLabel { font-size:1rem }
 .ls-guide-presence__presence[data-size=compact] .ls-guide-presence__detail { font-size:.8125rem }
-.ls-guide-presence__presence[data-state=LISTENING] { --presence-accent:#71c8dc; --presence-accent-rgb:113,200,220; border-color:rgba(113,200,220,.34) }
+.ls-guide-presence__presence[data-state=LISTENING] { --presence-accent:#8bd2dc; --presence-accent-rgb:139,210,220; border-color:rgba(113,200,220,.34) }
 .ls-guide-presence__presence[data-state=THINKING] { --presence-accent:#a5b6d8; --presence-accent-rgb:165,182,216 }
 .ls-guide-presence__presence[data-state=CLARIFYING] { --presence-accent:#a9c8dc; --presence-accent-rgb:169,200,220 }
 .ls-guide-presence__presence[data-state=UNCERTAIN],.ls-guide-presence__presence[data-state=CONFLICT] { --presence-accent:#e2b576; --presence-accent-rgb:226,181,118; border-color:#e3ac7440 }
