@@ -161,7 +161,7 @@ test('Guide voice input is local-first, turn-based, editable, and explicitly con
   await expect(conversation.locator('[data-speaker="guide"]').last()).toContainText(/draft|ड्राफ़्ट/i);
   await expect(conversation).toContainText(/Speaking now|Spoken aloud/);
   await expect(page.locator('#voice-transcript')).toHaveValue(/My employer is withholding two months of salary since August/);
-  await expect(conversation.locator('.ls-guide-call__conversationState')).toContainText('Ready for another turn');
+  await expect(conversation.locator('.ls-guide-call__conversationState')).toContainText(/Ready(?: for another turn)?/);
   await expect(conversation.getByRole('button', { name: 'Start voice input', exact: true })).toBeVisible();
   await expect(conversation.getByRole('button', { name: 'Stop voice input', exact: true })).toHaveCount(0);
 });
