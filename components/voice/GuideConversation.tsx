@@ -1135,7 +1135,7 @@ export default function GuideConversation({
       </div>
 
       <p className="ls-guide-call__conversationPrivacy">
-        On Android, available on-device speech services are preferred. On desktop, LawSense uses local Whisper when configured; browser speech recognition may use your browser’s configured provider and is disabled until you opt in below. Guide replies use the configured LawSense server’s local Ollama model. Audio is not added to the case, and recognized words stay editable until you confirm them.
+        On Android, available on-device speech services are preferred. LawSense uses local Whisper and local speech synthesis when configured. Browser speech recognition or spoken replies may use your browser’s configured provider and are disabled until you opt in below. Guide replies use the configured LawSense server’s local Ollama model. Audio is not added to the case, and recognized words stay editable until you confirm them.
       </p>
       {!nativeCapabilities?.recognitionAvailable && (
         <label className="ls-guide-call__speechConsent">
@@ -1147,6 +1147,19 @@ export default function GuideConversation({
             }}
           />
           <span>Allow browser-managed speech recognition only when local Whisper is unavailable</span>
+        </label>
+      )}
+      {!nativeCapabilities?.ttsAvailable && (
+        <label className="ls-guide-call__speechConsent">
+          <input
+            type="checkbox"
+            checked={browserTtsConsent}
+            onChange={(event) => {
+              browserTtsConsentRef.current = event.target.checked;
+              setBrowserTtsConsent(event.target.checked);
+            }}
+          />
+          <span>Allow browser-managed spoken replies only when local LawSense voice output is unavailable</span>
         </label>
       )}
     </section>
