@@ -79,13 +79,15 @@ export class BrowserSpeechRecognitionProvider implements SpeechRecognitionProvid
 interface VoiceCaptureProps {
   language: RecognitionLanguage;
   disabled?: boolean;
+  allowBrowserFallback?: boolean;
+  requireLocalProvider?: boolean;
   onTranscript: (transcript: string) => void;
   onCaptureStateChange?: (active: boolean) => void;
   onCaptureStatusChange?: (status: 'idle' | 'listening' | 'processing') => void;
   onCaptureEvent?: (event: VoiceCaptureEvent) => void;
 }
 
-export type VoiceCaptureEvent =
+export export type VoiceCaptureEvent =
   | { type: 'capture_started'; captureId: string; provider: 'browser' | 'server'; language: RecognitionLanguage }
   | { type: 'capture_cancelled'; captureId: string }
   | { type: 'capture_failed'; captureId: string; detail: string };
@@ -103,7 +105,7 @@ function errorMessage(code: string): string {
   return 'Speech recognition stopped before a transcript was available. You can try again or type your statement.';
 }
 
-export default function VoiceCapture({ language, disabled = false, onTranscript, onCaptureStateChange, onCaptureStatusChange, onCaptureEvent }: VoiceCaptureProps) {
+export default function VoiceCapture({ language, disabled = false, allowBrowserFallback = true, requireLocalProvider = false, onTranscript, onCaptureStateChange, onCaptureStatusChange, onCaptureEvent }: VoiceCaptureProps) {
   const provider = useRef(new BrowserSpeechRecognitionProvider());
   const session = useRef<BrowserRecognitionSession | null>(null);
   const mediaRecorder = useRef<MediaRecorder | null>(null);
@@ -196,31 +198,39 @@ export default function VoiceCapture({ language, disabled = false, onTranscript,
     getVoiceProviderAvailability()
       .then((availability) => {
         if (!active) return;
-        if (canRecordAudio && availability.speechToTextAvailable && availability.languageDetectorAvailable) {
+        const speechProviderReady = availability.speechToTextAvailable && availability.languageDetectorAvailable;
+        const providerIsLocal = availability.processingLocation === 'local';
+        if (canRecordAudio && speechProviderReady && (!requireLocalProvider || providerIsLocal)) {
           setProviderMode('server');
           setServerProcessingLabel(
-            availability.processingLocation === 'local'
+            providerIsLocal
               ? `Audio is processed locally by ${availability.speechToTextProvider || 'the configured speech provider'}.`
               : 'Audio is sent to LawSense for the configured speech provider.',
           );
-        } else if (browserAvailable) {
+        } else if (browserAvailable && allowBrowserFallback) {
           setProviderMode('browser');
         } else {
           setProviderMode('unavailable');
           setUnavailableDetail(
             !canRecordAudio
               ? 'This browser has no microphone recording API.'
-              : availability.detail || 'No compatible speech provider is available.',
+              : requireLocalProvider && speechProviderReady && !providerIsLocal
+                ? 'A non-local speech provider is configured. This consultation will not send audio to it. Enable browser speech fallback or configure local Whisper.'
+                : browserAvailable && !allowBrowserFallback
+                  ? 'Browser-managed speech recognition is off. Enable the browser fallback option or type your statement.'
+                  : availability.detail || 'No compatible speech provider is available.',
           );
         }
       })
       .catch((cause) => {
         if (!active) return;
-        if (browserAvailable) {
+        if (browserAvailable && allowBrowserFallback) {
           setProviderMode('browser');
         } else {
           setProviderMode('unavailable');
-          setUnavailableDetail(cause instanceof Error ? cause.message : 'Speech provider status is unavailable.');
+          setUnavailableDetail(browserAvailable && !allowBrowserFallback
+            ? 'Browser-managed speech recognition is off. Enable the browser fallback option or type your statement.'
+            : cause instanceof Error ? cause.message : 'Speech provider status is unavailable.');
         }
       });
 
@@ -246,7 +256,7 @@ export default function VoiceCapture({ language, disabled = false, onTranscript,
       stopMeter(true, false);
     };
     // This effect owns provider detection and the capture resources for this mount.
-  }, []);
+  }, [allowBrowserFallback, requireLocalProvider]);
 
   const finishBrowserCapture = (recognition: BrowserRecognitionSession, candidate: string) => {
     setRecording(false);
