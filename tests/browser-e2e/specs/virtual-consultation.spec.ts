@@ -64,6 +64,17 @@ test('dedicated consultation is immersive, case-scoped, and microphone-silent un
   await expect(page.locator('#voice-transcript')).toBeVisible();
   expect(await page.evaluate(() => (window as Window & { __micRequests: number }).__micRequests)).toBe(0);
 
+  const caseProgress = page.locator('details[aria-label="Case progress"]');
+  await expect(caseProgress).toBeVisible();
+  await caseProgress.locator('summary').click();
+  await expect(caseProgress).toContainText('Recorded facts');
+  await expect(caseProgress.getByRole('button', { name: 'Decision so far' })).toBeVisible();
+  await expect(caseProgress.getByRole('button', { name: 'Document studio' })).toBeVisible();
+  await caseProgress.getByRole('button', { name: 'Decision so far' }).click();
+  await expect(page.getByRole('dialog', { name: 'Legal Advisory' })).toBeVisible();
+  await expect(page.getByText('Based on information recorded so far')).toBeVisible();
+  await page.getByRole('button', { name: 'Close legal advisory' }).click();
+
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByRole('heading', { name: 'Talk to your AI lawyer' })).toBeVisible();
   await expect(page.locator('#voice-transcript')).toBeVisible();
