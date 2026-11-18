@@ -21,6 +21,7 @@ The feature branch now includes:
 
 - A pinned HumanForge Git dependency, Three.js and the Three.js type package.
 - Next.js package transpilation for the upstream TypeScript source.
+- A narrow local bridge imports only the pinned runtime and canvas modules, avoiding the upstream barrel exports that pull in optional selfie fitting and MediaPipe.
 - `HumanAvatarRenderer`, implementing the existing `AvatarAdapter` boundary.
 - Female professional avatar configuration, local face framing and HumanForge expression-morph mapping.
 - Existing Guide viseme cues mapped to facial morph targets; the renderer also maps Guide state to subtle head/neck pose and blink behavior.
