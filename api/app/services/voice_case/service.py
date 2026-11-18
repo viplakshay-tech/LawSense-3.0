@@ -349,8 +349,14 @@ def build_voice_case_service(
             )
     if text_to_speech_provider is None:
         piper_provider = PiperLocalTextToSpeechProvider()
+        # Prefer Piper only when both primary language families are configured;
+        # Hinglish can use the Hindi model if no dedicated voice is installed.
+        piper_ready = (
+            piper_provider.supports_language(VoiceLanguage.ENGLISH)
+            and piper_provider.supports_language(VoiceLanguage.HINDI)
+        )
         text_to_speech_provider = (
-            piper_provider if piper_provider.is_available else EspeakNGTextToSpeechProvider()
+            piper_provider if piper_ready else EspeakNGTextToSpeechProvider()
         )
     return VoiceCaseService(
         speech_to_text_provider=speech_to_text_provider,
