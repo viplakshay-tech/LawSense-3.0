@@ -75,7 +75,7 @@ export default function VoiceOutput({ text, language, responseId = 'guide-respon
   };
 
   const browserAvailable = () =>
-    typeof window !== 'undefined' && 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
+    typeof window !== 'undefined' && 'speechSynthesis' in window && typeof SpeechSynthesisUtterance !== 'undefined';
 
   useEffect(() => {
     let active = true;
@@ -282,7 +282,7 @@ export default function VoiceOutput({ text, language, responseId = 'guide-respon
           setError(`${detail} Using your browser voice instead.`);
         } else {
           setError(allowBrowserFallback ? detail : 'Local speech is unavailable. Browser speech is off until you opt in.');
-          setState(allowBrowserFallback ? 'error' : 'unavailable');
+          setState('error');
           emit(allowBrowserFallback ? { type: 'speech_failed', detail } : { type: 'speech_unavailable' });
         }
       }
