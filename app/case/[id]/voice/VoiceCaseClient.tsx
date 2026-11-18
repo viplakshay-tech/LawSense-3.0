@@ -48,7 +48,7 @@ function describeLanguage(value: string | null | undefined): string {
   return value || 'Not detected';
 }
 
-export default function VoiceCaseClient({ id }: { id: string }) {
+export default function VoiceCaseClient({ id, immersive = false }: { id: string; immersive?: boolean }) {
   const { caseState: caseData, loading, error: caseError, revision, replaceCaseState, refreshCaseState } = useCaseState();
   const { snapshot: guideRuntimeSnapshot, dispatch: dispatchCaseGuideEvent, runAction: runGuideAction, actionRunning: guideActionRunning } = useGuideRuntime();
   const { language: sessionLanguage, setLanguage: setSessionLanguage } = useGuideSession(id);
@@ -346,7 +346,7 @@ export default function VoiceCaseClient({ id }: { id: string }) {
   }
 
   return (
-    <main className={"ls-guide-call__callPage"}>
+    <main className={"ls-guide-call__callPage"} data-immersive={immersive ? "true" : undefined}>
       <div className={"ls-guide-call__pageShell"}>
         <nav aria-label="Guide navigation" className={"ls-guide-call__callNav"}>
           <Link href={`/case/${encodeURIComponent(id)}`} className={"ls-guide-call__backLink"}>
@@ -357,9 +357,9 @@ export default function VoiceCaseClient({ id }: { id: string }) {
         <section className={"ls-guide-call__callExperience"}>
           <header className={"ls-guide-call__callHeader"}>
             <div className={"ls-guide-call__callHeading"}>
-              <p className={"ls-guide-call__eyebrow"}><Mic aria-hidden="true" />Clarify · Guide conversation · Case {id}</p>
-              <h1>Speak with your Guide</h1>
-              <p className={"ls-guide-call__intro"}>A guided space to tell your story in your own words. You can review every detail before it changes your case.</p>
+              <p className={"ls-guide-call__eyebrow"}><Mic aria-hidden="true" />{immersive ? "PRIVATE CONSULTATION" : "CLARIFY · GUIDE CONVERSATION"} · CASE {id}</p>
+              <h1>{immersive ? "Talk to your AI lawyer" : "Speak with your Guide"}</h1>
+              <p className={"ls-guide-call__intro"}>{immersive ? "Tell me what happened in your own words. We can speak or type, and you can switch whenever you like." : "A guided space to tell your story in your own words. You can review every detail before it changes your case."}</p>
             </div>
             <Link href={`/case/${encodeURIComponent(id)}/guide`} className={"ls-guide-call__legalGuideLink"}>
               <BookOpen aria-hidden="true" />Open legal guide
@@ -374,7 +374,7 @@ export default function VoiceCaseClient({ id }: { id: string }) {
               data-speech-state={callSpeechState}
             >
               <div className={"ls-guide-call__stageHeading"}>
-                <span>YOUR GUIDE</span>
+                <span>{immersive ? "YOUR AI LAWYER" : "YOUR GUIDE"}</span>
                 <span className={"ls-guide-call__caseReference"}>LAW SENSE · CASE {id}</span>
               </div>
 
