@@ -140,6 +140,7 @@ export default function GuideConversation({
   const [browserTtsConsent, setBrowserTtsConsent] = useState(false);
   const [nativeCapabilities, setNativeCapabilities] = useState<NativeGuideAudioCapabilities | null>(null);
   const [speechUnavailable, setSpeechUnavailable] = useState(false);
+  const [speechOutputPending, setSpeechOutputPending] = useState(false);
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
@@ -921,8 +922,8 @@ export default function GuideConversation({
     };
   }, [releaseStream]);
 
-  const canSubmitText = !disabled && !captureBusy;
-  const textSubmissionBusy = captureBusy || ['requesting_permission', 'processing', 'speaking'].includes(presentation.status);
+  const canSubmitText = !disabled && !captureBusy && !speechOutputPending;
+  const textSubmissionBusy = captureBusy || speechOutputPending || ['requesting_permission', 'processing', 'speaking'].includes(presentation.status);
   const active = callActive || presentation.status === 'requesting_permission';
   const statusLabel = presentation.status === 'requesting_permission'
     ? 'Requesting microphone permission'
@@ -1055,7 +1056,7 @@ export default function GuideConversation({
             language={language}
             requireLocalProvider
             allowBrowserFallback={browserRecognitionConsent}
-            disabled={disabled || Boolean(transcriptDraft) || presentation.status === 'speaking'}
+            disabled={disabled || Boolean(transcriptDraft) || speechOutputPending || presentation.status === 'speaking'}
             onCaptureStateChange={setCaptureBusy}
             onCaptureStatusChange={(status) => {
               if (status === 'listening') transition('listening');
