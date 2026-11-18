@@ -70,32 +70,38 @@ This is an evidence-based progress snapshot, not a release sign-off.
 | 1 | Complete | Isolated feature branch and protected-scope/architecture rules are documented. The integration base remains the PR base; no force-push or reset was used. |
 | 2 | Complete | Plain-language prompt and focused backend tests are in the feature branch. The current backend CI job passed. |
 | 3 | Complete | The existing case-scoped Guide session already shares turns across text/voice, persists the bounded transcript in session storage, and aborts superseded turns. Earlier merged regressions cover cross-mode cancellation and stale-response protection. |
-| 4 | Implemented; acceptance pending | `/case/[id]/consultation` exists and reuses the case-scoped voice client and providers. A route-specific browser acceptance check is still required. |
-| 5 | In progress | Immersive full-screen styling and existing transcript/language/text/voice controls are wired. Dedicated workspace polish, mobile/keyboard checks and route E2E remain. |
-| 6 | Implemented; acceptance pending | HumanForge 0.8.1 is pinned with MIT code / CC0 human assets; a local asset setup script and realistic renderer adapter are committed. Run setup and verify the model, local-only requests and fallbacks on Windows/Android. |
-| 7 | Partial implementation | The realistic renderer maps Guide expressions, viseme cues, subtle head/neck pose and blinks to the 3D avatar. Full-body hand gestures and independent eye-ball gaze remain unsupported; reduced-motion behavior is implemented but needs device validation. |
-| 8 | Partial foundation | The repository has an optional local faster-whisper/on-disk adapter. Hindi/English model availability and actual local-device acceptance still need testing. |
-| 9 | Partial foundation | Local speech output is supported, but browser speech fallback remains in the current experience. A strict local-only mode and voice-quality benchmark remain. |
-| 10 | Partial foundation | Stop/cancel and request sequencing exist. Chunked streaming and reliable barge-in across providers remain. |
-| 11 | Partial implementation | Existing caller-owned viseme timing is mapped to HumanForge ARKit facial morphs. Validate actual Hindi/English audio alignment, pause and interruption behavior on-device before sign-off. |
-| 12 | Partial foundation | Voice transcript preview/review and explicit confirmation before case mutation already exist. End-to-end consultation-to-advisory/document acceptance needs dedicated coverage. |
-| 13 | In progress | Audio cleanup and local boundaries exist in parts of the stack. Full auth/case-ownership, retention, request-size and local-network security review remains. |
-| 14 | Partial foundation | The pre-avatar integration CI run passed the backend, frontend, Playwright and Android debug APK jobs. The newer HumanForge dependency/renderer commits require their own CI run. Real-device installation, permissions, offline behavior and USB-independent validation remain. |
+| 4 | Complete | `/case/[id]/consultation` is case-scoped and reuses existing case access and voice providers. The dedicated-route Playwright checks passed. |
+| 5 | In progress | Immersive workspace, transcript, language, text/voice controls and responsive call layout are wired. Case-progress drawer polish, full keyboard/screen-reader review and manual narrow-device checks remain. |
+| 6 | Implemented; acceptance pending | HumanForge 0.8.1 is pinned with MIT code / CC0 human assets; local asset setup script and realistic renderer adapter are committed. Run setup and verify the actual model, local-only requests and fallbacks on Windows/Android. |
+| 7 | Partial implementation | Guide expressions, viseme cues, subtle head/neck pose and blinks map to the 3D avatar. Full-body hand gestures and independent eye-ball gaze remain unsupported; reduced-motion behavior still needs device validation. |
+| 8 | Integrated; device acceptance pending | Local Faster-Whisper is selected from an on-disk model path; voice capture is local-first and browser recognition requires explicit opt-in. Playwright covers the local-provider path and consent boundary. Real Hindi/English models and Windows/Android transcription quality remain unverified. |
+| 9 | Integrated; quality acceptance pending | Local Piper/eSpeak is preferred; browser speech synthesis requires separate explicit consent. The shared Guide action registry no longer exposes a direct browser-speech bypass. Real Piper models, Hindi/English naturalness, latency and memory benchmarks remain. |
+| 10 | Partial implementation | Stop/cancel, abort cleanup, voice barge-in and preserved readable replies are implemented; the local Whisper barge-in Playwright test passes. Typed-message interruption is wired but still needs its own E2E assertion; chunked TTS streaming remains. |
+| 11 | Partial implementation | Existing caller-owned viseme timing is mapped to HumanForge ARKit facial morphs. Validate actual Hindi/English audio alignment, pauses and interruption on-device before sign-off. |
+| 12 | Partial implementation with broad regression coverage | Voice transcripts remain editable and require explicit confirmation. Existing Guide actions route to Legal Advisory, journey and document studio; Playwright covers confirmed document proposals and legal-advisory refresh. A single end-to-end consultation-to-advisory/document journey with source uncertainty assertions remains. |
+| 13 | In progress | Audio cleanup, local provider boundaries and explicit browser-consent controls are implemented. Full auth/case-ownership, retention, request-size and local-network security review remains. |
+| 14 | Partial implementation | CI now passes backend, frontend, Playwright and Android debug APK jobs; an installable debug APK artifact is uploaded. Physical-device installation, Wi-Fi pairing without USB, permissions and verified offline behavior remain. |
 | 15 | Not started | Release regression and handoff must wait until all preceding acceptance gates pass. |
 
-### Latest CI evidence for PR #60
+### Latest CI evidence — 18 November 2026
+
+Latest completed run: [44263557845](https://github.com/viplakshay-tech/LawSense-3.0/actions/runs/44263557845)
 
 - Python backend tests: passed.
 - Frontend lint, focused tests and production build: passed.
-- Android debug APK build: passed.
-- Playwright browser journeys: running at the time of this snapshot; do not count as passed until GitHub reports a completed success.
+- Android debug APK build: passed; artifact `lawsense-android-debug-apk` uploaded.
+- Playwright browser journeys: passed, including local Whisper selection, explicit browser fallback consent, editable/confirmed transcript, voice barge-in, shared text/voice session and immersive consultation route.
+
+The CI APK is a debug artifact, not a Play Store release. It does not bundle Ollama or the FastAPI service; the phone still needs to reach the local API host over the configured network.
 
 ### Immediate next execution
 
-1. Finish and inspect the current Playwright run; add consultation-specific route and mode-switch regression coverage.
-2. Audit the existing speech adapters and make local-only versus browser-managed behavior explicit, with no silent external fallback.
-3. Run `npm ci` and `npm run setup:avatar`; visually validate the pinned HumanForge model and local-only asset requests. Keep the illustrated renderer as the fallback.
-4. Continue through milestones 7–15 in dependency order, updating this status table only when evidence meets each acceptance gate.
+1. Add a dedicated Playwright test for typed-message interruption while a spoken reply is active.
+2. Install and exercise actual Faster-Whisper and Piper Hindi/English models on the target Windows laptop; benchmark pronunciation, latency and memory rather than relying only on mocked-provider tests.
+3. Complete the consultation case-progress workspace and one end-to-end consultation-to-Legal-Advisory/document journey with source-status and uncertainty assertions.
+4. Run `npm ci` and `npm run setup:avatar`; visually validate the pinned HumanForge model and local-only asset requests. Keep the illustrated renderer as the fallback.
+5. Install the APK on a physical Android phone over Wi-Fi, verify permissions and USB-independent pairing, then validate only the offline capabilities that actually work.
+6. Continue through milestones 7–15 in dependency order; update this table only when each acceptance gate has evidence.
 
 No milestone should be marked complete solely because a UI exists or a build succeeds. The Android and offline milestones require real-device verification, which cannot be substituted by a hosted CI build.
 
