@@ -290,12 +290,17 @@ class PiperLocalTextToSpeechProvider:
             and Path(f"{model_path}.json").is_file()
         )
 
+    def supports_language(self, language: VoiceLanguage) -> bool:
+        model_path = self._model_paths.get(language)
+        if language is VoiceLanguage.HINGLISH and not self._model_ready(model_path):
+            model_path = self._model_paths.get(VoiceLanguage.HINDI)
+        return bool(self._executable and Path(self._executable).is_file() and self._model_ready(model_path))
+
     @property
     def is_available(self) -> bool:
-        return bool(
-            self._executable
-            and Path(self._executable).is_file()
-            and any(self._model_ready(path) for path in self._model_paths.values())
+        return any(
+            self.supports_language(language)
+            for language in (VoiceLanguage.ENGLISH, VoiceLanguage.HINDI, VoiceLanguage.HINGLISH)
         )
 
     def synthesize(self, text: str, language: VoiceLanguage) -> bytes:
