@@ -348,7 +348,7 @@ def chat_with_local_model(
         "stream": False,
         "think": False,
         "format": "json",
-        "options": {"temperature": 0.2, "num_predict": 768},
+        "options": {"temperature": 0.35, "num_predict": 384},
         "messages": messages,
     }
     request = Request(
