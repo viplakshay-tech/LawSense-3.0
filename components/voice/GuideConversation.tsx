@@ -364,6 +364,7 @@ export default function GuideConversation({
         if (speechStartTimerRef.current) clearTimeout(speechStartTimerRef.current);
         speechStartTimerRef.current = null;
         const detail = error instanceof Error ? error.message : 'Android could not play this response. The text remains available.';
+        setSpeechOutputPending(false);
         setSpeechUnavailable(true);
         updateGuideAudio(responseId, 'failed');
         transition('error', detail);
@@ -443,6 +444,7 @@ export default function GuideConversation({
         if (speechStartTimerRef.current) clearTimeout(speechStartTimerRef.current);
         speechStartTimerRef.current = null;
         utteranceRef.current = null;
+        setSpeechOutputPending(false);
         updateGuideAudio(responseId, 'spoken');
         onRuntimeEventRef.current?.({ type: 'speech_finished', responseId });
         afterSpeech();
@@ -530,6 +532,32 @@ export default function GuideConversation({
 
     void playLocalSpeech();
   }, [releaseLocalAudio, transition, updateGuideAudio]);
+
+  const stopSpeech = useCallback(() => {
+    const responseId = lastResponseRef.current?.id;
+    const active = speechOutputPending
+      || presentation.status === 'speaking'
+      || Boolean(localAudioRef.current || localTtsRequestRef.current || utteranceRef.current || nativeTtsRef.current);
+    if (!active) return;
+
+    speechOperationRef.current += 1;
+    if (speechStartTimerRef.current) clearTimeout(speechStartTimerRef.current);
+    speechStartTimerRef.current = null;
+    releaseLocalAudio();
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+    utteranceRef.current = null;
+    const nativeSpeech = nativeTtsRef.current;
+    nativeTtsRef.current = null;
+    if (nativeSpeech) void requestNativeGuideAudio('stopSpeaking').catch(() => undefined);
+
+    setSpeechOutputPending(false);
+    setSpeechUnavailable(false);
+    if (responseId) {
+      updateGuideAudio(responseId, 'cancelled');
+      onRuntimeEventRef.current?.({ type: 'speech_cancelled', responseId });
+    }
+    transition('paused', 'Spoken reply stopped. The response remains available as text.');
+  }, [presentation.status, releaseLocalAudio, speechOutputPending, transition, updateGuideAudio]);
 
   const receiveTurn = useCallback(async (text: string, inputMethod: 'voice' | 'text') => {
     const statement = text.trim();
@@ -1118,6 +1146,11 @@ export default function GuideConversation({
               });
             }}
           />
+        )}
+        {(speechOutputPending || presentation.status === 'speaking') && (
+          <button type="button" className="ls-guide-call__callControlButton" onClick={stopSpeech}>
+            Stop speaking
+          </button>
         )}
         {!active && nativeCapabilities?.recognitionAvailable && presentation.status !== 'unsupported' && (
           <button type="button" className="ls-guide-call__startCallButton" onClick={() => void startCall()} disabled={disabled}>
