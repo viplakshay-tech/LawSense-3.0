@@ -964,7 +964,9 @@ export default function GuideConversation({
   const canSubmitText = !disabled && !captureBusy && !speechOutputPending;
   const textSubmissionBusy = captureBusy || speechOutputPending || ['requesting_permission', 'processing', 'speaking'].includes(presentation.status);
   const active = callActive || presentation.status === 'requesting_permission';
-  const statusLabel = presentation.status === 'requesting_permission'
+  const statusLabel = speechOutputPending
+    ? 'Preparing spoken reply'
+    : presentation.status === 'requesting_permission'
     ? 'Requesting microphone permission'
     : presentation.status === 'listening'
       ? 'Listening'
@@ -1017,7 +1019,7 @@ export default function GuideConversation({
               <p className="ls-guide-call__turnText">{turn.content}</p>
               {turn.role === 'assistant' && (
                 <p className="ls-guide-call__turnAudio" role="status">
-                  {turn.audio === 'spoken' ? 'Spoken aloud' : turn.audio === 'speaking' ? 'Speaking now' : turn.audio === 'queued' ? 'Preparing spoken reply' : turn.audio === 'failed' ? 'Could not play aloud · text remains available' : turn.audio === 'unavailable' ? 'Speech output unavailable · text remains available' : ''}
+                  {turn.audio === 'spoken' ? 'Spoken aloud' : turn.audio === 'speaking' ? 'Speaking now' : turn.audio === 'queued' ? 'Preparing spoken reply' : turn.audio === 'failed' ? 'Could not play aloud · text remains available' : turn.audio === 'unavailable' ? 'Speech output unavailable · text remains available' : turn.audio === 'cancelled' ? 'Playback stopped · text remains available' : ''}
                 </p>
               )}
               {proposedAction && (
