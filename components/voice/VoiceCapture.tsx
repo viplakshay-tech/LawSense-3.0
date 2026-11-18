@@ -87,7 +87,7 @@ interface VoiceCaptureProps {
   onCaptureEvent?: (event: VoiceCaptureEvent) => void;
 }
 
-export export type VoiceCaptureEvent =
+export type VoiceCaptureEvent =
   | { type: 'capture_started'; captureId: string; provider: 'browser' | 'server'; language: RecognitionLanguage }
   | { type: 'capture_cancelled'; captureId: string }
   | { type: 'capture_failed'; captureId: string; detail: string };
