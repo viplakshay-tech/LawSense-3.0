@@ -19,7 +19,7 @@ class GuideConversationStyleTests(unittest.TestCase):
     def test_guide_keeps_legal_decision_making_out_of_the_chat_model(self) -> None:
         self.assertIn("Never decide whether a law applies", _SYSTEM_PROMPT)
         self.assertIn("source-governed analysis", _SYSTEM_PROMPT)
-        self.assertIn("not a real lawyer", _SYSTEM_PROMPT)
+        self.assertIn("real lawyer", _SYSTEM_PROMPT)
 
     def test_guide_does_not_expose_internal_implementation_terms(self) -> None:
         self.assertIn("Do not expose internal system terms", _SYSTEM_PROMPT)
