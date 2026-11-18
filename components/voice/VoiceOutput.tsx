@@ -20,6 +20,7 @@ interface VoiceOutputProps {
   language?: string | null;
   responseId?: string;
   onEvent?: (event: GuideVoiceEvent) => void;
+  allowBrowserFallback?: boolean;
 }
 
 function speechLanguage(language: string | null | undefined): string {
@@ -32,7 +33,7 @@ function apiLanguage(language: string | null | undefined): 'english' | 'hindi' |
   return 'hindi';
 }
 
-export default function VoiceOutput({ text, language, responseId = 'guide-response', onEvent }: VoiceOutputProps) {
+export default function VoiceOutput({ text, language, responseId = 'guide-response', onEvent, allowBrowserFallback = false }: VoiceOutputProps) {
   const utterance = useRef<SpeechSynthesisUtterance | null>(null);
   const audio = useRef<HTMLAudioElement | null>(null);
   const audioUrl = useRef<string | null>(null);
@@ -96,7 +97,7 @@ export default function VoiceOutput({ text, language, responseId = 'guide-respon
           setMode('local');
           setActiveMode('local');
           setState('ready');
-        } else if (canSpeakInBrowser) {
+        } else if (canSpeakInBrowser && allowBrowserFallback) {
           setMode('browser');
           setActiveMode('browser');
           setState('ready');
@@ -109,7 +110,7 @@ export default function VoiceOutput({ text, language, responseId = 'guide-respon
       })
       .catch(() => {
         if (!active) return;
-        if (canSpeakInBrowser) {
+        if (canSpeakInBrowser && allowBrowserFallback) {
           setMode('browser');
           setActiveMode('browser');
           setState('ready');
@@ -134,9 +135,9 @@ export default function VoiceOutput({ text, language, responseId = 'guide-respon
       utterance.current = null;
       releaseAudio();
     };
-    // Voice capability is detected once for this mounted output control.
+    // Re-evaluate provider choice whenever the user changes browser fallback consent.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [allowBrowserFallback]);
 
   const cancel = () => {
     operation.current += 1;
@@ -152,7 +153,7 @@ export default function VoiceOutput({ text, language, responseId = 'guide-respon
   };
 
   const speakInBrowser = (operationId: number) => {
-    if (!browserAvailable()) return false;
+    if (!allowBrowserFallback || !browserAvailable()) return false;
     const synthesis = window.speechSynthesis;
     const nextUtterance = new SpeechSynthesisUtterance(text);
     nextUtterance.lang = speechLanguage(language);
@@ -200,6 +201,7 @@ export default function VoiceOutput({ text, language, responseId = 'guide-respon
     };
 
     utterance.current = nextUtterance;
+    setMode('browser');
     setActiveMode('browser');
     setState('starting');
     startTimer.current = setTimeout(() => {
@@ -217,7 +219,7 @@ export default function VoiceOutput({ text, language, responseId = 'guide-respon
   };
 
   const play = async () => {
-    if (!text.trim() || mode === 'unavailable' || state === 'checking') return;
+    if (!text.trim() || mode === 'unavailable' || state === 'checking' || (mode === 'browser' && !allowBrowserFallback)) return;
     const operationId = ++operation.current;
     request.current?.abort();
     request.current = null;
@@ -235,6 +237,7 @@ export default function VoiceOutput({ text, language, responseId = 'guide-respon
       try {
         const audioBlob = await synthesizeVoiceSpeech(text, apiLanguage(language), controller.signal);
         if (operation.current !== operationId) return;
+        if (!audioBlob.size) throw new Error('The local speech provider returned an empty audio file.');
         request.current = null;
         const url = URL.createObjectURL(audioBlob);
         const player = new Audio(url);
@@ -261,12 +264,12 @@ export default function VoiceOutput({ text, language, responseId = 'guide-respon
           if (operation.current !== operationId || audio.current !== player) return;
           releaseAudio();
           const detail = 'Local speech audio could not be played.';
-          if (speakInBrowser(operationId)) {
+          if (allowBrowserFallback && speakInBrowser(operationId)) {
             setError(`${detail} Using your browser voice instead.`);
           } else {
-            setError(detail);
-            setState('error');
-            emit({ type: 'speech_failed', detail });
+            setError(allowBrowserFallback ? detail : 'Local speech is unavailable. Browser speech is off until you opt in.');
+            setState(allowBrowserFallback ? 'error' : 'unavailable');
+            emit(allowBrowserFallback ? { type: 'speech_failed', detail } : { type: 'speech_unavailable' });
           }
         };
         await player.play();
@@ -275,12 +278,12 @@ export default function VoiceOutput({ text, language, responseId = 'guide-respon
         request.current = null;
         releaseAudio();
         const detail = cause instanceof Error ? cause.message : 'Local speech output failed.';
-        if (speakInBrowser(operationId)) {
+        if (allowBrowserFallback && speakInBrowser(operationId)) {
           setError(`${detail} Using your browser voice instead.`);
         } else {
-          setError(detail);
-          setState('error');
-          emit({ type: 'speech_failed', detail });
+          setError(allowBrowserFallback ? detail : 'Local speech is unavailable. Browser speech is off until you opt in.');
+          setState(allowBrowserFallback ? 'error' : 'unavailable');
+          emit(allowBrowserFallback ? { type: 'speech_failed', detail } : { type: 'speech_unavailable' });
         }
       }
       return;
@@ -358,8 +361,10 @@ export default function VoiceOutput({ text, language, responseId = 'guide-respon
         {activeMode === 'local'
           ? 'Spoken locally by LawSense. No audio is saved to the case.'
           : mode === 'local'
-            ? 'Local speech is preferred when available. Browser speech may use a browser managed service. No audio is saved to the case.'
-            : 'Spoken by your browser using its available voice. Browser speech synthesis may use a browser managed service. No audio is saved to the case.'}
+            ? 'Local speech is preferred when available. Browser speech remains off until you opt in. No audio is saved to the case.'
+            : mode === 'browser'
+              ? 'Spoken by your browser using its available voice. Browser speech synthesis may use a browser managed service. No audio is saved to the case.'
+              : 'No local speech provider is available. Browser speech remains off until you opt in. No audio is saved to the case.'}
       </p>
     </section>
   );
