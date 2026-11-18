@@ -42,6 +42,6 @@ test('avatar setup downloads the pinned CC0 assets once for local runtime use', 
   assert.match(setup, /public\/lawsense-human/);
   assert.match(setup, /READY\.json/);
   assert.match(docs, /CC0 1\.0/);
-  assert.match(docs, /one-time setup/i);
+  assert.match(docs, /same-origin/i);
   assert.match(docs, /one-time setup/i);
 });
