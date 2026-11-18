@@ -1,6 +1,16 @@
+'use client';
+
+import dynamic from 'next/dynamic';
 import type { AvatarAdapter, AvatarSurfaceProps } from './types';
-import { HumanAvatarRenderer } from './HumanAvatarRenderer';
 import { IllustratedAvatarRenderer } from './IllustratedAvatarRenderer';
+
+const HumanAvatarRenderer = dynamic<AvatarSurfaceProps>(
+  () => import('./HumanAvatarRenderer').then((module) => module.HumanAvatarRenderer),
+  {
+    ssr: false,
+    loading: () => <div className="ls-guide-human-avatar__loading" aria-hidden="true" />,
+  },
+);
 
 export const illustratedAvatarAdapter: AvatarAdapter = {
   id: 'lawsense-illustrated-guide',
@@ -30,8 +40,8 @@ export const humanAvatarAdapter: AvatarAdapter = {
   Surface: HumanAvatarRenderer,
 };
 
-/** The realistic local renderer is preferred; it falls back to the illustrated surface if assets or WebGL are unavailable. */
-export const defaultAvatarAdapter = humanAvatarAdapter;
+/** Keep the established illustration on ordinary pages; immersive consultation opts into the 3D engine. */
+export const defaultAvatarAdapter = illustratedAvatarAdapter;
 
 /** Stable presentation boundary for swapping local avatar engines without changing Guide Runtime semantics. */
 export function AvatarSurface({
