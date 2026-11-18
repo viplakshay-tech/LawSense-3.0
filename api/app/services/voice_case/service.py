@@ -18,6 +18,7 @@ from app.engines.voice import (
     EspeakNGTextToSpeechProvider,
     LocalLanguageDetector,
     LocalWhisperSpeechToTextProvider,
+    PiperLocalTextToSpeechProvider,
     ProviderUnavailableError,
     SpeechToTextProvider,
     TextToSpeechProvider,
@@ -347,7 +348,10 @@ def build_voice_case_service(
                 FasterWhisperLocalAdapter(model_path)
             )
     if text_to_speech_provider is None:
-        text_to_speech_provider = EspeakNGTextToSpeechProvider()
+        piper_provider = PiperLocalTextToSpeechProvider()
+        text_to_speech_provider = (
+            piper_provider if piper_provider.is_available else EspeakNGTextToSpeechProvider()
+        )
     return VoiceCaseService(
         speech_to_text_provider=speech_to_text_provider,
         language_detector=language_detector,
