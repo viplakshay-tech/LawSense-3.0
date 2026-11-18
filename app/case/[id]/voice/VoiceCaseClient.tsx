@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import Link from 'next/link';
 import { ArrowLeft, BookOpen, CheckCircle2, Loader2, Mic, ShieldAlert } from 'lucide-react';
 import { GuidePresence } from '@/components/guide-presence';
+import { humanAvatarAdapter } from '@/components/guide-presence/avatar/AvatarSurface';
 import './VoiceCaseClient.css';
 import { createGuideVoiceRuntimeAdapter } from '@/components/guide-runtime/voice-adapter/runtime';
 import type { GuideVoiceEvent, VoiceInputMethod, VoiceLanguage } from '@/components/guide-runtime/voice-adapter/events';
@@ -380,6 +381,7 @@ export default function VoiceCaseClient({ id, immersive = false }: { id: string;
 
               <div className={"ls-guide-call__guideStage"}>
                 <GuidePresence
+                  avatarAdapter={immersive ? humanAvatarAdapter : undefined}
                   state={callPresenceState}
                   speechState={callSpeechState}
                   detail={callDetail}
