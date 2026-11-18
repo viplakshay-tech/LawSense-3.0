@@ -579,6 +579,22 @@
   font-size:.57rem;
   line-height:1.5
 }
+.ls-guide-call__speechConsent {
+  display:flex;
+  align-items:flex-start;
+  gap:.45rem;
+  margin:.42rem 0 0;
+  color:#a89b83;
+  font-size:.58rem;
+  line-height:1.5
+}
+.ls-guide-call__speechConsent input {
+  flex:0 0 auto;
+  width:.78rem;
+  height:.78rem;
+  margin:.1rem 0 0;
+  accent-color:#dda5b3
+}
 .ls-guide-call__backLink:focus-visible,.ls-guide-call__endCallLink:focus-visible,.ls-guide-call__legalGuideLink:focus-visible,.ls-guide-call__typeInsteadButton:focus-visible,.ls-guide-call__messageRow input:focus-visible,.ls-guide-call__messageRow button:focus-visible,.ls-guide-call__startCallButton:focus-visible,.ls-guide-call__callControlButton:focus-visible,.ls-guide-call__endCallButton:focus-visible,.ls-guide-call__transcriptReview textarea:focus-visible,.ls-guide-call__confirmTranscriptButton:focus-visible {
   outline-offset:3px;
   outline:2px solid #dda5b3
