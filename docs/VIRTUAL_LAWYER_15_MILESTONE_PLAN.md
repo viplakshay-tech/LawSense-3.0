@@ -61,6 +61,44 @@ Do not start a dependent milestone by bypassing a failed acceptance gate. Keep c
 - Existing Guide sessions are case-scoped in browser session storage; they are not durable across tabs/devices.
 - The current Android shell is not a standalone offline AI runtime. Do not represent it as one without on-device inference and real-device offline verification.
 
+## Current execution status — 18 November 2026
+
+This is an evidence-based progress snapshot, not a release sign-off.
+
+| # | Current status | Evidence / remaining gate |
+|---|---|---|
+| 1 | Complete | Isolated feature branch and protected-scope/architecture rules are documented. The integration base remains the PR base; no force-push or reset was used. |
+| 2 | Complete | Plain-language prompt and focused backend tests are in the feature branch. The current backend CI job passed. |
+| 3 | Complete | The existing case-scoped Guide session already shares turns across text/voice, persists the bounded transcript in session storage, and aborts superseded turns. Earlier merged regressions cover cross-mode cancellation and stale-response protection. |
+| 4 | Implemented; acceptance pending | `/case/[id]/consultation` exists and reuses the case-scoped voice client and providers. A route-specific browser acceptance check is still required. |
+| 5 | In progress | Immersive full-screen styling and existing transcript/language/text/voice controls are wired. Dedicated workspace polish, mobile/keyboard checks and route E2E remain. |
+| 6 | Not started | The renderer contract is ready, but the active renderer is still illustrated. A licensed local 3D human asset and runtime are required. |
+| 7 | Partial foundation | GuideRuntime already supplies expression, gaze, state and viseme presentation data. These behaviors are currently rendered by the illustrated avatar; realistic 3D expression/gesture mapping remains. |
+| 8 | Partial foundation | The repository has an optional local faster-whisper/on-disk adapter. Hindi/English model availability and actual local-device acceptance still need testing. |
+| 9 | Partial foundation | Local speech output is supported, but browser speech fallback remains in the current experience. A strict local-only mode and voice-quality benchmark remain. |
+| 10 | Partial foundation | Stop/cancel and request sequencing exist. Chunked streaming and reliable barge-in across providers remain. |
+| 11 | Partial foundation | Viseme cue types and caller-owned speech timing exist. Audio-timed blendshape mapping for the realistic 3D avatar remains. |
+| 12 | Partial foundation | Voice transcript preview/review and explicit confirmation before case mutation already exist. End-to-end consultation-to-advisory/document acceptance needs dedicated coverage. |
+| 13 | In progress | Audio cleanup and local boundaries exist in parts of the stack. Full auth/case-ownership, retention, request-size and local-network security review remains. |
+| 14 | Partial foundation | The current CI run built an Android debug APK successfully. Real-device installation, permissions, offline behavior and USB-independent validation remain. |
+| 15 | Not started | Release regression and handoff must wait until all preceding acceptance gates pass. |
+
+### Latest CI evidence for PR #60
+
+- Python backend tests: passed.
+- Frontend lint, focused tests and production build: passed.
+- Android debug APK build: passed.
+- Playwright browser journeys: running at the time of this snapshot; do not count as passed until GitHub reports a completed success.
+
+### Immediate next execution
+
+1. Finish and inspect the current Playwright run; add consultation-specific route and mode-switch regression coverage.
+2. Audit the existing speech adapters and make local-only versus browser-managed behavior explicit, with no silent external fallback.
+3. Implement the locally hosted realistic 3D avatar renderer only after selecting an asset with a compatible redistribution licence; keep the illustrated renderer as an accessible fallback.
+4. Continue through milestones 7–15 in dependency order, updating this status table only when evidence meets each acceptance gate.
+
+No milestone should be marked complete solely because a UI exists or a build succeeds. The Android and offline milestones require real-device verification, which cannot be substituted by a hosted CI build.
+
 ## Current execution note
 
-Milestone 1's repository audit and feature-branch isolation are underway. Milestone 2 begins with the plain-language assistant contract. No milestone should be marked complete until its tests and runtime acceptance checks have been performed.
+PR #60 is the active draft for this initiative. Milestones 1–3 have existing implementation/test evidence; milestone 4 is implemented but awaits route-specific browser acceptance. The remaining milestones are explicitly tracked above. Keep the work on `feature/virtual-lawyer-consultation` until the release gate is satisfied; do not merge the draft into `lawsense-3-integration` prematurely.
