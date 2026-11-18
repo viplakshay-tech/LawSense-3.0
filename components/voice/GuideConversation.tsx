@@ -1211,6 +1211,7 @@ export default function GuideConversation({
             onChange={(event) => {
               browserTtsConsentRef.current = event.target.checked;
               setBrowserTtsConsent(event.target.checked);
+              if (!event.target.checked && utteranceRef.current) stopSpeech();
             }}
           />
           <span>Allow browser-managed spoken replies only when local LawSense voice output is unavailable</span>
