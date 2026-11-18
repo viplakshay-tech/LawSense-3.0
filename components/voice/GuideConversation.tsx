@@ -906,8 +906,10 @@ export default function GuideConversation({
     releaseStream();
     if (speechStartTimerRef.current) clearTimeout(speechStartTimerRef.current);
     speechStartTimerRef.current = null;
-    const wasSpeaking = Boolean(utteranceRef.current || nativeTtsRef.current);
+    const wasSpeaking = Boolean(speechOutputPending || localAudioRef.current || localTtsRequestRef.current || utteranceRef.current || nativeTtsRef.current);
     speechOperationRef.current += 1;
+    releaseLocalAudio();
+    setSpeechOutputPending(false);
     utteranceRef.current = null;
     nativeTtsRef.current = null;
     if (nativeCapabilitiesRef.current) {
@@ -916,9 +918,12 @@ export default function GuideConversation({
     }
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
     const responseId = lastResponseRef.current?.id;
-    if (wasSpeaking && responseId) onRuntimeEventRef.current?.({ type: 'speech_cancelled', responseId });
+    if (wasSpeaking && responseId) {
+      updateGuideAudio(responseId, 'cancelled');
+      onRuntimeEventRef.current?.({ type: 'speech_cancelled', responseId });
+    }
     transition('ended');
-  }, [presentation.status, releaseStream, transition, updateTranscriptDraft]);
+  }, [presentation.status, releaseLocalAudio, releaseStream, speechOutputPending, transition, updateGuideAudio, updateTranscriptDraft]);
 
   const repeatResponse = useCallback(() => {
     const response = lastResponseRef.current;
@@ -929,11 +934,11 @@ export default function GuideConversation({
   const sendTypedMessage = useCallback((event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const message = typedMessage.trim();
-    if (!message || disabled || ['requesting_permission', 'processing', 'speaking'].includes(presentation.status)) return;
+    if (!message || disabled || captureBusy || speechOutputPending || ['requesting_permission', 'processing', 'speaking'].includes(presentation.status)) return;
     if (presentation.status === 'listening') pauseListening();
     setTypedMessage('');
     void receiveTurn(message, 'text');
-  }, [disabled, pauseListening, presentation.status, receiveTurn, typedMessage]);
+  }, [captureBusy, disabled, pauseListening, presentation.status, receiveTurn, speechOutputPending, typedMessage]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -942,6 +947,7 @@ export default function GuideConversation({
       callActiveRef.current = false;
       shouldListenRef.current = false;
       speechOperationRef.current += 1;
+      releaseLocalAudio();
       if (speechStartTimerRef.current) clearTimeout(speechStartTimerRef.current);
       speechStartTimerRef.current = null;
       const recognition = recognitionRef.current;
@@ -959,7 +965,7 @@ export default function GuideConversation({
       }
       if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
     };
-  }, [releaseStream]);
+  }, [releaseLocalAudio, releaseStream]);
 
   const canSubmitText = !disabled && !captureBusy && !speechOutputPending;
   const textSubmissionBusy = captureBusy || speechOutputPending || ['requesting_permission', 'processing', 'speaking'].includes(presentation.status);
