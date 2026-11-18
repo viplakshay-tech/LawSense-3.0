@@ -659,3 +659,81 @@
 }
 
 }
+
+
+/* Immersive consultation: keep the existing case providers and voice workflow,
+   but remove surrounding case-navigation chrome for the dedicated call route. */
+.ls-case-shell[data-consultation-mode="true"] {
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+.ls-case-shell[data-consultation-mode="true"] .ls-case-grid {
+  display: block !important;
+  min-height: 100dvh;
+}
+.ls-case-shell[data-consultation-mode="true"] .ls-case-rail,
+.ls-case-shell[data-consultation-mode="true"] .ls-case-topbar,
+.ls-case-shell[data-consultation-mode="true"] .ls-case-context,
+.ls-case-shell[data-consultation-mode="true"] .ls-case-mobile-dock {
+  display: none !important;
+}
+.ls-case-shell[data-consultation-mode="true"] .ls-case-main {
+  min-height: 100dvh;
+}
+.ls-case-shell[data-consultation-mode="true"] .ls-case-content {
+  min-height: 100dvh;
+  padding: 0 !important;
+}
+.ls-guide-call__callPage[data-immersive="true"] {
+  min-height: 100dvh;
+  padding: clamp(.8rem, 2vw, 1.8rem);
+  color: #eef5f7;
+  background:
+    radial-gradient(at 14% 8%, rgba(47, 126, 139, .18), transparent 36rem),
+    radial-gradient(at 90% 45%, rgba(195, 157, 98, .10), transparent 38rem),
+    #080e14;
+}
+.ls-guide-call__callPage[data-immersive="true"] .ls-guide-call__pageShell {
+  width: min(100%, 112rem);
+}
+.ls-guide-call__callPage[data-immersive="true"] .ls-guide-call__callExperience {
+  min-height: calc(100dvh - 3.6rem);
+  margin-top: .35rem;
+  border-color: rgba(126, 183, 190, .16);
+  background: linear-gradient(145deg, rgba(16, 28, 37, .98), rgba(8, 15, 22, .99) 68%);
+}
+.ls-guide-call__callPage[data-immersive="true"] .ls-guide-call__callHeader {
+  background: linear-gradient(120deg, rgba(24, 48, 58, .58), rgba(12, 22, 31, .28));
+  border-bottom-color: rgba(126, 183, 190, .13);
+}
+.ls-guide-call__callPage[data-immersive="true"] .ls-guide-call__eyebrow {
+  color: #9cc9c9;
+}
+.ls-guide-call__callPage[data-immersive="true"] .ls-guide-call__guideStage {
+  min-height: clamp(22rem, 54vh, 43rem);
+  background:
+    radial-gradient(at 50% 42%, rgba(44, 111, 123, .24), transparent 58%),
+    linear-gradient(150deg, #111e28, #09121b 78%);
+  border-color: rgba(126, 183, 190, .22);
+}
+.ls-guide-call__callPage[data-immersive="true"] .ls-guide-call__guideCard,
+.ls-guide-call__callPage[data-immersive="true"] .ls-guide-call__transcriptCard {
+  border-color: rgba(126, 183, 190, .14);
+  background: linear-gradient(158deg, rgba(17, 29, 39, .97), rgba(9, 17, 25, .98));
+}
+.ls-guide-call__callPage[data-immersive="true"] .ls-guide-call__endCallLink {
+  border-color: rgba(210, 126, 126, .30);
+  color: #f0caca;
+}
+@media (max-width: 54rem) {
+  .ls-guide-call__callPage[data-immersive="true"] {
+    padding: .5rem;
+  }
+  .ls-guide-call__callPage[data-immersive="true"] .ls-guide-call__callExperience {
+    min-height: calc(100dvh - 1rem);
+    border-radius: 1rem;
+  }
+  .ls-guide-call__callPage[data-immersive="true"] .ls-guide-call__guideStage {
+    min-height: 20rem;
+  }
+}
