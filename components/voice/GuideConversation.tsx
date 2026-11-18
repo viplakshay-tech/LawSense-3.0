@@ -137,7 +137,6 @@ export default function GuideConversation({
   const [transcriptDraft, setTranscriptDraft] = useState('');
   const [captureBusy, setCaptureBusy] = useState(false);
   const [browserRecognitionConsent, setBrowserRecognitionConsent] = useState(false);
-  const browserRecognitionConsentRef = useRef(false);
   const [nativeCapabilities, setNativeCapabilities] = useState<NativeGuideAudioCapabilities | null>(null);
   const [speechUnavailable, setSpeechUnavailable] = useState(false);
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
@@ -952,7 +951,7 @@ export default function GuideConversation({
             language={language}
             requireLocalProvider
             allowBrowserFallback={browserRecognitionConsent}
-            disabled={disabled || captureBusy || textSubmissionBusy || Boolean(transcriptDraft)}
+            disabled={disabled || Boolean(transcriptDraft) || presentation.status === 'speaking'}
             onCaptureStateChange={setCaptureBusy}
             onCaptureStatusChange={(status) => {
               if (status === 'listening') transition('listening');
@@ -1040,7 +1039,6 @@ export default function GuideConversation({
             type="checkbox"
             checked={browserRecognitionConsent}
             onChange={(event) => {
-              browserRecognitionConsentRef.current = event.target.checked;
               setBrowserRecognitionConsent(event.target.checked);
             }}
           />
