@@ -182,7 +182,27 @@ test('local Whisper is selected without browser consent when its local model is 
         this.onstop?.();
       }
     }
+    class MockUtterance {
+      lang = '';
+      rate = 1;
+      pitch = 1;
+      voice = null;
+      onstart: (() => void) | null = null;
+      onend: (() => void) | null = null;
+      onerror: ((event: { error: string }) => void) | null = null;
+      constructor(readonly text: string) {}
+    }
+    (window as Window & { __speechCancelCount: number }).__speechCancelCount = 0;
     Object.defineProperty(window, 'MediaRecorder', { configurable: true, value: MockMediaRecorder });
+    Object.defineProperty(window, 'SpeechSynthesisUtterance', { configurable: true, value: MockUtterance });
+    Object.defineProperty(window, 'speechSynthesis', {
+      configurable: true,
+      value: {
+        cancel() { (window as Window & { __speechCancelCount: number }).__speechCancelCount += 1; },
+        getVoices() { return []; },
+        speak(utterance: MockUtterance) { setTimeout(() => utterance.onstart?.(), 0); },
+      },
+    });
     Object.defineProperty(navigator, 'mediaDevices', {
       configurable: true,
       value: { getUserMedia: async () => ({ getTracks: () => [{ stop() {} }], getAudioTracks: () => [] }) },
@@ -222,6 +242,18 @@ test('local Whisper is selected without browser consent when its local model is 
       await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ detail: 'No local TTS provider.' }) });
       return;
     }
+    if (pathname === '/api/guide/chat') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          reply: 'I have your statement. What date did the salary first become overdue?',
+          status: 'ok',
+          model: 'test-local-model',
+        }),
+      });
+      return;
+    }
     const response = await fetchFromIsolatedApi(route);
     await route.fulfill({ response });
   });
@@ -230,11 +262,27 @@ test('local Whisper is selected without browser consent when its local model is 
   await page.goto('/case/' + caseId + '/voice');
   const conversation = page.locator('[aria-label="Guide voice and text conversation"]');
   const browserConsent = conversation.getByLabel('Allow browser-managed speech recognition only when local Whisper is unavailable');
+  const browserTtsConsent = conversation.getByLabel('Allow browser-managed spoken replies only when local LawSense voice output is unavailable');
   await expect(browserConsent).not.toBeChecked();
+  await browserTtsConsent.check();
 
   const startButton = conversation.getByRole('button', { name: 'Start voice input', exact: true });
   await expect(startButton).toHaveAttribute('title', /processed locally by faster-whisper/i);
+
+  await conversation.getByLabel('Type a message instead').fill('Please ask me one question before I add another fact.');
+  await conversation.getByRole('button', { name: 'Send typed message' }).click();
+  await expect(conversation.locator('[data-speaker="guide"]').last()).toContainText('What date did the salary first become overdue?');
+  await expect(conversation.getByRole('button', { name: 'Stop speaking', exact: true })).toBeVisible();
+
+  const cancelCountBeforeBargeIn = await page.evaluate(
+    () => (window as Window & { __speechCancelCount: number }).__speechCancelCount,
+  );
   await startButton.click();
+  await expect.poll(() => page.evaluate(
+    () => (window as Window & { __speechCancelCount: number }).__speechCancelCount,
+  )).toBeGreaterThan(cancelCountBeforeBargeIn);
+  await expect(conversation.locator('.ls-guide-call__conversationState')).toContainText('Listening');
+  await expect(conversation).toContainText('Playback stopped · text remains available');
   await conversation.getByRole('button', { name: 'Stop voice input', exact: true }).click();
 
   await expect(conversation.getByLabel('Recognized words · review before sending')).toHaveValue(
