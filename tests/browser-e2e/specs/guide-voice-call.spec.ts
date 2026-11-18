@@ -292,6 +292,79 @@ test('local Whisper is selected without browser consent when its local model is 
   await expect(browserConsent).not.toBeChecked();
 });
 
+test('a typed follow-up interrupts spoken output and keeps the previous reply readable', async ({ page }) => {
+  let guideChatRequests = 0;
+  await page.addInitScript(() => {
+    class MockUtterance {
+      lang = '';
+      rate = 1;
+      pitch = 1;
+      voice = null;
+      onstart: (() => void) | null = null;
+      onend: (() => void) | null = null;
+      onerror: ((event: { error: string }) => void) | null = null;
+      constructor(readonly text: string) {}
+    }
+    (window as Window & { __speechCancelCount: number }).__speechCancelCount = 0;
+    Object.defineProperty(window, 'SpeechSynthesisUtterance', { configurable: true, value: MockUtterance });
+    Object.defineProperty(window, 'speechSynthesis', {
+      configurable: true,
+      value: {
+        cancel() { (window as Window & { __speechCancelCount: number }).__speechCancelCount += 1; },
+        getVoices() { return []; },
+        speak(utterance: MockUtterance) { setTimeout(() => utterance.onstart?.(), 0); },
+      },
+    });
+  });
+  await page.route('**/api/**', async (route) => {
+    if (await routeLocalVoiceUnavailable(route)) return;
+    if (new URL(route.request().url()).pathname === '/api/guide/chat') {
+      guideChatRequests += 1;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          reply: guideChatRequests === 1
+            ? 'First reply: I can help. What date did the issue begin?'
+            : 'Second reply: Thank you. I will use the date you provided.',
+          status: 'ok',
+          model: 'test-local-model',
+        }),
+      });
+      return;
+    }
+    const response = await fetchFromIsolatedApi(route);
+    await route.fulfill({ response });
+  });
+
+  const caseId = await enterCase(page);
+  await page.goto('/case/' + caseId + '/voice');
+  const conversation = page.locator('[aria-label="Guide voice and text conversation"]');
+  await conversation.getByLabel('Allow browser-managed spoken replies only when local LawSense voice output is unavailable').check();
+
+  const input = conversation.getByLabel('Type a message instead');
+  await input.fill('Please explain what information is missing.');
+  await conversation.getByRole('button', { name: 'Send typed message' }).click();
+  await expect(conversation.locator('[data-speaker="guide"]').last()).toContainText('First reply');
+  await expect(conversation.getByRole('button', { name: 'Stop speaking', exact: true })).toBeVisible();
+  await expect(input).toBeEnabled();
+
+  const cancelCountBeforeTypedBargeIn = await page.evaluate(
+    () => (window as Window & { __speechCancelCount: number }).__speechCancelCount,
+  );
+  await input.fill('The issue began on 1 September.');
+  await conversation.getByRole('button', { name: 'Send typed message' }).click();
+  await expect.poll(() => page.evaluate(
+    () => (window as Window & { __speechCancelCount: number }).__speechCancelCount,
+  )).toBeGreaterThan(cancelCountBeforeTypedBargeIn);
+  await expect.poll(() => guideChatRequests).toBe(2);
+  await expect(conversation.locator('[data-speaker="guide"]').last()).toContainText('Second reply');
+  await expect(conversation).toContainText('Playback stopped · text remains available');
+  await expect(conversation.getByRole('button', { name: 'Stop speaking', exact: true })).toBeVisible();
+  await conversation.getByRole('button', { name: 'Stop speaking', exact: true }).click();
+  await expect(conversation).toContainText('Spoken reply stopped. The response remains available as text.');
+});
+
 test('the Guide presents an unavailable-model response and keeps typed text unconfirmed', async ({ page }) => {
   await page.route('**/api/**', async (route) => {
     if (await routeLocalVoiceUnavailable(route)) return;
