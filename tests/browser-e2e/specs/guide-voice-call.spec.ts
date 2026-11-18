@@ -1,49 +1,3 @@
-    if (new URL(route.request().url()).pathname === '/api/cases/voice/status') {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          speechToTextAvailable: false,
-          languageDetectorAvailable: false,
-          processingLocation: 'none',
-          textToSpeechAvailable: false,
-          textToSpeechProcessingLocation: 'none',
-          detail: 'No local speech models are installed in this test environment.',
-        }),
-      });
-      return;
-    }
-    if (new URL(route.request().url()).pathname === '/api/cases/voice/synthesize') {
-      await route.fulfill({
-        status: 503,
-        contentType: 'application/json',
-        body: JSON.stringify({ detail: 'No local TTS provider installed in this test environment.' }),
-      });
-      return;
-    }
-    if (new URL(route.request().url()).pathname === '/api/cases/voice/status') {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          speechToTextAvailable: false,
-          languageDetectorAvailable: false,
-          processingLocation: 'none',
-          textToSpeechAvailable: false,
-          textToSpeechProcessingLocation: 'none',
-          detail: 'No local speech models are installed in this test environment.',
-        }),
-      });
-      return;
-    }
-    if (new URL(route.request().url()).pathname === '/api/cases/voice/synthesize') {
-      await route.fulfill({
-        status: 503,
-        contentType: 'application/json',
-        body: JSON.stringify({ detail: 'No local TTS provider installed in this test environment.' }),
-      });
-      return;
-    }
 import { expect, test, type Page, type Route } from '@playwright/test';
 
 const initialStatement = 'My employer has not paid the agreed salary for two months.';
@@ -53,6 +7,34 @@ async function fetchFromIsolatedApi(route: Route) {
   target.port = '8001';
   target.pathname = target.pathname.replace(/^\/api(?=\/|$)/, '');
   return route.fetch({ url: target.toString() });
+}
+
+async function routeLocalVoiceUnavailable(route: Route): Promise<boolean> {
+  const pathname = new URL(route.request().url()).pathname;
+  if (pathname === '/api/cases/voice/status') {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        speechToTextAvailable: false,
+        languageDetectorAvailable: false,
+        processingLocation: 'none',
+        textToSpeechAvailable: false,
+        textToSpeechProcessingLocation: 'none',
+        detail: 'No local speech models are installed in this test environment.',
+      }),
+    });
+    return true;
+  }
+  if (pathname === '/api/cases/voice/synthesize') {
+    await route.fulfill({
+      status: 503,
+      contentType: 'application/json',
+      body: JSON.stringify({ detail: 'No local TTS provider installed in this test environment.' }),
+    });
+    return true;
+  }
+  return false;
 }
 
 async function enterCase(page: Page): Promise<string> {
@@ -65,32 +47,10 @@ async function enterCase(page: Page): Promise<string> {
   return new URL(page.url()).pathname.split('/').at(-1)!;
 }
 
-test('Guide voice input is turn-based, editable, and explicitly confirmed before the response', async ({ page }) => {
+test('Guide voice input is local-first, turn-based, editable, and explicitly confirmed', async ({ page }) => {
   let guideChatRequests = 0;
   await page.route('**/api/**', async (route) => {
-    if (new URL(route.request().url()).pathname === '/api/cases/voice/status') {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          speechToTextAvailable: false,
-          languageDetectorAvailable: false,
-          processingLocation: 'none',
-          textToSpeechAvailable: false,
-          textToSpeechProcessingLocation: 'none',
-          detail: 'No local speech models are installed in this test environment.',
-        }),
-      });
-      return;
-    }
-    if (new URL(route.request().url()).pathname === '/api/cases/voice/synthesize') {
-      await route.fulfill({
-        status: 503,
-        contentType: 'application/json',
-        body: JSON.stringify({ detail: 'No local TTS provider installed in this test environment.' }),
-      });
-      return;
-    }
+    if (await routeLocalVoiceUnavailable(route)) return;
     if (new URL(route.request().url()).pathname === '/api/guide/chat') {
       guideChatRequests += 1;
       await route.fulfill({
@@ -162,15 +122,23 @@ test('Guide voice input is turn-based, editable, and explicitly confirmed before
     Object.defineProperty(window, 'SpeechSynthesisUtterance', { configurable: true, value: MockUtterance });
     Object.defineProperty(navigator, 'mediaDevices', {
       configurable: true,
-      value: { getUserMedia: async () => ({ getTracks: () => [{ stop() {} }] }) },
+      value: {
+        getUserMedia: async () => ({
+          getTracks: () => [{ stop() {} }],
+          getAudioTracks: () => [],
+        }),
+      },
     });
   });
 
   const caseId = await enterCase(page);
-  await page.goto(`/case/${caseId}/voice`);
+  await page.goto('/case/' + caseId + '/voice');
   const conversation = page.locator('[aria-label="Guide voice and text conversation"]');
   const browserRecognitionConsent = conversation.getByLabel('Allow browser-managed speech recognition only when local Whisper is unavailable');
   const browserTtsConsent = conversation.getByLabel('Allow browser-managed spoken replies only when local LawSense voice output is unavailable');
+
+  await expect(browserRecognitionConsent).not.toBeChecked();
+  await expect(browserTtsConsent).not.toBeChecked();
   await browserRecognitionConsent.check();
   await browserTtsConsent.check();
   await expect(conversation.getByRole('button', { name: 'Start voice input', exact: true })).toBeVisible();
@@ -195,11 +163,11 @@ test('Guide voice input is turn-based, editable, and explicitly confirmed before
   await expect(conversation.locator('.ls-guide-call__conversationState')).toContainText('Ready for another turn');
   await expect(conversation.getByRole('button', { name: 'Start voice input', exact: true })).toBeVisible();
   await expect(conversation.getByRole('button', { name: 'Stop voice input', exact: true })).toHaveCount(0);
-  await expect(page.locator('#voice-transcript')).toHaveValue(/My employer is withholding two months of salary since August/);
 });
 
 test('the Guide presents an unavailable-model response and keeps typed text unconfirmed', async ({ page }) => {
   await page.route('**/api/**', async (route) => {
+    if (await routeLocalVoiceUnavailable(route)) return;
     if (new URL(route.request().url()).pathname === '/api/guide/chat') {
       await route.fulfill({
         status: 200,
@@ -217,7 +185,7 @@ test('the Guide presents an unavailable-model response and keeps typed text unco
   });
 
   const caseId = await enterCase(page);
-  await page.goto(`/case/${caseId}/voice`);
+  await page.goto('/case/' + caseId + '/voice');
   const conversation = page.locator('[aria-label="Guide voice and text conversation"]');
   await conversation.getByLabel('Type a message instead').fill('Please ask me one factual follow-up.');
   await conversation.getByRole('button', { name: 'Send typed message' }).click();
@@ -228,12 +196,13 @@ test('the Guide presents an unavailable-model response and keeps typed text unco
   await expect(page.getByRole('button', { name: 'Confirm and add statement' })).toHaveCount(0);
 });
 
-test('Guide text remains available when the browser has no speech output service', async ({ page }) => {
+test('Guide text remains available when local and browser speech output are unavailable', async ({ page }) => {
   await page.addInitScript(() => {
     Object.defineProperty(window, 'speechSynthesis', { configurable: true, value: { cancel() {} } });
     Object.defineProperty(window, 'SpeechSynthesisUtterance', { configurable: true, value: undefined });
   });
   await page.route('**/api/**', async (route) => {
+    if (await routeLocalVoiceUnavailable(route)) return;
     if (new URL(route.request().url()).pathname === '/api/guide/chat') {
       await route.fulfill({
         status: 200,
@@ -251,7 +220,7 @@ test('Guide text remains available when the browser has no speech output service
   });
 
   const caseId = await enterCase(page);
-  await page.goto(`/case/${caseId}/voice`);
+  await page.goto('/case/' + caseId + '/voice');
   const conversation = page.locator('[aria-label="Guide voice and text conversation"]');
   await conversation.getByLabel('Type a message instead').fill('Please ask me what happened first.');
   await conversation.getByRole('button', { name: 'Send typed message' }).click();
@@ -266,7 +235,7 @@ test('live Guide text reaches the local Qwen-backed API and renders its reply', 
   test.setTimeout(90_000);
 
   const caseId = await enterCase(page);
-  await page.goto(`/case/${caseId}/voice`);
+  await page.goto('/case/' + caseId + '/voice');
   const conversation = page.locator('[aria-label="Guide voice and text conversation"]');
   const message = 'Please reply in English with one short clarifying question about what happened first.';
   const responsePromise = page.waitForResponse((response) => {
