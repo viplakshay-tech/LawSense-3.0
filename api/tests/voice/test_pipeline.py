@@ -16,6 +16,7 @@ from app.engines.voice import (
     LocalLanguageDetector,
     LocalWhisperAdapter,
     LocalWhisperSpeechToTextProvider,
+    PiperLocalTextToSpeechProvider,
     ProviderUnavailableError,
     VoiceLanguage,
     VoiceProcessingStatus,
@@ -362,6 +363,71 @@ class VoicePipelineTests(unittest.TestCase):
         self.assertFalse(provider.is_available)
         with self.assertRaises(ProviderUnavailableError):
             provider.synthesize("Hello", VoiceLanguage.ENGLISH)
+
+
+    def test_piper_provider_synthesizes_from_an_installed_local_model(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            executable = root / "piper.exe"
+            model = root / "hi_IN-priyamvada-medium.onnx"
+            executable.write_bytes(b"local executable marker")
+            model.write_bytes(b"local model marker")
+            Path(f"{model}.json").write_text("{}", encoding="utf-8")
+            provider = PiperLocalTextToSpeechProvider(
+                str(executable),
+                model_paths={VoiceLanguage.HINDI: model},
+            )
+            self.assertTrue(provider.is_available)
+            observed_output_paths: list[Path] = []
+
+            def fake_piper(command: list[str], **kwargs: object):
+                output_path = Path(command[command.index("--output_file") + 1])
+                observed_output_paths.append(output_path)
+                output_path.write_bytes(b"RIFFpiper-local-audio")
+                return SimpleNamespace(returncode=0, stderr=b"")
+
+            with patch("app.engines.voice.providers.subprocess.run", side_effect=fake_piper) as run:
+                audio = provider.synthesize("नमस्ते, मैं आपकी बात सुन रही हूँ।", VoiceLanguage.HINDI)
+
+            self.assertEqual(audio, b"RIFFpiper-local-audio")
+            self.assertEqual(run.call_args.kwargs["input"], "नमस्ते, मैं आपकी बात सुन रही हूँ।".encode("utf-8"))
+            self.assertIn(str(model), run.call_args.args[0])
+            self.assertEqual(len(observed_output_paths), 1)
+            self.assertFalse(observed_output_paths[0].exists())
+
+    def test_piper_hinglish_uses_the_configured_hindi_voice_only_when_no_hinglish_voice_exists(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            executable = root / "piper.exe"
+            model = root / "hi_IN-priyamvada-medium.onnx"
+            executable.write_bytes(b"local executable marker")
+            model.write_bytes(b"local model marker")
+            Path(f"{model}.json").write_text("{}", encoding="utf-8")
+            provider = PiperLocalTextToSpeechProvider(
+                str(executable),
+                model_paths={VoiceLanguage.HINDI: model},
+            )
+            self.assertTrue(provider.is_available)
+
+            def fake_piper(command: list[str], **kwargs: object):
+                Path(command[command.index("--output_file") + 1]).write_bytes(b"RIFFhinglish-audio")
+                return SimpleNamespace(returncode=0, stderr=b"")
+
+            with patch("app.engines.voice.providers.subprocess.run", side_effect=fake_piper) as run:
+                audio = provider.synthesize("Aap apna agreement share kar sakte hain?", VoiceLanguage.HINGLISH)
+
+            self.assertEqual(audio, b"RIFFhinglish-audio")
+            self.assertIn(str(model), run.call_args.args[0])
+
+    def test_piper_provider_fails_closed_when_a_language_model_is_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            executable = Path(directory) / "piper.exe"
+            executable.write_bytes(b"local executable marker")
+            provider = PiperLocalTextToSpeechProvider(str(executable))
+            self.assertFalse(provider.is_available)
+            with self.assertRaises(ProviderUnavailableError):
+                provider.synthesize("Hello", VoiceLanguage.ENGLISH)
+
 
 
 if __name__ == "__main__":
