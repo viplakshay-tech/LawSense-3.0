@@ -23,7 +23,7 @@ export const humanAvatarAdapter: AvatarAdapter = {
     visemeTiming: true,
     speechInterruption: true,
     emotion: true,
-    gaze: false,
+    gaze: true,
     gestures: false,
     liveAudioOutput: false,
   },
