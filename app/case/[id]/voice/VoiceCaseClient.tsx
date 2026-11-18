@@ -395,6 +395,7 @@ export default function VoiceCaseClient({ id, immersive = false }: { id: string;
               <GuideConversation
                 draftId={draftId}
                 caseId={caseData.id}
+                caseState={caseData}
                 language={language}
                 openQuestions={caseData.unknowns}
                 hasDraft={Boolean(transcript.trim())}
