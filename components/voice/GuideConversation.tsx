@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { Mic, MicOff, RotateCcw, Send } from 'lucide-react';
 import type { GuideVoiceEvent, VoiceLanguage, VoiceRecognitionProvider } from '@/components/guide-runtime/voice-adapter/events';
 import VoiceCapture, { type RecognitionLanguage, type VoiceCaptureEvent } from './VoiceCapture';
-import { sendGuideMessage, type GuideActionName } from '@/lib/api';
+import { sendGuideMessage, synthesizeVoiceSpeech, type GuideActionName } from '@/lib/api';
 import { GuideModelStatusBanner } from '@/components/guide-presence/GuideModelStatusBanner';
 import {
   getGuideConversationHistory,
@@ -137,6 +137,7 @@ export default function GuideConversation({
   const [transcriptDraft, setTranscriptDraft] = useState('');
   const [captureBusy, setCaptureBusy] = useState(false);
   const [browserRecognitionConsent, setBrowserRecognitionConsent] = useState(false);
+  const [browserTtsConsent, setBrowserTtsConsent] = useState(false);
   const [nativeCapabilities, setNativeCapabilities] = useState<NativeGuideAudioCapabilities | null>(null);
   const [speechUnavailable, setSpeechUnavailable] = useState(false);
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
@@ -144,6 +145,10 @@ export default function GuideConversation({
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const speechStartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const speechOperationRef = useRef(0);
+  const localAudioRef = useRef<HTMLAudioElement | null>(null);
+  const localAudioUrlRef = useRef<string | null>(null);
+  const localTtsRequestRef = useRef<AbortController | null>(null);
+  const browserTtsConsentRef = useRef(false);
   const callActiveRef = useRef(false);
   const shouldListenRef = useRef(false);
   const mountedRef = useRef(false);
@@ -187,6 +192,25 @@ export default function GuideConversation({
   const updateGuideAudio = useCallback((turnId: string, audio: NonNullable<GuideSessionTurn['audio']>) => {
     updateTurn(turnId, { audio });
   }, [updateTurn]);
+
+  const releaseLocalAudio = useCallback(() => {
+    localTtsRequestRef.current?.abort();
+    localTtsRequestRef.current = null;
+    const audio = localAudioRef.current;
+    if (audio) {
+      audio.onplay = null;
+      audio.onended = null;
+      audio.onerror = null;
+      audio.pause();
+      audio.removeAttribute('src');
+      audio.load();
+      localAudioRef.current = null;
+    }
+    if (localAudioUrlRef.current) {
+      URL.revokeObjectURL(localAudioUrlRef.current);
+      localAudioUrlRef.current = null;
+    }
+  }, []);
 
   const updateTranscriptDraft = useCallback((transcript: string) => {
     transcriptDraftRef.current = transcript;
