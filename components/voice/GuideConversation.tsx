@@ -1109,7 +1109,6 @@ export default function GuideConversation({
               if (status === 'listening') transition('listening');
               else if (status === 'processing') transition('processing', 'Preparing your voice transcript…');
               else if (transcriptDraftRef.current) transition('paused', 'Transcript ready for review.');
-              else transition('idle');
             }}
             onCaptureEvent={(event: VoiceCaptureEvent) => {
               if (event.type === 'capture_started') {
@@ -1123,6 +1122,7 @@ export default function GuideConversation({
                   language: asVoiceLanguage(event.language),
                 });
               } else if (event.type === 'capture_cancelled') {
+                transition(transcriptDraftRef.current ? 'paused' : 'idle', transcriptDraftRef.current ? 'Transcript retained for review.' : 'Voice capture cancelled.');
                 onRuntimeEventRef.current?.({
                   type: 'capture_cancelled',
                   draftId: draftIdRef.current,
@@ -1130,6 +1130,7 @@ export default function GuideConversation({
                   transcriptRetained: Boolean(transcriptDraftRef.current),
                 });
               } else {
+                transition('error', event.detail);
                 onRuntimeEventRef.current?.({
                   type: 'capture_failed',
                   draftId: draftIdRef.current,
