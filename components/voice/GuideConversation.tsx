@@ -928,17 +928,18 @@ export default function GuideConversation({
   const repeatResponse = useCallback(() => {
     const response = lastResponseRef.current;
     if (!response || transcriptDraftRef.current || presentation.status === 'listening' || presentation.status === 'processing' || presentation.status === 'speaking') return;
-    speakResponse(response.text, response.id, () => transition(callActiveRef.current ? 'paused' : 'idle', 'Reply ready. Tap “Speak to Guide” when you want to record another turn, or type below.'));
+    speakResponse(response.text, response.id, () => transition(callActiveRef.current ? 'paused' : 'idle', 'Reply ready. Start another voice turn or type below.'));
   }, [presentation.status, speakResponse, transition]);
 
   const sendTypedMessage = useCallback((event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const message = typedMessage.trim();
-    if (!message || disabled || captureBusy || speechOutputPending || ['requesting_permission', 'processing', 'speaking'].includes(presentation.status)) return;
+    if (!message || disabled || captureBusy || presentation.status === 'requesting_permission' || (presentation.status === 'processing' && !speechOutputPending)) return;
+    if (speechOutputPending || presentation.status === 'speaking') stopSpeech();
     if (presentation.status === 'listening') pauseListening();
     setTypedMessage('');
     void receiveTurn(message, 'text');
-  }, [captureBusy, disabled, pauseListening, presentation.status, receiveTurn, speechOutputPending, typedMessage]);
+  }, [captureBusy, disabled, pauseListening, presentation.status, receiveTurn, speechOutputPending, stopSpeech, typedMessage]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -967,8 +968,8 @@ export default function GuideConversation({
     };
   }, [releaseLocalAudio, releaseStream]);
 
-  const canSubmitText = !disabled && !captureBusy && !speechOutputPending;
-  const textSubmissionBusy = captureBusy || speechOutputPending || ['requesting_permission', 'processing', 'speaking'].includes(presentation.status);
+  const canSubmitText = !disabled && !captureBusy;
+  const textSubmissionBusy = captureBusy || presentation.status === 'requesting_permission' || (presentation.status === 'processing' && !speechOutputPending);
   const active = callActive || presentation.status === 'requesting_permission';
   const statusLabel = speechOutputPending
     ? 'Preparing spoken reply'
@@ -1103,10 +1104,13 @@ export default function GuideConversation({
             language={language}
             requireLocalProvider
             allowBrowserFallback={browserRecognitionConsent}
-            disabled={disabled || Boolean(transcriptDraft) || speechOutputPending || presentation.status === 'speaking' || (presentation.status === 'processing' && !captureBusy)}
+            disabled={disabled || Boolean(transcriptDraft) || (presentation.status === 'processing' && !captureBusy && !speechOutputPending)}
             onCaptureStateChange={setCaptureBusy}
             onCaptureStatusChange={(status) => {
-              if (status === 'listening') transition('listening');
+              if (status === 'listening') {
+                if (speechOutputPending || presentation.status === 'speaking') stopSpeech();
+                transition('listening');
+              }
               else if (status === 'processing') transition('processing', 'Preparing your voice transcript…');
               else if (transcriptDraftRef.current) transition('paused', 'Transcript ready for review.');
             }}
