@@ -143,7 +143,7 @@ test('Guide voice input is local-first, turn-based, editable, and explicitly con
   await browserRecognitionConsent.check();
   await browserTtsConsent.check();
   await expect(conversation.getByRole('button', { name: 'Start voice input', exact: true })).toBeVisible();
-  await expect(conversation).toContainText('browser speech recognition or spoken replies may use your browser’s configured provider');
+  await expect(conversation).toContainText(/browser speech recognition or spoken replies may use your browser’s configured provider/i);
 
   await conversation.getByRole('button', { name: 'Start voice input', exact: true }).click();
   const transcriptReview = conversation.getByLabel('Recognized words · review before sending');
