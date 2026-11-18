@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Mic, MicOff, RotateCcw, Send } from 'lucide-react';
-import type { GuideVoiceEvent, VoiceLanguage } from '@/components/guide-runtime/voice-adapter/events';
-import type { RecognitionLanguage } from './VoiceCapture';
+import type { GuideVoiceEvent, VoiceLanguage, VoiceRecognitionProvider } from '@/components/guide-runtime/voice-adapter/events';
+import VoiceCapture, { type RecognitionLanguage, type VoiceCaptureEvent } from './VoiceCapture';
 import { sendGuideMessage, type GuideActionName } from '@/lib/api';
 import { GuideModelStatusBanner } from '@/components/guide-presence/GuideModelStatusBanner';
 import {
@@ -135,6 +135,9 @@ export default function GuideConversation({
   const [interimTranscript, setInterimTranscript] = useState('');
   const [typedMessage, setTypedMessage] = useState('');
   const [transcriptDraft, setTranscriptDraft] = useState('');
+  const [captureBusy, setCaptureBusy] = useState(false);
+  const [browserRecognitionConsent, setBrowserRecognitionConsent] = useState(false);
+  const browserRecognitionConsentRef = useRef(false);
   const [nativeCapabilities, setNativeCapabilities] = useState<NativeGuideAudioCapabilities | null>(null);
   const [speechUnavailable, setSpeechUnavailable] = useState(false);
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
@@ -150,6 +153,7 @@ export default function GuideConversation({
   const recognitionErrorRef = useRef<{ status: GuideConversationStatus; detail: string } | null>(null);
   const finalTranscriptRef = useRef('');
   const currentCaptureIdRef = useRef('');
+  const currentCaptureProviderRef = useRef<Exclude<VoiceRecognitionProvider, 'typed'>>('server');
   const questionIndexRef = useRef(0);
   const questionsRef = useRef(openQuestions);
   const hasDraftRef = useRef(hasDraft);
@@ -814,8 +818,8 @@ export default function GuideConversation({
     };
   }, [releaseStream]);
 
-  const canSubmitText = !disabled;
-  const textSubmissionBusy = ['requesting_permission', 'processing', 'speaking'].includes(presentation.status);
+  const canSubmitText = !disabled && !captureBusy;
+  const textSubmissionBusy = captureBusy || ['requesting_permission', 'processing', 'speaking'].includes(presentation.status);
   const active = callActive || presentation.status === 'requesting_permission';
   const statusLabel = presentation.status === 'requesting_permission'
     ? 'Requesting microphone permission'
@@ -943,7 +947,64 @@ export default function GuideConversation({
       )}
 
       <div className="ls-guide-call__conversationControls" aria-label="Voice turn controls">
-        {!active && presentation.status !== 'unsupported' && (
+        {!nativeCapabilities?.recognitionAvailable && (
+          <VoiceCapture
+            language={language}
+            requireLocalProvider
+            allowBrowserFallback={browserRecognitionConsent}
+            disabled={disabled || captureBusy || textSubmissionBusy || Boolean(transcriptDraft)}
+            onCaptureStateChange={setCaptureBusy}
+            onCaptureStatusChange={(status) => {
+              if (status === 'listening') transition('listening');
+              else if (status === 'processing') transition('processing', 'Preparing your voice transcript…');
+              else if (transcriptDraftRef.current) transition('paused', 'Transcript ready for review.');
+              else transition('idle');
+            }}
+            onCaptureEvent={(event: VoiceCaptureEvent) => {
+              if (event.type === 'capture_started') {
+                currentCaptureIdRef.current = event.captureId;
+                currentCaptureProviderRef.current = event.provider;
+                onRuntimeEventRef.current?.({
+                  type: 'capture_started',
+                  draftId: draftIdRef.current,
+                  captureId: event.captureId,
+                  provider: event.provider,
+                  language: asVoiceLanguage(event.language),
+                });
+              } else if (event.type === 'capture_cancelled') {
+                onRuntimeEventRef.current?.({
+                  type: 'capture_cancelled',
+                  draftId: draftIdRef.current,
+                  captureId: event.captureId,
+                  transcriptRetained: Boolean(transcriptDraftRef.current),
+                });
+              } else {
+                onRuntimeEventRef.current?.({
+                  type: 'capture_failed',
+                  draftId: draftIdRef.current,
+                  captureId: event.captureId,
+                  detail: event.detail,
+                });
+              }
+            }}
+            onTranscript={(transcript) => {
+              const finalText = transcript.trim();
+              if (!finalText) return;
+              updateTranscriptDraft(finalText);
+              setInterimTranscript('');
+              transition('paused', 'Review your transcript before sending it to the Guide.');
+              onRuntimeEventRef.current?.({
+                type: 'transcript_received',
+                draftId: draftIdRef.current,
+                captureId: currentCaptureIdRef.current || createId('capture'),
+                transcript: finalText,
+                provider: currentCaptureProviderRef.current,
+                language: asVoiceLanguage(languageRef.current),
+              });
+            }}
+          />
+        )}
+        {!active && nativeCapabilities?.recognitionAvailable && presentation.status !== 'unsupported' && (
           <button type="button" className="ls-guide-call__startCallButton" onClick={() => void startCall()} disabled={disabled}>
             <Mic aria-hidden="true" />{presentation.status === 'ended' || presentation.status === 'permission_denied' || presentation.status === 'error' ? 'Tap to speak again' : 'Tap to speak'}
           </button>
@@ -971,8 +1032,21 @@ export default function GuideConversation({
       </div>
 
       <p className="ls-guide-call__conversationPrivacy">
-        On Android, speech recognition and spoken replies use installed on-device Android services only; the app will report if an offline service is unavailable. Desktop browser speech may use that browser’s configured provider. Guide replies use the configured LawSense server’s local Ollama model. Audio is not added to the case, and recognized words stay editable until you confirm them.
+        On Android, available on-device speech services are preferred. On desktop, LawSense uses local Whisper when configured; browser speech recognition may use your browser’s configured provider and is disabled until you opt in below. Guide replies use the configured LawSense server’s local Ollama model. Audio is not added to the case, and recognized words stay editable until you confirm them.
       </p>
+      {!nativeCapabilities?.recognitionAvailable && (
+        <label className="ls-guide-call__speechConsent">
+          <input
+            type="checkbox"
+            checked={browserRecognitionConsent}
+            onChange={(event) => {
+              browserRecognitionConsentRef.current = event.target.checked;
+              setBrowserRecognitionConsent(event.target.checked);
+            }}
+          />
+          <span>Allow browser-managed speech recognition only when local Whisper is unavailable</span>
+        </label>
+      )}
     </section>
   );
 }
