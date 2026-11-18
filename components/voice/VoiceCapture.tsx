@@ -186,8 +186,6 @@ export default function VoiceCapture({ language, disabled = false, allowBrowserF
 
   useEffect(() => {
     let active = true;
-    setProviderMode('checking');
-    setUnavailableDetail(null);
     const browserAvailable = provider.current.isAvailable;
     const canRecordAudio = Boolean(
       typeof window !== 'undefined' &&
