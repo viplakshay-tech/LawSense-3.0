@@ -276,6 +276,7 @@ export default function GuideConversation({
         const activeSpeech = nativeTtsRef.current;
         if (!activeSpeech || event.responseId !== activeSpeech.responseId || activeSpeech.operation !== speechOperationRef.current) return;
         updateGuideAudio(activeSpeech.responseId, 'speaking');
+        setSpeechOutputPending(false);
         setSpeechUnavailable(false);
         transition('speaking');
         onRuntimeEventRef.current?.({ type: 'speech_started', responseId: activeSpeech.responseId });
@@ -287,6 +288,7 @@ export default function GuideConversation({
         setSpeechOutputPending(false);
         if (speechStartTimerRef.current) clearTimeout(speechStartTimerRef.current);
         speechStartTimerRef.current = null;
+        setSpeechOutputPending(false);
         updateGuideAudio(activeSpeech.responseId, 'spoken');
         onRuntimeEventRef.current?.({ type: 'speech_finished', responseId: activeSpeech.responseId });
         activeSpeech.afterSpeech();
@@ -296,6 +298,7 @@ export default function GuideConversation({
         if (!activeSpeech || event.responseId !== activeSpeech.responseId) return;
         nativeTtsRef.current = null;
         const detail = typeof event.detail === 'string' ? event.detail : 'Android could not play this response. The text remains available.';
+        setSpeechOutputPending(false);
         setSpeechUnavailable(true);
         updateGuideAudio(activeSpeech.responseId, 'failed');
         transition('error', detail);
