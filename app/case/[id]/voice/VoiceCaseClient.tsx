@@ -61,6 +61,8 @@ export default function VoiceCaseClient({ id, immersive = false }: { id: string;
   const [requestWorking, setRequestWorking] = useState(false);
   const [captureBusy, setCaptureBusy] = useState(false);
   const [captureStatus, setCaptureStatus] = useState<'idle' | 'listening' | 'processing'>('idle');
+  const [browserRecognitionConsent, setBrowserRecognitionConsent] = useState(false);
+  const [browserTtsConsent, setBrowserTtsConsent] = useState(false);
   const [confirmationOpen, setConfirmationOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingCommit, setPendingCommit] = useState<PendingCommit | null>(null);
@@ -446,6 +448,8 @@ export default function VoiceCaseClient({ id, immersive = false }: { id: string;
             </label>
             <VoiceCapture
               language={language}
+              requireLocalProvider
+              allowBrowserFallback={browserRecognitionConsent}
               disabled={working || committed || callBusy}
               onCaptureStateChange={setCaptureBusy}
               onCaptureStatusChange={setCaptureStatus}
@@ -453,6 +457,15 @@ export default function VoiceCaseClient({ id, immersive = false }: { id: string;
               onTranscript={receiveTranscript}
             />
           </div>
+          <label className="mt-3 flex items-start gap-2 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+            <input
+              type="checkbox"
+              checked={browserRecognitionConsent}
+              onChange={(event) => setBrowserRecognitionConsent(event.target.checked)}
+              className="mt-0.5 accent-violet-600"
+            />
+            <span>Allow browser-managed speech recognition only when local Whisper is unavailable.</span>
+          </label>
 
           <label className="mt-5 block text-sm font-medium text-slate-200" htmlFor="voice-transcript">
             {committed ? 'Confirmed transcript · saved to this case' : 'Live transcript · edit anything that was misheard'}
@@ -577,13 +590,25 @@ export default function VoiceCaseClient({ id, immersive = false }: { id: string;
           )}
 
           {guideResponse && (
+            <>
+              <label className="mt-5 flex items-start gap-2 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+                <input
+                  type="checkbox"
+                  checked={browserTtsConsent}
+                  onChange={(event) => setBrowserTtsConsent(event.target.checked)}
+                  className="mt-0.5 accent-violet-600"
+                />
+                <span>Allow browser-managed spoken replies only when local LawSense voice output is unavailable.</span>
+              </label>
             <VoiceOutput
               key={guideResponse.id}
               text={guideResponse.text}
               language={guideResponse.language}
               responseId={guideResponse.id}
               onEvent={emitVoiceEvent}
+              allowBrowserFallback={browserTtsConsent}
             />
+            </>
           )}
             </section>
           </div>
