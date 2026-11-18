@@ -753,3 +753,130 @@
     min-height: 20rem;
   }
 }
+
+
+/* Saved-case progress drawer inside the virtual consultation */
+.ls-guide-call__caseProgress {
+  margin: .85rem 0;
+  overflow: hidden;
+  border: 1px solid rgba(126, 183, 190, .18);
+  border-radius: .95rem;
+  background: linear-gradient(135deg, rgba(25, 43, 52, .72), rgba(11, 20, 29, .82));
+}
+.ls-guide-call__caseProgressSummary {
+  display: flex;
+  min-height: 3rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  padding: .75rem 1rem;
+  color: #d9e8e8;
+  cursor: pointer;
+  list-style: none;
+  font-size: .76rem;
+  font-weight: 680;
+}
+.ls-guide-call__caseProgressSummary::-webkit-details-marker {
+  display: none;
+}
+.ls-guide-call__caseProgressSummary span:last-child {
+  color: #91b9bc;
+  text-align: right;
+  font-size: .66rem;
+  font-weight: 560;
+}
+.ls-guide-call__caseProgress[open] .ls-guide-call__caseProgressSummary {
+  border-bottom: 1px solid rgba(126, 183, 190, .13);
+}
+.ls-guide-call__caseProgressBody {
+  padding: .85rem 1rem 1rem;
+}
+.ls-guide-call__caseProgressGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .55rem;
+}
+.ls-guide-call__caseProgressGrid > div {
+  min-width: 0;
+  padding: .65rem .7rem;
+  border: 1px solid rgba(255, 255, 255, .055);
+  border-radius: .7rem;
+  background: rgba(255, 255, 255, .025);
+}
+.ls-guide-call__caseProgressGrid strong {
+  display: block;
+  color: #e8f2ef;
+  font-size: 1.12rem;
+  font-weight: 650;
+  line-height: 1.15;
+}
+.ls-guide-call__caseProgressGrid span {
+  display: block;
+  margin-top: .25rem;
+  color: #8e9fa5;
+  font-size: .61rem;
+  line-height: 1.35;
+}
+.ls-guide-call__caseProgressSection {
+  margin-top: .9rem;
+}
+.ls-guide-call__caseProgressSection h3 {
+  margin: 0 0 .4rem;
+  color: #b7d3d2;
+  font-size: .68rem;
+  font-weight: 680;
+}
+.ls-guide-call__caseProgressSection ul {
+  display: grid;
+  gap: .35rem;
+  margin: 0;
+  padding-left: 1.1rem;
+  color: #c0c8ca;
+  font-size: .68rem;
+  line-height: 1.5;
+}
+.ls-guide-call__caseProgressNote {
+  margin: .85rem 0 0;
+  color: #7f9198;
+  font-size: .61rem;
+  line-height: 1.5;
+}
+.ls-guide-call__caseProgressActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  margin-top: .9rem;
+}
+.ls-guide-call__caseProgressActions button {
+  min-height: 2.25rem;
+  padding: .45rem .75rem;
+  border: 1px solid rgba(126, 183, 190, .24);
+  border-radius: .65rem;
+  background: rgba(126, 183, 190, .08);
+  color: #d6e8e7;
+  font-size: .67rem;
+  font-weight: 650;
+  transition: background .18s, border-color .18s, transform .18s;
+}
+.ls-guide-call__caseProgressActions button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: rgba(126, 183, 190, .48);
+  background: rgba(126, 183, 190, .15);
+}
+.ls-guide-call__caseProgressActions button:disabled {
+  cursor: not-allowed;
+  opacity: .5;
+}
+@media (max-width: 36rem) {
+  .ls-guide-call__caseProgressGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .ls-guide-call__caseProgressSummary {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: .2rem;
+  }
+  .ls-guide-call__caseProgressSummary span:last-child {
+    text-align: left;
+  }
+}
