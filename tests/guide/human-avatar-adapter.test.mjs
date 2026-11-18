@@ -25,11 +25,11 @@ test('the 3D avatar uses the web-only entry point and same-origin assets', async
   assert.doesNotMatch(renderer, /humanforge\/human/);
   assert.match(renderer, /const ASSET_BASE = '\/lawsense-human'/);
   assert.match(renderer, /READY\.json/);
-  assert.match(renderer, /jawOpen/);
-  assert.match(renderer, /mouthPucker/);
-  assert.match(renderer, /mouthClose/);
+  assert.match(renderer, /mouth-open/);
+  assert.match(renderer, /mouth-pursing/);
+  assert.match(renderer, /mouth-compression/);
   assert.match(renderer, /currentTimeMs/);
-  assert.match(renderer, /setExpression\('eyeBlinkLeft'/);
+  assert.match(renderer, /setExpression\('eye-left-closure'/);
   assert.match(renderer, /props\.reducedMotion/);
 });
 
