@@ -11,29 +11,29 @@ const ASSET_BASE = '/lawsense-human';
 
 const EXPRESSION_WEIGHTS: Record<AvatarSurfaceProps['expression'], Record<string, number>> = {
   calm: {},
-  attentive: { browInnerUpLeft: 0.08, browInnerUpRight: 0.08, eyeWideLeft: 0.04, eyeWideRight: 0.04 },
-  thoughtful: { browInnerUpLeft: 0.05, browInnerUpRight: 0.05, mouthPress: 0.06 },
-  curious: { browOuterUpLeft: 0.16, browOuterUpRight: 0.08 },
-  warm: { mouthSmile: 0.16 },
-  grounded: { mouthPress: 0.05 },
-  uncertain: { browInnerUpLeft: 0.18, browInnerUpRight: 0.18 },
-  concerned: { browInnerUpLeft: 0.18, browInnerUpRight: 0.18, mouthFrown: 0.08 },
-  compassionate: { browInnerUpLeft: 0.12, browInnerUpRight: 0.12, mouthSmile: 0.07 },
-  steady: { mouthPress: 0.04 },
-  apologetic: { browInnerUpLeft: 0.15, browInnerUpRight: 0.15, mouthFrown: 0.08 },
+  attentive: { eyebrows-left-inner-up: 0.08, eyebrows-right-inner-up: 0.08, eye-left-opened-up: 0.04, eye-right-opened-up: 0.04 },
+  thoughtful: { eyebrows-left-inner-up: 0.05, eyebrows-right-inner-up: 0.05, mouth-compression: 0.06 },
+  curious: { eyebrows-left-extern-up: 0.16, eyebrows-right-extern-up: 0.08 },
+  warm: { mouth-corner-puller: 0.16 },
+  grounded: { mouth-compression: 0.05 },
+  uncertain: { eyebrows-left-inner-up: 0.18, eyebrows-right-inner-up: 0.18 },
+  concerned: { eyebrows-left-inner-up: 0.18, eyebrows-right-inner-up: 0.18, mouth-depression: 0.08 },
+  compassionate: { eyebrows-left-inner-up: 0.12, eyebrows-right-inner-up: 0.12, mouth-corner-puller: 0.07 },
+  steady: { mouth-compression: 0.04 },
+  apologetic: { eyebrows-left-inner-up: 0.15, eyebrows-right-inner-up: 0.15, mouth-depression: 0.08 },
 };
 
 const VISEME_WEIGHTS: Record<AvatarViseme, Record<string, number>> = {
   sil: {},
   rest: {},
-  A: { jawOpen: 0.68, mouthFunnel: 0.08 },
-  E: { jawOpen: 0.28, mouthSmile: 0.12, mouthStretch: 0.12 },
-  I: { jawOpen: 0.18, mouthSmile: 0.22, mouthStretch: 0.18 },
-  O: { jawOpen: 0.30, mouthPucker: 0.48, mouthFunnel: 0.25 },
-  U: { jawOpen: 0.12, mouthPucker: 0.58, mouthFunnel: 0.38 },
-  M: { mouthClose: 0.48, mouthPress: 0.24 },
-  FV: { jawOpen: 0.08, mouthPress: 0.26 },
-  L: { jawOpen: 0.28, mouthStretch: 0.06 },
+  A: { mouth-open: 0.68, mouth-protusion: 0.08 },
+  E: { mouth-open: 0.28, mouth-corner-puller: 0.12, mouth-retraction: 0.12 },
+  I: { mouth-open: 0.18, mouth-corner-puller: 0.22, mouth-retraction: 0.18 },
+  O: { mouth-open: 0.30, mouth-pursing: 0.48, mouth-protusion: 0.25 },
+  U: { mouth-open: 0.12, mouth-pursing: 0.58, mouth-protusion: 0.38 },
+  M: { mouth-compression: 0.48, mouth-compression: 0.24 },
+  FV: { mouth-open: 0.08, mouth-compression: 0.26 },
+  L: { mouth-open: 0.28, mouth-retraction: 0.06 },
 };
 
 const GUIDE_CONFIG = {
@@ -61,9 +61,9 @@ function expressionWeights(props: AvatarSurfaceProps): Record<string, number> {
     }
   }
   if (props.speechState === 'paused' || props.speechState === 'interrupted' || props.speechState === 'idle') {
-    weights.jawOpen = 0;
-    weights.mouthPucker = 0;
-    weights.mouthFunnel = 0;
+    weights.mouth-open = 0;
+    weights.mouth-pursing = 0;
+    weights.mouth-protusion = 0;
   }
   return weights;
 }
@@ -138,8 +138,8 @@ function HumanAvatarCanvas(props: AvatarSurfaceProps) {
         const animate = (now: number) => {
           const progress = Math.min(1, (now - startedAt) / 150);
           const weight = progress < 0.5 ? progress * 2 : (1 - progress) * 2;
-          avatar.setExpression('eyeBlinkLeft', weight);
-          avatar.setExpression('eyeBlinkRight', weight);
+          avatar.setExpression('eye-left-closure', weight);
+          avatar.setExpression('eye-right-closure', weight);
           canvasRef.current?.render();
           if (progress < 1) frame = window.requestAnimationFrame(animate);
           else scheduleBlink();
@@ -151,8 +151,8 @@ function HumanAvatarCanvas(props: AvatarSurfaceProps) {
     return () => {
       if (timeout !== undefined) window.clearTimeout(timeout);
       if (frame !== undefined) window.cancelAnimationFrame(frame);
-      avatar.setExpression('eyeBlinkLeft', 0);
-      avatar.setExpression('eyeBlinkRight', 0);
+      avatar.setExpression('eye-left-closure', 0);
+      avatar.setExpression('eye-right-closure', 0);
       canvasRef.current?.render();
     };
   }, [avatarReady, props.reducedMotion]);
