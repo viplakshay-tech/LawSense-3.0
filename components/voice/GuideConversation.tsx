@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { Mic, MicOff, RotateCcw, Send } from 'lucide-react';
 import type { GuideVoiceEvent, VoiceLanguage, VoiceRecognitionProvider } from '@/components/guide-runtime/voice-adapter/events';
 import VoiceCapture, { type RecognitionLanguage, type VoiceCaptureEvent } from './VoiceCapture';
-import { sendGuideMessage, synthesizeVoiceSpeech, type GuideActionName } from '@/lib/api';
+import { sendGuideMessage, synthesizeVoiceSpeech, type CaseState, type GuideActionName } from '@/lib/api';
 import { GuideModelStatusBanner } from '@/components/guide-presence/GuideModelStatusBanner';
 import {
   getGuideConversationHistory,
@@ -68,6 +68,7 @@ interface RecognitionWindow extends Window {
 interface GuideConversationProps {
   draftId: string;
   caseId: string;
+  caseState: CaseState | null;
   language: RecognitionLanguage;
   openQuestions: readonly string[];
   hasDraft: boolean;
@@ -116,6 +117,7 @@ function recognitionErrorMessage(code: string): { status: GuideConversationStatu
 export default function GuideConversation({
   draftId,
   caseId,
+  caseState,
   language,
   openQuestions,
   hasDraft,
@@ -971,6 +973,12 @@ export default function GuideConversation({
   const canSubmitText = !disabled && !captureBusy;
   const textSubmissionBusy = captureBusy || presentation.status === 'requesting_permission' || (presentation.status === 'processing' && !speechOutputPending);
   const active = callActive || presentation.status === 'requesting_permission';
+  const caseProgressActions = availableActions.filter((action) =>
+    action.type === 'OPEN_LEGAL_ADVISORY' ||
+    action.type === 'OPEN_JOURNEY' ||
+    action.type === 'OPEN_DRAFTING'
+  );
+
   const statusLabel = speechOutputPending
     ? 'Preparing spoken reply'
     : presentation.status === 'requesting_permission'
@@ -1010,6 +1018,47 @@ export default function GuideConversation({
         </span>
       </div>
       <GuideModelStatusBanner />
+
+      {caseState && (
+        <details className="ls-guide-call__caseProgress" aria-label="Case progress">
+          <summary className="ls-guide-call__caseProgressSummary">
+            <span>Case progress</span>
+            <span>{caseState.facts.length} facts · {caseState.unknowns.length} open questions</span>
+          </summary>
+          <div className="ls-guide-call__caseProgressBody">
+            <div className="ls-guide-call__caseProgressGrid">
+              <div><strong>{caseState.facts.length}</strong><span>Recorded facts</span></div>
+              <div><strong>{caseState.evidence.length}</strong><span>Evidence items</span></div>
+              <div><strong>{caseState.documents.length}</strong><span>Documents</span></div>
+              <div><strong>{caseState.legalIssues.length}</strong><span>Legal issues</span></div>
+              <div><strong>{caseState.unknowns.length}</strong><span>Open questions</span></div>
+              <div><strong>{caseState.conflicts.length}</strong><span>Conflicts</span></div>
+            </div>
+            {caseState.unknowns.length > 0 && (
+              <div className="ls-guide-call__caseProgressSection">
+                <h3>Still to clarify</h3>
+                <ul>{caseState.unknowns.slice(0, 3).map((question, index) => <li key={index}>{question}</li>)}</ul>
+              </div>
+            )}
+            {caseState.conflicts.length > 0 && (
+              <div className="ls-guide-call__caseProgressSection">
+                <h3>Conflicting information</h3>
+                <ul>{caseState.conflicts.slice(0, 2).map((conflict, index) => <li key={index}>{conflict}</li>)}</ul>
+              </div>
+            )}
+            <p className="ls-guide-call__caseProgressNote">These counts reflect the saved case record. They do not mean every fact is independently verified or that a legal conclusion is final.</p>
+            {caseProgressActions.length > 0 && (
+              <div className="ls-guide-call__caseProgressActions" aria-label="Case destinations">
+                {caseProgressActions.map((action) => (
+                  <button key={action.type} type="button" disabled={actionRunning} onClick={() => onRunAction(action)}>
+                    {action.type === 'OPEN_LEGAL_ADVISORY' ? 'Decision so far' : action.type === 'OPEN_JOURNEY' ? 'Legal journey' : 'Document studio'}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </details>
+      )}
 
       <p className="ls-guide-call__conversationDetail" aria-live="polite">{presentation.detail}</p>
 
