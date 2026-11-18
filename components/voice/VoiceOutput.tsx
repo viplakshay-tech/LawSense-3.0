@@ -268,7 +268,7 @@ export default function VoiceOutput({ text, language, responseId = 'guide-respon
             setError(`${detail} Using your browser voice instead.`);
           } else {
             setError(allowBrowserFallback ? detail : 'Local speech is unavailable. Browser speech is off until you opt in.');
-            setState(allowBrowserFallback ? 'error' : 'unavailable');
+            setState('error');
             emit(allowBrowserFallback ? { type: 'speech_failed', detail } : { type: 'speech_unavailable' });
           }
         };
@@ -316,7 +316,7 @@ export default function VoiceOutput({ text, language, responseId = 'guide-respon
           : state === 'unavailable'
             ? 'Speech output unavailable'
             : state === 'error'
-              ? 'Playback needs attention'
+              ? allowBrowserFallback ? 'Playback needs attention' : 'Local speech unavailable'
               : activeMode === 'local'
                 ? 'Ready · local speech'
                 : voiceListReady || voices.length > 0
