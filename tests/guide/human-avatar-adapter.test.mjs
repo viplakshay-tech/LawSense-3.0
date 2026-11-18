@@ -18,11 +18,14 @@ test('the realistic HumanForge adapter is opt-in for immersive consultation with
   assert.match(renderer, /getContext\('webgl2'\)/);
 });
 
-test('the 3D avatar uses the web-only entry point and same-origin assets', async () => {
+test('the 3D avatar uses only the local runtime bridge and same-origin assets', async () => {
   const renderer = await read('../../components/guide-presence/avatar/HumanAvatarRenderer.tsx');
+  const bridge = await read('../../lib/humanforge-local.ts');
 
-  assert.match(renderer, /from 'humanforge\/web'/);
-  assert.doesNotMatch(renderer, /humanforge\/human/);
+  assert.match(renderer, /@\/lib\/humanforge-local/);
+  assert.doesNotMatch(renderer, /humanforge\/(web|human)/);
+  assert.match(bridge, /node_modules\/humanforge\/src\/human\/runtime/);
+  assert.match(bridge, /node_modules\/humanforge\/src\/web\/HumanCanvas/);
   assert.match(renderer, /const ASSET_BASE = '\/lawsense-human'/);
   assert.match(renderer, /READY\.json/);
   assert.match(renderer, /mouth-open/);
