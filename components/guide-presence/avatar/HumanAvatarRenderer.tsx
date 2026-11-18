@@ -227,7 +227,7 @@ export function HumanAvatarRenderer(props: AvatarSurfaceProps) {
       }
       const ready = await fetch(ASSET_BASE + '/READY.json', { cache: 'force-cache' });
       if (!ready.ok) {
-        if (live) setAssetState('error');
+        if (live) setAssetState('missing');
         return;
       }
       const loaded = await loadHumanPackage(ASSET_BASE);
@@ -237,7 +237,7 @@ export function HumanAvatarRenderer(props: AvatarSurfaceProps) {
       }
     };
     void load().catch(() => {
-      if (live) setAssetState('missing');
+      if (live) setAssetState('error');
     });
     return () => { live = false; };
   }, []);
