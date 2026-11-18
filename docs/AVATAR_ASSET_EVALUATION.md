@@ -17,6 +17,8 @@ The upstream project describes its realistic-human renderer as using photoreal s
 
 The feature branch now includes:
 
+- A lockfile-complete Three.js type dependency tree, including the nested meshoptimizer version required by @types/three.
+
 - A pinned HumanForge Git dependency, Three.js and the Three.js type package.
 - Next.js package transpilation for the upstream TypeScript source.
 - `HumanAvatarRenderer`, implementing the existing `AvatarAdapter` boundary.
