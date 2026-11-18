@@ -1103,7 +1103,7 @@ export default function GuideConversation({
             language={language}
             requireLocalProvider
             allowBrowserFallback={browserRecognitionConsent}
-            disabled={disabled || Boolean(transcriptDraft) || speechOutputPending || presentation.status === 'speaking'}
+            disabled={disabled || Boolean(transcriptDraft) || speechOutputPending || presentation.status === 'speaking' || (presentation.status === 'processing' && !captureBusy)}
             onCaptureStateChange={setCaptureBusy}
             onCaptureStatusChange={(status) => {
               if (status === 'listening') transition('listening');
