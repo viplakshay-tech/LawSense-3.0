@@ -323,21 +323,19 @@ export default function GuideConversation({
     responseId: string,
     afterSpeech: () => void,
   ) => {
-    if (nativeCapabilitiesRef.current) {
-      const capabilities = nativeCapabilitiesRef.current;
-      if (!capabilities.ttsAvailable) {
-        setSpeechUnavailable(true);
-        updateGuideAudio(responseId, 'unavailable');
-        transition('error', 'No installed offline Android voice is available. The reply remains readable, and text input is ready.');
-        onRuntimeEventRef.current?.({ type: 'speech_unavailable', responseId });
-        afterSpeech();
-        return;
-      }
-      if (speechStartTimerRef.current) clearTimeout(speechStartTimerRef.current);
+    if (speechStartTimerRef.current) clearTimeout(speechStartTimerRef.current);
+    speechStartTimerRef.current = null;
+    releaseLocalAudio();
+    utteranceRef.current = null;
+    nativeTtsRef.current = null;
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+
+    if (nativeCapabilitiesRef.current?.ttsAvailable) {
       const operation = ++speechOperationRef.current;
       const activeSpeech = { responseId, operation, afterSpeech };
       nativeTtsRef.current = activeSpeech;
       updateGuideAudio(responseId, 'queued');
+      setSpeechUnavailable(false);
       speechStartTimerRef.current = setTimeout(() => {
         if (nativeTtsRef.current !== activeSpeech) return;
         nativeTtsRef.current = null;
@@ -368,76 +366,158 @@ export default function GuideConversation({
       return;
     }
 
-    if (typeof window === 'undefined' || !('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') {
+    const operation = ++speechOperationRef.current;
+    const controller = new AbortController();
+    localTtsRequestRef.current = controller;
+    updateGuideAudio(responseId, 'queued');
+    setSpeechUnavailable(false);
+
+    let localTimeout: ReturnType<typeof setTimeout> | null = null;
+    const clearLocalTimeout = () => {
+      if (localTimeout) clearTimeout(localTimeout);
+      localTimeout = null;
+    };
+    const failUnavailable = (detail: string) => {
+      if (speechOperationRef.current !== operation) return;
+      clearLocalTimeout();
+      if (speechStartTimerRef.current) clearTimeout(speechStartTimerRef.current);
+      speechStartTimerRef.current = null;
       setSpeechUnavailable(true);
       updateGuideAudio(responseId, 'unavailable');
-      transition('error', 'Browser speech output is unavailable. The reply remains readable below; you can continue by typing.');
+      transition('error', detail);
       onRuntimeEventRef.current?.({ type: 'speech_unavailable', responseId });
       afterSpeech();
-      return;
-    }
-
-    const synthesis = window.speechSynthesis;
-    synthesis.cancel();
-    if (speechStartTimerRef.current) clearTimeout(speechStartTimerRef.current);
-    speechStartTimerRef.current = null;
-    const operation = ++speechOperationRef.current;
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = languageRef.current === 'English' ? 'en-IN' : 'hi-IN';
-    utterance.rate = 0.97;
-    utterance.pitch = 1.02;
-    const voice = selectGuideSpeechVoice(synthesis.getVoices(), languageRef.current);
-    if (voice) utterance.voice = voice;
-
-    utterance.onstart = () => {
-      if (speechOperationRef.current !== operation || utteranceRef.current !== utterance) return;
-      if (speechStartTimerRef.current) clearTimeout(speechStartTimerRef.current);
-      speechStartTimerRef.current = null;
-      updateGuideAudio(responseId, 'speaking');
-      setSpeechUnavailable(false);
-      transition('speaking');
-      onRuntimeEventRef.current?.({ type: 'speech_started', responseId });
     };
-    utterance.onend = () => {
-      if (speechOperationRef.current !== operation || utteranceRef.current !== utterance) return;
+    const failBrowser = (detail: string) => {
+      if (speechOperationRef.current !== operation) return;
       if (speechStartTimerRef.current) clearTimeout(speechStartTimerRef.current);
       speechStartTimerRef.current = null;
       utteranceRef.current = null;
-      updateGuideAudio(responseId, 'spoken');
-      onRuntimeEventRef.current?.({ type: 'speech_finished', responseId });
-      afterSpeech();
-    };
-    utterance.onerror = (event) => {
-      if (speechOperationRef.current !== operation || utteranceRef.current !== utterance) return;
-      if (speechStartTimerRef.current) clearTimeout(speechStartTimerRef.current);
-      speechStartTimerRef.current = null;
-      utteranceRef.current = null;
-      const detail = event.error === 'not-allowed'
-        ? 'Your browser blocked spoken replies. The text remains available below.'
-        : 'The browser could not play this reply. The text remains available below.';
       setSpeechUnavailable(true);
       updateGuideAudio(responseId, 'failed');
       transition('error', detail);
       onRuntimeEventRef.current?.({ type: 'speech_failed', responseId, detail });
       afterSpeech();
     };
+    const speakBrowser = (localFailure: string) => {
+      clearLocalTimeout();
+      if (!browserTtsConsentRef.current) {
+        failUnavailable(localFailure + ' Browser-managed voice fallback is disabled; enable it below if you want that fallback.');
+        return;
+      }
+      if (typeof window === 'undefined' || !('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') {
+        failUnavailable(localFailure + ' This browser also has no speech output service. The response remains readable.');
+        return;
+      }
 
-    utteranceRef.current = utterance;
-    updateGuideAudio(responseId, 'queued');
-    speechStartTimerRef.current = setTimeout(() => {
-      if (speechOperationRef.current !== operation || utteranceRef.current !== utterance) return;
+      const synthesis = window.speechSynthesis;
       synthesis.cancel();
-      utteranceRef.current = null;
-      speechStartTimerRef.current = null;
-      const detail = 'The browser did not start spoken playback. The reply remains readable below.';
-      setSpeechUnavailable(true);
-      updateGuideAudio(responseId, 'failed');
-      transition('error', detail);
-      onRuntimeEventRef.current?.({ type: 'speech_failed', responseId, detail });
-      afterSpeech();
-    }, 7000);
-    synthesis.speak(utterance);
-  }, [transition, updateGuideAudio]);
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = languageRef.current === 'English' ? 'en-IN' : 'hi-IN';
+      utterance.rate = 0.97;
+      utterance.pitch = 1.02;
+      const voice = selectGuideSpeechVoice(synthesis.getVoices(), languageRef.current);
+      if (voice) utterance.voice = voice;
+
+      utterance.onstart = () => {
+        if (speechOperationRef.current !== operation || utteranceRef.current !== utterance) return;
+        if (speechStartTimerRef.current) clearTimeout(speechStartTimerRef.current);
+        speechStartTimerRef.current = null;
+        updateGuideAudio(responseId, 'speaking');
+        setSpeechUnavailable(false);
+        transition('speaking');
+        onRuntimeEventRef.current?.({ type: 'speech_started', responseId });
+      };
+      utterance.onend = () => {
+        if (speechOperationRef.current !== operation || utteranceRef.current !== utterance) return;
+        if (speechStartTimerRef.current) clearTimeout(speechStartTimerRef.current);
+        speechStartTimerRef.current = null;
+        utteranceRef.current = null;
+        updateGuideAudio(responseId, 'spoken');
+        onRuntimeEventRef.current?.({ type: 'speech_finished', responseId });
+        afterSpeech();
+      };
+      utterance.onerror = (event) => {
+        if (speechOperationRef.current !== operation || utteranceRef.current !== utterance) return;
+        const detail = event.error === 'not-allowed'
+          ? 'Your browser blocked spoken replies. The text remains available below.'
+          : 'The browser could not play this reply. The text remains available below.';
+        failBrowser(detail);
+      };
+
+      utteranceRef.current = utterance;
+      updateGuideAudio(responseId, 'queued');
+      speechStartTimerRef.current = setTimeout(() => {
+        if (speechOperationRef.current !== operation || utteranceRef.current !== utterance) return;
+        synthesis.cancel();
+        failBrowser('The browser did not start spoken playback. The reply remains readable below.');
+      }, 7000);
+      try {
+        synthesis.speak(utterance);
+      } catch {
+        failBrowser('The browser could not start spoken playback. The reply remains readable below.');
+      }
+    };
+
+    const speechLanguage = languageRef.current === 'English'
+      ? 'english'
+      : languageRef.current === 'Hinglish'
+        ? 'hinglish'
+        : 'hindi';
+
+    localTimeout = setTimeout(() => {
+      if (speechOperationRef.current !== operation) return;
+      controller.abort();
+      localTtsRequestRef.current = null;
+      speakBrowser('Local speech generation timed out.');
+    }, 20000);
+
+    const playLocalSpeech = async () => {
+      let player: HTMLAudioElement | null = null;
+      try {
+        const blob = await synthesizeVoiceSpeech(text, speechLanguage, controller.signal);
+        clearLocalTimeout();
+        if (speechOperationRef.current !== operation || controller.signal.aborted) return;
+        localTtsRequestRef.current = null;
+        if (!blob.size) throw new Error('The local speech provider returned an empty audio file.');
+
+        const url = URL.createObjectURL(blob);
+        player = new Audio(url);
+        localAudioRef.current = player;
+        localAudioUrlRef.current = url;
+
+        player.onplay = () => {
+          if (speechOperationRef.current !== operation || localAudioRef.current !== player) return;
+          updateGuideAudio(responseId, 'speaking');
+          setSpeechUnavailable(false);
+          transition('speaking');
+          onRuntimeEventRef.current?.({ type: 'speech_started', responseId });
+        };
+        player.onended = () => {
+          if (speechOperationRef.current !== operation || localAudioRef.current !== player) return;
+          releaseLocalAudio();
+          updateGuideAudio(responseId, 'spoken');
+          onRuntimeEventRef.current?.({ type: 'speech_finished', responseId });
+          afterSpeech();
+        };
+        player.onerror = () => {
+          if (speechOperationRef.current !== operation || localAudioRef.current !== player) return;
+          releaseLocalAudio();
+          speakBrowser('Local audio playback failed.');
+        };
+        await player.play();
+      } catch (error) {
+        clearLocalTimeout();
+        if (speechOperationRef.current !== operation || controller.signal.aborted) return;
+        if (player && localAudioRef.current !== player) return;
+        localTtsRequestRef.current = null;
+        releaseLocalAudio();
+        speakBrowser(error instanceof Error ? error.message : 'The local speech provider is unavailable.');
+      }
+    };
+
+    void playLocalSpeech();
+  }, [releaseLocalAudio, transition, updateGuideAudio]);
 
   const receiveTurn = useCallback(async (text: string, inputMethod: 'voice' | 'text') => {
     const statement = text.trim();
