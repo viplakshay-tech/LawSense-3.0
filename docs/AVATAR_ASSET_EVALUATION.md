@@ -27,20 +27,20 @@ The feature branch now includes:
 - A local asset setup script: `npm run setup:avatar`.
 - A fallback to the existing illustrated guide when assets are absent or WebGL 2 is unavailable.
 
-The app does not load avatar models from a third-party CDN. After dependencies are installed and the setup script is run, the renderer reads assets from the same-origin `/lawsense-human` path.
+The app does not load avatar models from a third-party CDN. After the one-time setup script downloads the pinned CC0 asset pack, the renderer reads assets from the same-origin `/lawsense-human` path. No model or texture request is made to an external host during consultation.
 
 ## One-time setup
 
-From the LawSense repository root, after `npm ci`:
+From the LawSense repository root, after `npm ci` and while an internet connection is available for the one-time asset preparation:
 
 ```powershell
 npm run setup:avatar
 npm run dev
 ```
 
-The script copies the pinned CC0 asset package from `node_modules/humanforge/assets/human` into `public/lawsense-human` and writes a readiness marker. It does not download anything itself. The pinned Git dependency is fetched during dependency installation.
+The script reads the GitHub asset tree at the pinned commit, downloads the 32 MB CC0 asset pack from `raw.githubusercontent.com`, verifies every file size, and writes a readiness marker in `public/lawsense-human`. Existing matching files are reused on reruns. The pinned Git dependency provides the renderer code; the separate setup script prepares the asset files once.
 
-The asset directory is approximately 32 MB. Do not commit the generated `public/lawsense-human` directory unless the team explicitly chooses to distribute the full asset pack in the application repository.
+The asset directory is approximately 32 MB. It is served locally after setup. Do not commit the generated `public/lawsense-human` directory unless the team explicitly chooses to distribute the full asset pack in the application repository.
 
 ## Explicit limitations
 
