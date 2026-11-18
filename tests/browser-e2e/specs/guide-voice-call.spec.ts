@@ -139,6 +139,7 @@ test('Guide voice input is local-first, turn-based, editable, and explicitly con
 
   await expect(browserRecognitionConsent).not.toBeChecked();
   await expect(browserTtsConsent).not.toBeChecked();
+  await expect(conversation.getByRole('button', { name: 'Voice input unavailable', exact: true })).toBeDisabled();
   await browserRecognitionConsent.check();
   await browserTtsConsent.check();
   await expect(conversation.getByRole('button', { name: 'Start voice input', exact: true })).toBeVisible();
