@@ -56,6 +56,7 @@ test('dedicated consultation is immersive, case-scoped, and microphone-silent un
   await expect(page.getByText('PRIVATE CONSULTATION', { exact: false })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Guide voice and text conversation' })).toBeVisible();
   await expect(page.locator('.ls-guide-presence__presence')).toHaveAttribute('data-state', 'CLARIFYING');
+  await expect(page.locator('.ls-guide-human-avatar__fallback')).toBeVisible();
   await expect(page.locator('.ls-case-rail')).toBeHidden();
   await expect(page.locator('.ls-case-topbar')).toBeHidden();
   await expect(page.locator('.ls-case-context')).toBeHidden();
