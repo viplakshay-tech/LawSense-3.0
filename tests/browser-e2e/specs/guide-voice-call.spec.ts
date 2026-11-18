@@ -165,6 +165,84 @@ test('Guide voice input is local-first, turn-based, editable, and explicitly con
   await expect(conversation.getByRole('button', { name: 'Stop voice input', exact: true })).toHaveCount(0);
 });
 
+test('local Whisper is selected without browser consent when its local model is available', async ({ page }) => {
+  await page.addInitScript(() => {
+    class MockMediaRecorder {
+      state = 'inactive';
+      mimeType = 'audio/webm';
+      ondataavailable: ((event: { data: Blob }) => void) | null = null;
+      onstop: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      constructor(readonly stream: unknown) {}
+      start() { this.state = 'recording'; }
+      stop() {
+        this.state = 'inactive';
+        this.ondataavailable?.({ data: new Blob(['local-test-audio'], { type: 'audio/webm' }) });
+        this.onstop?.();
+      }
+    }
+    Object.defineProperty(window, 'MediaRecorder', { configurable: true, value: MockMediaRecorder });
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: { getUserMedia: async () => ({ getTracks: () => [{ stop() {} }], getAudioTracks: () => [] }) },
+    });
+  });
+
+  await page.route('**/api/**', async (route) => {
+    const pathname = new URL(route.request().url()).pathname;
+    if (pathname === '/api/cases/voice/status') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          speechToTextAvailable: true,
+          languageDetectorAvailable: true,
+          speechToTextProvider: 'faster-whisper',
+          processingLocation: 'local',
+          textToSpeechAvailable: false,
+          textToSpeechProcessingLocation: 'none',
+        }),
+      });
+      return;
+    }
+    if (pathname === '/api/cases/voice/transcribe') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          status: 'success',
+          transcript: 'My employer is withholding two months of salary.',
+          language: 'english',
+        }),
+      });
+      return;
+    }
+    if (pathname === '/api/cases/voice/synthesize') {
+      await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ detail: 'No local TTS provider.' }) });
+      return;
+    }
+    const response = await fetchFromIsolatedApi(route);
+    await route.fulfill({ response });
+  });
+
+  const caseId = await enterCase(page);
+  await page.goto('/case/' + caseId + '/voice');
+  const conversation = page.locator('[aria-label="Guide voice and text conversation"]');
+  const browserConsent = conversation.getByLabel('Allow browser-managed speech recognition only when local Whisper is unavailable');
+  await expect(browserConsent).not.toBeChecked();
+
+  const startButton = conversation.getByRole('button', { name: 'Start voice input', exact: true });
+  await expect(startButton).toHaveAttribute('title', /processed locally by faster-whisper/i);
+  await startButton.click();
+  await conversation.getByRole('button', { name: 'Stop voice input', exact: true }).click();
+
+  await expect(conversation.getByLabel('Recognized words · review before sending')).toHaveValue(
+    'My employer is withholding two months of salary.',
+  );
+  await expect(conversation.locator('.ls-guide-call__conversationState')).toContainText('Transcript ready for review');
+  await expect(browserConsent).not.toBeChecked();
+});
+
 test('the Guide presents an unavailable-model response and keeps typed text unconfirmed', async ({ page }) => {
   await page.route('**/api/**', async (route) => {
     if (await routeLocalVoiceUnavailable(route)) return;
