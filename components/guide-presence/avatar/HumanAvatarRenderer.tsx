@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { HumanCanvas, useHumanPackage } from 'humanforge/web';
-import type { HumanCanvasHandle } from 'humanforge/web';
+import { HumanCanvas, loadHumanPackage } from '@/lib/humanforge-local';
+import type { HumanAvatar, HumanCanvasHandle, HumanPackage } from '@/lib/humanforge-local';
 import { IllustratedAvatarRenderer } from './IllustratedAvatarRenderer';
 import type { AvatarSurfaceProps, AvatarViseme } from './types';
 import './HumanAvatarRenderer.css';
@@ -123,11 +123,10 @@ function fallback(props: AvatarSurfaceProps, state: string, label: string) {
   );
 }
 
-function HumanAvatarCanvas(props: AvatarSurfaceProps) {
-  const { pkg, error } = useHumanPackage(ASSET_BASE);
+function HumanAvatarCanvas({ props, pkg }: { props: AvatarSurfaceProps; pkg: HumanPackage }) {
   const [avatarReady, setAvatarReady] = useState(false);
   const canvasRef = useRef<HumanCanvasHandle | null>(null);
-  const avatarRef = useRef<HumanCanvasHandle['avatar']>(null);
+  const avatarRef = useRef<HumanAvatar | null>(null);
 
   const expressions = useMemo(
     () => expressionWeights(props),
@@ -184,15 +183,6 @@ function HumanAvatarCanvas(props: AvatarSurfaceProps) {
     };
   }, [avatarReady, props.reducedMotion]);
 
-  if (error) return fallback(props, 'error', 'ILLUSTRATED GUIDE · 3D MODEL COULD NOT LOAD');
-  if (!pkg) {
-    return (
-      <div className="ls-guide-human-avatar__loading" role="status">
-        <span>Preparing local 3D guide…</span>
-      </div>
-    );
-  }
-
   return (
     <div
       className="ls-guide-human-avatar__surface"
@@ -225,7 +215,8 @@ function HumanAvatarCanvas(props: AvatarSurfaceProps) {
 }
 
 export function HumanAvatarRenderer(props: AvatarSurfaceProps) {
-  const [assetState, setAssetState] = useState<'loading' | 'ready' | 'missing' | 'unsupported'>('loading');
+  const [assetState, setAssetState] = useState<'loading' | 'ready' | 'missing' | 'unsupported' | 'error'>('loading');
+  const [pkg, setPkg] = useState<HumanPackage | null>(null);
 
   useEffect(() => {
     let live = true;
@@ -236,10 +227,14 @@ export function HumanAvatarRenderer(props: AvatarSurfaceProps) {
       }
       const ready = await fetch(ASSET_BASE + '/READY.json', { cache: 'force-cache' });
       if (!ready.ok) {
-        if (live) setAssetState('missing');
+        if (live) setAssetState('error');
         return;
       }
-      if (live) setAssetState('ready');
+      const loaded = await loadHumanPackage(ASSET_BASE);
+      if (live) {
+        setPkg(loaded);
+        setAssetState('ready');
+      }
     };
     void load().catch(() => {
       if (live) setAssetState('missing');
@@ -249,7 +244,8 @@ export function HumanAvatarRenderer(props: AvatarSurfaceProps) {
 
   if (assetState === 'missing') return fallback(props, 'missing', 'ILLUSTRATED GUIDE · RUN NPM RUN SETUP:AVATAR');
   if (assetState === 'unsupported') return fallback(props, 'unsupported', 'ILLUSTRATED GUIDE · 3D GRAPHICS UNAVAILABLE');
-  if (assetState !== 'ready') return fallback(props, 'loading', 'ILLUSTRATED GUIDE');
+  if (assetState === 'error') return fallback(props, 'error', 'ILLUSTRATED GUIDE · 3D MODEL COULD NOT LOAD');
+  if (assetState !== 'ready' || !pkg) return fallback(props, 'loading', 'ILLUSTRATED GUIDE');
 
-  return <HumanAvatarCanvas {...props} />;
+  return <HumanAvatarCanvas props={props} pkg={pkg} />;
 }
