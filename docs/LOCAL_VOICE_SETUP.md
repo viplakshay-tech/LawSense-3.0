@@ -43,6 +43,15 @@ If the required Piper voice models are not installed, LawSense checks for the lo
 - Hinglish uses a dedicated configured model when available; otherwise it uses the Hindi model.
 - If no local TTS provider is available, speech output reports unavailable. The consultation transcript remains readable.
 
-## Current limitation
+## Interruption and privacy behavior
 
-The Piper adapter is a local backend capability. The consultation UI and the browser's speech APIs must still be configured and tested so that browser-managed speech is never selected silently. Actual voice naturalness, pronunciation, latency and memory use must be benchmarked on the target Windows laptop and Android device before Milestone 9 is signed off.
+- Starting a new voice capture interrupts any active spoken reply as soon as capture is requested.
+- Sending a typed follow-up also interrupts active speech; the previous response remains readable and is marked as stopped.
+- The Stop speaking control remains available while speech is pending or playing.
+- Audio is temporary by default. A transcript is editable and must be explicitly reviewed and confirmed before it is added to the case.
+- Browser recognition and browser speech synthesis are separate opt-ins. They may use browser-managed services and are never selected silently.
+- The shared Guide action registry does not offer a direct browser-speech action that bypasses the local-first playback controls.
+
+## Remaining validation
+
+The local provider wiring and browser-consent behavior are covered by automated tests, but the following are still required before Milestones 8–11 can be signed off: install and exercise real multilingual Faster-Whisper and Piper models on the target Windows laptop; benchmark Hindi, English and Hinglish pronunciation, latency and memory; verify Android on-device recognition/output and local-network behavior on a physical phone; and validate viseme timing against actual audio. eSpeak NG remains a functional but synthetic local fallback, not the final natural-avatar voice.
