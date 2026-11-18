@@ -8,7 +8,7 @@
 - Package: https://www.npmjs.com/package/humanforge
 - Code licence: MIT
 - Human mesh, skin, hair, clothing, rig and expression assets: CC0 1.0, subject to the upstream per-item asset register
-- Runtime: Three.js, MakeHuman-derived human mesh, Mixamo skeleton and ARKit-style facial blendshapes
+- Runtime: Three.js, MakeHuman-derived human mesh, Mixamo skeleton and named facial expression morphs
 - Upstream manifest: 26,756 body triangles; the full asset tree contains 327 files / 32,202,070 bytes
 
 The upstream project describes its realistic-human renderer as using photoreal skin, eyes, hair cards and clothing. The code and asset licences make it a viable zero-cost candidate, but the project is new and has not yet been validated inside LawSense on a Windows laptop or Android phone.
@@ -22,7 +22,7 @@ The feature branch now includes:
 - A pinned HumanForge Git dependency, Three.js and the Three.js type package.
 - Next.js package transpilation for the upstream TypeScript source.
 - `HumanAvatarRenderer`, implementing the existing `AvatarAdapter` boundary.
-- Female professional avatar configuration, local face framing and ARKit expression mapping.
+- Female professional avatar configuration, local face framing and HumanForge expression-morph mapping.
 - Existing Guide viseme cues mapped to facial morph targets; the renderer also maps Guide state to subtle head/neck pose and blink behavior.
 - A local asset setup script: `npm run setup:avatar`.
 - A fallback to the existing illustrated guide when assets are absent or WebGL 2 is unavailable.
