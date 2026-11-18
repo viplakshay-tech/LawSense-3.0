@@ -72,15 +72,15 @@ This is an evidence-based progress snapshot, not a release sign-off.
 | 3 | Complete | The existing case-scoped Guide session already shares turns across text/voice, persists the bounded transcript in session storage, and aborts superseded turns. Earlier merged regressions cover cross-mode cancellation and stale-response protection. |
 | 4 | Implemented; acceptance pending | `/case/[id]/consultation` exists and reuses the case-scoped voice client and providers. A route-specific browser acceptance check is still required. |
 | 5 | In progress | Immersive full-screen styling and existing transcript/language/text/voice controls are wired. Dedicated workspace polish, mobile/keyboard checks and route E2E remain. |
-| 6 | Not started | The renderer contract is ready, but the active renderer is still illustrated. A licensed local 3D human asset and runtime are required. |
-| 7 | Partial foundation | GuideRuntime already supplies expression, gaze, state and viseme presentation data. These behaviors are currently rendered by the illustrated avatar; realistic 3D expression/gesture mapping remains. |
+| 6 | Implemented; acceptance pending | HumanForge 0.8.1 is pinned with MIT code / CC0 human assets; a local asset setup script and realistic renderer adapter are committed. Run setup and verify the model, local-only requests and fallbacks on Windows/Android. |
+| 7 | Partial implementation | The realistic renderer maps Guide expressions, viseme cues, subtle head/neck pose and blinks to the 3D avatar. Full-body hand gestures and independent eye-ball gaze remain unsupported; reduced-motion behavior is implemented but needs device validation. |
 | 8 | Partial foundation | The repository has an optional local faster-whisper/on-disk adapter. Hindi/English model availability and actual local-device acceptance still need testing. |
 | 9 | Partial foundation | Local speech output is supported, but browser speech fallback remains in the current experience. A strict local-only mode and voice-quality benchmark remain. |
 | 10 | Partial foundation | Stop/cancel and request sequencing exist. Chunked streaming and reliable barge-in across providers remain. |
-| 11 | Partial foundation | Viseme cue types and caller-owned speech timing exist. Audio-timed blendshape mapping for the realistic 3D avatar remains. |
+| 11 | Partial implementation | Existing caller-owned viseme timing is mapped to HumanForge ARKit facial morphs. Validate actual Hindi/English audio alignment, pause and interruption behavior on-device before sign-off. |
 | 12 | Partial foundation | Voice transcript preview/review and explicit confirmation before case mutation already exist. End-to-end consultation-to-advisory/document acceptance needs dedicated coverage. |
 | 13 | In progress | Audio cleanup and local boundaries exist in parts of the stack. Full auth/case-ownership, retention, request-size and local-network security review remains. |
-| 14 | Partial foundation | The current CI run built an Android debug APK successfully. Real-device installation, permissions, offline behavior and USB-independent validation remain. |
+| 14 | Partial foundation | The pre-avatar integration CI run passed the backend, frontend, Playwright and Android debug APK jobs. The newer HumanForge dependency/renderer commits require their own CI run. Real-device installation, permissions, offline behavior and USB-independent validation remain. |
 | 15 | Not started | Release regression and handoff must wait until all preceding acceptance gates pass. |
 
 ### Latest CI evidence for PR #60
@@ -94,7 +94,7 @@ This is an evidence-based progress snapshot, not a release sign-off.
 
 1. Finish and inspect the current Playwright run; add consultation-specific route and mode-switch regression coverage.
 2. Audit the existing speech adapters and make local-only versus browser-managed behavior explicit, with no silent external fallback.
-3. Implement the locally hosted realistic 3D avatar renderer only after selecting an asset with a compatible redistribution licence; keep the illustrated renderer as an accessible fallback.
+3. Run `npm ci` and `npm run setup:avatar`; visually validate the pinned HumanForge model and local-only asset requests. Keep the illustrated renderer as the fallback.
 4. Continue through milestones 7–15 in dependency order, updating this status table only when evidence meets each acceptance gate.
 
 No milestone should be marked complete solely because a UI exists or a build succeeds. The Android and offline milestones require real-device verification, which cannot be substituted by a hosted CI build.
