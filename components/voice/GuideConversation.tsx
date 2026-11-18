@@ -284,6 +284,7 @@ export default function GuideConversation({
         const activeSpeech = nativeTtsRef.current;
         if (!activeSpeech || event.responseId !== activeSpeech.responseId || activeSpeech.operation !== speechOperationRef.current) return;
         nativeTtsRef.current = null;
+        setSpeechOutputPending(false);
         if (speechStartTimerRef.current) clearTimeout(speechStartTimerRef.current);
         speechStartTimerRef.current = null;
         updateGuideAudio(activeSpeech.responseId, 'spoken');
@@ -330,6 +331,7 @@ export default function GuideConversation({
     utteranceRef.current = null;
     nativeTtsRef.current = null;
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+    setSpeechOutputPending(true);
 
     if (nativeCapabilitiesRef.current?.ttsAvailable) {
       const operation = ++speechOperationRef.current;
@@ -341,6 +343,7 @@ export default function GuideConversation({
         if (nativeTtsRef.current !== activeSpeech) return;
         nativeTtsRef.current = null;
         speechStartTimerRef.current = null;
+        setSpeechOutputPending(false);
         const detail = 'Android did not start spoken playback. The reply remains readable below.';
         setSpeechUnavailable(true);
         updateGuideAudio(responseId, 'failed');
@@ -381,6 +384,7 @@ export default function GuideConversation({
     const failUnavailable = (detail: string) => {
       if (speechOperationRef.current !== operation) return;
       clearLocalTimeout();
+      setSpeechOutputPending(false);
       if (speechStartTimerRef.current) clearTimeout(speechStartTimerRef.current);
       speechStartTimerRef.current = null;
       setSpeechUnavailable(true);
@@ -394,6 +398,7 @@ export default function GuideConversation({
       if (speechStartTimerRef.current) clearTimeout(speechStartTimerRef.current);
       speechStartTimerRef.current = null;
       utteranceRef.current = null;
+      setSpeechOutputPending(false);
       setSpeechUnavailable(true);
       updateGuideAudio(responseId, 'failed');
       transition('error', detail);
@@ -425,6 +430,7 @@ export default function GuideConversation({
         if (speechStartTimerRef.current) clearTimeout(speechStartTimerRef.current);
         speechStartTimerRef.current = null;
         updateGuideAudio(responseId, 'speaking');
+        setSpeechOutputPending(false);
         setSpeechUnavailable(false);
         transition('speaking');
         onRuntimeEventRef.current?.({ type: 'speech_started', responseId });
@@ -490,6 +496,7 @@ export default function GuideConversation({
         player.onplay = () => {
           if (speechOperationRef.current !== operation || localAudioRef.current !== player) return;
           updateGuideAudio(responseId, 'speaking');
+          setSpeechOutputPending(false);
           setSpeechUnavailable(false);
           transition('speaking');
           onRuntimeEventRef.current?.({ type: 'speech_started', responseId });
@@ -497,6 +504,7 @@ export default function GuideConversation({
         player.onended = () => {
           if (speechOperationRef.current !== operation || localAudioRef.current !== player) return;
           releaseLocalAudio();
+          setSpeechOutputPending(false);
           updateGuideAudio(responseId, 'spoken');
           onRuntimeEventRef.current?.({ type: 'speech_finished', responseId });
           afterSpeech();
