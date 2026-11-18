@@ -1105,7 +1105,10 @@ export default function GuideConversation({
             requireLocalProvider
             allowBrowserFallback={browserRecognitionConsent}
             disabled={disabled || Boolean(transcriptDraft) || (presentation.status === 'processing' && !captureBusy && !speechOutputPending)}
-            onCaptureStateChange={setCaptureBusy}
+            onCaptureStateChange={(active) => {
+              if (active && (speechOutputPending || presentation.status === 'speaking')) stopSpeech();
+              setCaptureBusy(active);
+            }}
             onCaptureStatusChange={(status) => {
               if (status === 'listening') {
                 if (speechOutputPending || presentation.status === 'speaking') stopSpeech();
