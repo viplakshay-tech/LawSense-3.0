@@ -396,4 +396,5 @@ test('local TTS playback sequences chunks and settles pending audio on cancellat
   assert.ok(voiceOutputSource.includes('controller.signal.aborted'));
   assert.ok(voiceOutputSource.includes('request.current?.abort()'));
   assert.ok(voiceOutputSource.includes("emit({ type: 'speech_finished' })"));
+  assert.ok(voiceOutputSource.includes('allowBrowserFallback && !localAudioStarted && speakInBrowser(operationId)'));
 });
