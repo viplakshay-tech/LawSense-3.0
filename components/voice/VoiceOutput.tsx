@@ -241,6 +241,7 @@ export default function VoiceOutput({ text, language, responseId = 'guide-respon
       request.current = controller;
       setActiveMode('local');
       setState('starting');
+      let localAudioStarted = false;
       try {
         const chunks = splitSpeechIntoChunks(text);
         if (!chunks.length) throw new Error('There is no text to synthesize.');
@@ -259,6 +260,7 @@ export default function VoiceOutput({ text, language, responseId = 'guide-respon
             playbackReject.current = reject;
             player.onplay = () => {
               if (operation.current !== operationId || audio.current !== player) return;
+              localAudioStarted = true;
               setActiveMode('local');
               setState('speaking');
               emit({ type: 'speech_started' });
@@ -304,10 +306,12 @@ export default function VoiceOutput({ text, language, responseId = 'guide-respon
         request.current = null;
         releaseAudio();
         const detail = cause instanceof Error ? cause.message : 'Local speech output failed.';
-        if (allowBrowserFallback && speakInBrowser(operationId)) {
+        if (allowBrowserFallback && !localAudioStarted && speakInBrowser(operationId)) {
           setError(`${detail} Using your browser voice instead.`);
         } else {
-          setError(allowBrowserFallback ? detail : 'Local speech is unavailable. Browser speech is off until you opt in.');
+          setError(localAudioStarted
+            ? `${detail} Some speech may already have played; read the complete response above.`
+            : allowBrowserFallback ? detail : 'Local speech is unavailable. Browser speech is off until you opt in.');
           setState('error');
           emit(allowBrowserFallback ? { type: 'speech_failed', detail } : { type: 'speech_unavailable' });
         }
