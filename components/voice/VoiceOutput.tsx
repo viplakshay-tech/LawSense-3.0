@@ -23,6 +23,51 @@ interface VoiceOutputProps {
   allowBrowserFallback?: boolean;
 }
 
+function splitSpeechIntoChunks(text: string, maxChars = 420): string[] {
+  const normalized = text.trim();
+  if (!normalized) return [];
+
+  const sentences = normalized.match(/[^.!?।\\n]+[.!?।]?/gu) ?? [normalized];
+  const chunks: string[] = [];
+  let current = '';
+
+  const appendWords = (sentence: string) => {
+    for (const word of sentence.split(/\\s+/u)) {
+      if (!word) continue;
+      if (word.length > maxChars) {
+        if (current) chunks.push(current);
+        current = '';
+        for (let offset = 0; offset < word.length; offset += maxChars) {
+          chunks.push(word.slice(offset, offset + maxChars));
+        }
+        continue;
+      }
+      const candidate = current ? current + ' ' + word : word;
+      if (candidate.length > maxChars) {
+        if (current) chunks.push(current);
+        current = word;
+      } else {
+        current = candidate;
+      }
+    }
+  };
+
+  for (const sentence of sentences) {
+    const part = sentence.trim();
+    if (!part) continue;
+    const candidate = current ? current + ' ' + part : part;
+    if (candidate.length <= maxChars) {
+      current = candidate;
+    } else {
+      if (current) chunks.push(current);
+      current = '';
+      appendWords(part);
+    }
+  }
+  if (current) chunks.push(current);
+  return chunks;
+}
+
 function speechLanguage(language: string | null | undefined): string {
   if (language === 'english') return 'en-IN';
   return 'hi-IN';
@@ -37,6 +82,8 @@ export default function VoiceOutput({ text, language, responseId = 'guide-respon
   const utterance = useRef<SpeechSynthesisUtterance | null>(null);
   const audio = useRef<HTMLAudioElement | null>(null);
   const audioUrl = useRef<string | null>(null);
+  const playbackResolve = useRef<(() => void) | null>(null);
+  const playbackReject = useRef<((reason?: unknown) => void) | null>(null);
   const request = useRef<AbortController | null>(null);
   const operation = useRef(0);
   const startTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -62,6 +109,10 @@ export default function VoiceOutput({ text, language, responseId = 'guide-respon
   };
 
   const releaseAudio = () => {
+    const settlePlayback = playbackResolve.current;
+    playbackResolve.current = null;
+    playbackReject.current = null;
+    settlePlayback?.();
     if (audio.current) {
       audio.current.onplay = null;
       audio.current.onpause = null;
@@ -235,44 +286,63 @@ export default function VoiceOutput({ text, language, responseId = 'guide-respon
       setActiveMode('local');
       setState('starting');
       try {
-        const audioBlob = await synthesizeVoiceSpeech(text, apiLanguage(language), controller.signal);
-        if (operation.current !== operationId) return;
-        if (!audioBlob.size) throw new Error('The local speech provider returned an empty audio file.');
+        const chunks = splitSpeechIntoChunks(text);
+        if (!chunks.length) throw new Error('There is no text to synthesize.');
+        for (const chunk of chunks) {
+          if (operation.current !== operationId || controller.signal.aborted) return;
+          const audioBlob = await synthesizeVoiceSpeech(chunk, apiLanguage(language), controller.signal);
+          if (operation.current !== operationId) return;
+          if (!audioBlob.size) throw new Error('The local speech provider returned an empty audio chunk.');
+
+          const url = URL.createObjectURL(audioBlob);
+          const player = new Audio(url);
+          audioUrl.current = url;
+          audio.current = player;
+          await new Promise<void>((resolve, reject) => {
+            playbackResolve.current = resolve;
+            playbackReject.current = reject;
+            player.onplay = () => {
+              if (operation.current !== operationId || audio.current !== player) return;
+              setActiveMode('local');
+              setState('speaking');
+              emit({ type: 'speech_started' });
+            };
+            player.onpause = () => {
+              if (operation.current !== operationId || audio.current !== player || player.ended) return;
+              setState('paused');
+              emit({ type: 'speech_paused' });
+            };
+            player.onended = () => {
+              if (operation.current !== operationId || audio.current !== player) return;
+              releaseAudio();
+            };
+            const fail = (cause?: unknown) => {
+              if (operation.current !== operationId || audio.current !== player) return;
+              const rejectPlayback = playbackReject.current;
+              playbackResolve.current = null;
+              playbackReject.current = null;
+              if (audio.current === player) {
+                player.onplay = null;
+                player.onpause = null;
+                player.onended = null;
+                player.onerror = null;
+                player.pause();
+                audio.current = null;
+              }
+              if (audioUrl.current === url) {
+                URL.revokeObjectURL(url);
+                audioUrl.current = null;
+              }
+              rejectPlayback?.(cause ?? new Error('Local speech audio could not be played.'));
+            };
+            player.onerror = () => fail(new Error('Local speech audio could not be played.'));
+            void player.play().catch(fail);
+          });
+          if (operation.current !== operationId) return;
+        }
         request.current = null;
-        const url = URL.createObjectURL(audioBlob);
-        const player = new Audio(url);
-        audioUrl.current = url;
-        audio.current = player;
-        player.onplay = () => {
-          if (operation.current !== operationId || audio.current !== player) return;
-          setActiveMode('local');
-          setState('speaking');
-          emit({ type: 'speech_started' });
-        };
-        player.onpause = () => {
-          if (operation.current !== operationId || audio.current !== player || player.ended) return;
-          setState('paused');
-          emit({ type: 'speech_paused' });
-        };
-        player.onended = () => {
-          if (operation.current !== operationId || audio.current !== player) return;
-          releaseAudio();
-          setState('ready');
-          emit({ type: 'speech_finished' });
-        };
-        player.onerror = () => {
-          if (operation.current !== operationId || audio.current !== player) return;
-          releaseAudio();
-          const detail = 'Local speech audio could not be played.';
-          if (allowBrowserFallback && speakInBrowser(operationId)) {
-            setError(`${detail} Using your browser voice instead.`);
-          } else {
-            setError(allowBrowserFallback ? detail : 'Local speech is unavailable. Browser speech is off until you opt in.');
-            setState('error');
-            emit(allowBrowserFallback ? { type: 'speech_failed', detail } : { type: 'speech_unavailable' });
-          }
-        };
-        await player.play();
+        setState('ready');
+        emit({ type: 'speech_finished' });
       } catch (cause) {
         if (operation.current !== operationId || controller.signal.aborted) return;
         request.current = null;
