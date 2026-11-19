@@ -6,6 +6,7 @@ import { createGuideActionBridge } from '../../components/guide-actions/bridge.t
 import { beginGuideTurn, clearGuideSession, finishGuideTurn, getGuideSessionSnapshot, invalidateGuideTurn, isGuideTurnCurrent } from '../../lib/guide-session.ts';
 import { guideVoiceSnapshotForEvent } from '../../components/guide-runtime/voice-adapter/visual-state.ts';
 import { defaultGuideActionRegistry } from '../../components/guide-runtime/actions.ts';
+import { splitSpeechIntoChunks } from '../../lib/voice-speech-chunks.ts';
 import {
   createGuideConversationResponse,
   guideConversationPresentation,
@@ -369,4 +370,30 @@ test('Guide surfaces local model readiness without a cloud fallback', () => {
   assert.match(guideModelStatusBanner, /Guide chat does not fall back to a cloud model/);
   assert.match(guideControlSurfaceSource, /<GuideModelStatusBanner \/>/);
   assert.match(voiceConversationSource, /<GuideModelStatusBanner \/>/);
+});
+
+
+test('local TTS chunks preserve sentence text and bound synthesis payload size', () => {
+  assert.deepEqual(splitSpeechIntoChunks('First sentence. Second sentence.'), [
+    'First sentence. Second sentence.',
+  ]);
+  assert.deepEqual(splitSpeechIntoChunks('पहला वाक्य। दूसरा वाक्य।'), [
+    'पहला वाक्य। दूसरा वाक्य।',
+  ]);
+
+  const longWord = 'x'.repeat(80);
+  const chunks = splitSpeechIntoChunks(longWord, 32);
+  assert.deepEqual(chunks.map((chunk) => chunk.length), [32, 32, 16]);
+  assert.equal(chunks.join(''), longWord);
+  assert.ok(splitSpeechIntoChunks('Short. '.repeat(30), 64).every((chunk) => chunk.length <= 64));
+  assert.deepEqual(splitSpeechIntoChunks('   '), []);
+  assert.throws(() => splitSpeechIntoChunks('text', 0), RangeError);
+});
+
+test('local TTS playback sequences chunks and settles pending audio on cancellation', () => {
+  assert.match(voiceOutputSource, /for \\(const chunk of chunks\\)/);
+  assert.match(voiceOutputSource, /playbackResolve\\.current/);
+  assert.match(voiceOutputSource, /controller\\.signal\\.aborted/);
+  assert.match(voiceOutputSource, /request\\.current\\?\\.abort\\(\\)/);
+  assert.match(voiceOutputSource, /emit\\(\\{ type: 'speech_finished' \\}\\)/);
 });
