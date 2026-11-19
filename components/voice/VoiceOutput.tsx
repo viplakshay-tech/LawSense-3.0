@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Loader2, Pause, Play, RotateCcw, Volume2, X } from 'lucide-react';
 import type { GuideVoiceEvent } from '@/components/guide-runtime/voice-adapter/events';
 import { getVoiceProviderAvailability, synthesizeVoiceSpeech } from '@/lib/api';
+import { splitSpeechIntoChunks } from '@/lib/voice-speech-chunks';
 
 type OutputState = 'checking' | 'ready' | 'starting' | 'speaking' | 'paused' | 'unavailable' | 'error';
 type OutputMode = 'local' | 'browser' | 'unavailable';
@@ -21,51 +22,6 @@ interface VoiceOutputProps {
   responseId?: string;
   onEvent?: (event: GuideVoiceEvent) => void;
   allowBrowserFallback?: boolean;
-}
-
-function splitSpeechIntoChunks(text: string, maxChars = 420): string[] {
-  const normalized = text.trim();
-  if (!normalized) return [];
-
-  const sentences = normalized.match(/[^.!?।\\n]+[.!?।]?/gu) ?? [normalized];
-  const chunks: string[] = [];
-  let current = '';
-
-  const appendWords = (sentence: string) => {
-    for (const word of sentence.split(/\\s+/u)) {
-      if (!word) continue;
-      if (word.length > maxChars) {
-        if (current) chunks.push(current);
-        current = '';
-        for (let offset = 0; offset < word.length; offset += maxChars) {
-          chunks.push(word.slice(offset, offset + maxChars));
-        }
-        continue;
-      }
-      const candidate = current ? current + ' ' + word : word;
-      if (candidate.length > maxChars) {
-        if (current) chunks.push(current);
-        current = word;
-      } else {
-        current = candidate;
-      }
-    }
-  };
-
-  for (const sentence of sentences) {
-    const part = sentence.trim();
-    if (!part) continue;
-    const candidate = current ? current + ' ' + part : part;
-    if (candidate.length <= maxChars) {
-      current = candidate;
-    } else {
-      if (current) chunks.push(current);
-      current = '';
-      appendWords(part);
-    }
-  }
-  if (current) chunks.push(current);
-  return chunks;
 }
 
 function speechLanguage(language: string | null | undefined): string {
