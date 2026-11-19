@@ -391,9 +391,9 @@ test('local TTS chunks preserve sentence text and bound synthesis payload size',
 });
 
 test('local TTS playback sequences chunks and settles pending audio on cancellation', () => {
-  assert.match(voiceOutputSource, /for \\(const chunk of chunks\\)/);
-  assert.match(voiceOutputSource, /playbackResolve\\.current/);
-  assert.match(voiceOutputSource, /controller\\.signal\\.aborted/);
-  assert.match(voiceOutputSource, /request\\.current\\?\\.abort\\(\\)/);
-  assert.match(voiceOutputSource, /emit\\(\\{ type: 'speech_finished' \\}\\)/);
+  assert.ok(voiceOutputSource.includes('for (const chunk of chunks)'));
+  assert.ok(voiceOutputSource.includes('playbackResolve.current'));
+  assert.ok(voiceOutputSource.includes('controller.signal.aborted'));
+  assert.ok(voiceOutputSource.includes('request.current?.abort()'));
+  assert.ok(voiceOutputSource.includes("emit({ type: 'speech_finished' })"));
 });
