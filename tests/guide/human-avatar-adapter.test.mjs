@@ -48,3 +48,17 @@ test('avatar setup downloads the pinned CC0 assets once for local runtime use', 
   assert.match(docs, /same-origin/i);
   assert.match(docs, /one-time setup/i);
 });
+
+test('Windows local consultation preflight checks configured on-disk voice and avatar prerequisites', async () => {
+  const verifier = await read('../../scripts/verify-local-consultation.ps1');
+  const voiceDocs = await read('../../docs/LOCAL_VOICE_SETUP.md');
+
+  assert.match(verifier, /LAWSENSE_LOCAL_WHISPER_MODEL/);
+  assert.match(verifier, /LAWSENSE_PIPER_MODEL_ENGLISH/);
+  assert.match(verifier, /LAWSENSE_PIPER_MODEL_HINDI/);
+  assert.match(verifier, /setup:avatar/);
+  assert.match(verifier, /sourceCommit/);
+  assert.match(voiceDocs, /verify-local-consultation\.ps1 -PrepareAvatar/);
+  assert.match(voiceDocs, /RequireVoiceModels/);
+  assert.match(voiceDocs, /does not download speech models/i);
+});
