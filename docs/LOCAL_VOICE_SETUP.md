@@ -55,3 +55,29 @@ If the required Piper voice models are not installed, LawSense checks for the lo
 ## Remaining validation
 
 The local provider wiring and browser-consent behavior are covered by automated tests, but the following are still required before Milestones 8–11 can be signed off: install and exercise real multilingual Faster-Whisper and Piper models on the target Windows laptop; benchmark Hindi, English and Hinglish pronunciation, latency and memory; verify Android on-device recognition/output and local-network behavior on a physical phone; and validate viseme timing against actual audio. eSpeak NG remains a functional but synthetic local fallback, not the final natural-avatar voice.
+
+
+## Windows preflight and model verification
+
+From the LawSense repository root in PowerShell:
+
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass
+.\scripts\verify-local-consultation.ps1 -PrepareAvatar
+```
+
+The verifier checks the Node/npm toolchain, the configured Ollama Guide model, the on-disk Faster-Whisper model and Python package, Piper executable plus Hindi/English ONNX/config pairs, eSpeak NG fallback, and the pinned HumanForge asset manifest. `-PrepareAvatar` runs the one-time pinned CC0 avatar asset setup only when the local READY manifest is missing.
+
+To make missing speech models a hard failure during a readiness run, use:
+
+```powershell
+.\scripts\verify-local-consultation.ps1 -RequireVoiceModels
+```
+
+Configure the API process with `LAWSENSE_LOCAL_WHISPER_MODEL`, `LAWSENSE_LOCAL_WHISPER_DEVICE` (default `cpu`), and `LAWSENSE_LOCAL_WHISPER_COMPUTE_TYPE` (default `int8`). The Faster-Whisper model directory must already contain `model.bin`, `config.json`, and `tokenizer.json`. Install the optional package into the same Python environment that starts FastAPI:
+
+```powershell
+python -m pip install -r api/requirements-voice-local.txt
+```
+
+The script performs a readiness check; it does not download speech models, transmit audio, or certify pronunciation quality. After it passes, start the local API and test English, Hindi and Hinglish with actual microphone recordings. Record first-audio latency, transcription latency, CPU/RAM use, and any pronunciation/transcription errors. Keep the models on disk and do not commit model binaries to Git.
