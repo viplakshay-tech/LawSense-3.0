@@ -537,7 +537,7 @@ export function CaseShell({ caseId, children }: { caseId: string; children: Reac
         </span>
       )}
       {!isConsultationRoute && <GuideControlSurface />}
-      {!isConsultationRoute && <PersistentLegalAdvisory caseId={caseId} />}
+      <PersistentLegalAdvisory caseId={caseId} />
       {!isConsultationRoute && <Suspense fallback={null}><CaseContextPanel caseId={caseId} /></Suspense>}
     </div>
   );
