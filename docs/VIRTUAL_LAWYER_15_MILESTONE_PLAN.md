@@ -71,21 +71,23 @@ This is an evidence-based progress snapshot, not a release sign-off.
 | 2 | Complete | Plain-language prompt and focused backend tests are in the feature branch. The current backend CI job passed. |
 | 3 | Complete | The existing case-scoped Guide session already shares turns across text/voice, persists the bounded transcript in session storage, and aborts superseded turns. Earlier merged regressions cover cross-mode cancellation and stale-response protection. |
 | 4 | Complete | `/case/[id]/consultation` is case-scoped and reuses existing case access and voice providers. The dedicated-route Playwright checks passed. |
-| 5 | Implemented; browser regression fix under CI verification | Immersive workspace, transcript, language selector, text/voice controls and case-progress drawer are wired. The latest browser run exposed that `PersistentLegalAdvisory` was intentionally unmounted on the consultation route even though the Guide exposed its action. It is now mounted on that route (the separate Guide control surface remains hidden); run #460 verifies the fix. Manual screen-reader and physical narrow-device review remain. |
+| 5 | Implemented; automated acceptance passed | Immersive workspace, transcript, language selector, text/voice controls and case-progress drawer are wired. The Legal Advisory component is mounted on the consultation route while the separate Guide control surface remains hidden. Playwright run #461 passed the keyboard-open/close advisory flow, desktop layout, 390px layout and microphone-silent-until-requested checks. Manual screen-reader and physical narrow-device review remain. |
 | 6 | Implemented; runtime acceptance pending | HumanForge is pinned; its setup script prepares assets into `public/lawsense-human`, the renderer requests same-origin assets only, and the illustrated fallback remains. The setup script and actual model still need to be run and visually checked on the target Windows/Android devices. |
 | 7 | Partial implementation | Guide expressions, viseme cues, subtle head/neck pose and blinks map to the 3D avatar. Full-body hand gestures and independent eye-ball gaze remain unsupported; reduced-motion behavior still needs device validation. No unverified gestures are presented as complete. |
 | 8 | Integrated; device acceptance pending | Local Faster-Whisper is selected from an on-disk model path; voice capture is local-first and browser recognition requires explicit opt-in. Backend tests cover injected providers, on-disk model readiness, temporary audio cleanup and provider-unavailable behavior. Real Hindi/English models and Windows/Android transcription quality remain unverified. |
 | 9 | Integrated; quality acceptance pending | Local Piper/eSpeak is preferred; browser speech synthesis requires separate explicit consent. Piper tests cover installed model/config pairing, Hindi synthesis, Hinglish fallback and fail-closed behavior. Real Piper models, Hindi/English naturalness, latency and memory benchmarks remain. |
-| 10 | Chunked playback implemented; acceptance pending | Local TTS now splits long replies into sentence-aware bounded chunks, synthesizes and plays them sequentially, aborts stale requests and settles pending playback on cancellation. Unit tests cover Hindi/English chunk boundaries; Playwright covers voice and typed-message interruption. Run the complete CI suite and validate real local audio continuity/latency on the Windows target. |
+| 10 | Implemented; automated acceptance passed | Local TTS splits long replies into sentence-aware bounded chunks, synthesizes and plays them sequentially, aborts stale requests and settles pending playback on cancellation. Unit tests cover Hindi/English chunk boundaries, cancellation and no-replay fallback; Playwright run #461 passed voice and typed-message interruption journeys. Real Piper audio continuity/latency and physical-device barge-in validation remain. |
 | 11 | Partial implementation | Existing caller-owned viseme timing is mapped to HumanForge ARKit facial morphs. Validate actual Hindi/English audio alignment, pauses and interruption on-device before sign-off. |
 | 12 | Partial implementation with broad regression coverage | Voice transcripts remain editable and require explicit confirmation. Existing Guide actions route to Legal Advisory, journey and document studio; Playwright covers confirmed document proposals and legal-advisory refresh. A single end-to-end consultation-to-advisory/document journey with source uncertainty assertions remains. |
 | 13 | In progress | Audio cleanup, local provider boundaries and explicit browser-consent controls are implemented. Full auth/case-ownership, retention, request-size and local-network security review remains. |
 | 14 | Partial implementation | CI now passes backend, frontend, Playwright and Android debug APK jobs; an installable debug APK artifact is uploaded. Physical-device installation, Wi-Fi pairing without USB, permissions and verified offline behavior remain. |
 | 15 | Not started | Release regression and handoff must wait until all preceding acceptance gates pass. |
 
-### Latest baseline CI evidence — 18 November 2026
+### Latest CI evidence — 19 November 2026
 
-Latest completed run: [44263557845](https://github.com/viplakshay-tech/LawSense-3.0/actions/runs/44263557845)
+Latest completed feature-branch run: [44488247199](https://github.com/viplakshay-tech/LawSense-3.0/actions/runs/44488247199) (run #461, commit `d49f1ccc`). All four jobs passed: Python backend tests, Playwright browser journeys, frontend lint/tests/production build, and Android debug APK build. The consultation advisory mounting regression is covered by the passing Playwright journey.
+
+Previous integration baseline: [44263557845](https://github.com/viplakshay-tech/LawSense-3.0/actions/runs/44263557845)
 
 - Python backend tests: passed.
 - Frontend lint, focused tests and production build: passed.
@@ -96,7 +98,7 @@ The CI APK is a debug artifact, not a Play Store release. It does not bundle Oll
 
 ### Immediate next execution
 
-1. Run the new CI workflow after the chunked local-TTS implementation and keyboard consultation regression; fix any lint, type, unit, backend or Playwright failures before treating the code changes as accepted.
+1. Keep the passing CI gates green after every further change; run #461 passed backend, frontend, Playwright and Android build jobs.
 2. Install and exercise actual Faster-Whisper and Piper Hindi/English models on the target Windows laptop; benchmark pronunciation, latency and memory rather than relying only on mocked-provider tests.
 3. Run `npm ci` and `npm run setup:avatar`; visually validate the pinned HumanForge model, local-only asset requests, fallback behavior and reduced-motion behavior.
 4. Install the APK on a physical Android phone over Wi-Fi, verify permissions and USB-independent pairing, then validate only the offline capabilities that actually work.
