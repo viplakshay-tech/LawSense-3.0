@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Mic, MicOff, RotateCcw, Send } from 'lucide-react';
-import type { GuideVoiceEvent, VoiceLanguage } from '@/components/guide-runtime/voice-adapter/events';
-import type { RecognitionLanguage } from './VoiceCapture';
-import { sendGuideMessage, type GuideActionName } from '@/lib/api';
+import type { GuideVoiceEvent, VoiceLanguage, VoiceRecognitionProvider } from '@/components/guide-runtime/voice-adapter/events';
+import VoiceCapture, { type RecognitionLanguage, type VoiceCaptureEvent } from './VoiceCapture';
+import { sendGuideMessage, synthesizeVoiceSpeech, type CaseState, type GuideActionName } from '@/lib/api';
 import { GuideModelStatusBanner } from '@/components/guide-presence/GuideModelStatusBanner';
 import {
   getGuideConversationHistory,
@@ -68,6 +68,7 @@ interface RecognitionWindow extends Window {
 interface GuideConversationProps {
   draftId: string;
   caseId: string;
+  caseState: CaseState | null;
   language: RecognitionLanguage;
   openQuestions: readonly string[];
   hasDraft: boolean;
@@ -116,6 +117,7 @@ function recognitionErrorMessage(code: string): { status: GuideConversationStatu
 export default function GuideConversation({
   draftId,
   caseId,
+  caseState,
   language,
   openQuestions,
   hasDraft,
@@ -135,13 +137,21 @@ export default function GuideConversation({
   const [interimTranscript, setInterimTranscript] = useState('');
   const [typedMessage, setTypedMessage] = useState('');
   const [transcriptDraft, setTranscriptDraft] = useState('');
+  const [captureBusy, setCaptureBusy] = useState(false);
+  const [browserRecognitionConsent, setBrowserRecognitionConsent] = useState(false);
+  const [browserTtsConsent, setBrowserTtsConsent] = useState(false);
   const [nativeCapabilities, setNativeCapabilities] = useState<NativeGuideAudioCapabilities | null>(null);
   const [speechUnavailable, setSpeechUnavailable] = useState(false);
+  const [speechOutputPending, setSpeechOutputPending] = useState(false);
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const speechStartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const speechOperationRef = useRef(0);
+  const localAudioRef = useRef<HTMLAudioElement | null>(null);
+  const localAudioUrlRef = useRef<string | null>(null);
+  const localTtsRequestRef = useRef<AbortController | null>(null);
+  const browserTtsConsentRef = useRef(false);
   const callActiveRef = useRef(false);
   const shouldListenRef = useRef(false);
   const mountedRef = useRef(false);
@@ -150,6 +160,7 @@ export default function GuideConversation({
   const recognitionErrorRef = useRef<{ status: GuideConversationStatus; detail: string } | null>(null);
   const finalTranscriptRef = useRef('');
   const currentCaptureIdRef = useRef('');
+  const currentCaptureProviderRef = useRef<Exclude<VoiceRecognitionProvider, 'typed'>>('server');
   const questionIndexRef = useRef(0);
   const questionsRef = useRef(openQuestions);
   const hasDraftRef = useRef(hasDraft);
@@ -184,6 +195,25 @@ export default function GuideConversation({
   const updateGuideAudio = useCallback((turnId: string, audio: NonNullable<GuideSessionTurn['audio']>) => {
     updateTurn(turnId, { audio });
   }, [updateTurn]);
+
+  const releaseLocalAudio = useCallback(() => {
+    localTtsRequestRef.current?.abort();
+    localTtsRequestRef.current = null;
+    const audio = localAudioRef.current;
+    if (audio) {
+      audio.onplay = null;
+      audio.onended = null;
+      audio.onerror = null;
+      audio.pause();
+      audio.removeAttribute('src');
+      audio.load();
+      localAudioRef.current = null;
+    }
+    if (localAudioUrlRef.current) {
+      URL.revokeObjectURL(localAudioUrlRef.current);
+      localAudioUrlRef.current = null;
+    }
+  }, []);
 
   const updateTranscriptDraft = useCallback((transcript: string) => {
     transcriptDraftRef.current = transcript;
@@ -248,6 +278,7 @@ export default function GuideConversation({
         const activeSpeech = nativeTtsRef.current;
         if (!activeSpeech || event.responseId !== activeSpeech.responseId || activeSpeech.operation !== speechOperationRef.current) return;
         updateGuideAudio(activeSpeech.responseId, 'speaking');
+        setSpeechOutputPending(false);
         setSpeechUnavailable(false);
         transition('speaking');
         onRuntimeEventRef.current?.({ type: 'speech_started', responseId: activeSpeech.responseId });
@@ -256,8 +287,10 @@ export default function GuideConversation({
         const activeSpeech = nativeTtsRef.current;
         if (!activeSpeech || event.responseId !== activeSpeech.responseId || activeSpeech.operation !== speechOperationRef.current) return;
         nativeTtsRef.current = null;
+        setSpeechOutputPending(false);
         if (speechStartTimerRef.current) clearTimeout(speechStartTimerRef.current);
         speechStartTimerRef.current = null;
+        setSpeechOutputPending(false);
         updateGuideAudio(activeSpeech.responseId, 'spoken');
         onRuntimeEventRef.current?.({ type: 'speech_finished', responseId: activeSpeech.responseId });
         activeSpeech.afterSpeech();
@@ -267,6 +300,7 @@ export default function GuideConversation({
         if (!activeSpeech || event.responseId !== activeSpeech.responseId) return;
         nativeTtsRef.current = null;
         const detail = typeof event.detail === 'string' ? event.detail : 'Android could not play this response. The text remains available.';
+        setSpeechOutputPending(false);
         setSpeechUnavailable(true);
         updateGuideAudio(activeSpeech.responseId, 'failed');
         transition('error', detail);
@@ -296,25 +330,25 @@ export default function GuideConversation({
     responseId: string,
     afterSpeech: () => void,
   ) => {
-    if (nativeCapabilitiesRef.current) {
-      const capabilities = nativeCapabilitiesRef.current;
-      if (!capabilities.ttsAvailable) {
-        setSpeechUnavailable(true);
-        updateGuideAudio(responseId, 'unavailable');
-        transition('error', 'No installed offline Android voice is available. The reply remains readable, and text input is ready.');
-        onRuntimeEventRef.current?.({ type: 'speech_unavailable', responseId });
-        afterSpeech();
-        return;
-      }
-      if (speechStartTimerRef.current) clearTimeout(speechStartTimerRef.current);
+    if (speechStartTimerRef.current) clearTimeout(speechStartTimerRef.current);
+    speechStartTimerRef.current = null;
+    releaseLocalAudio();
+    utteranceRef.current = null;
+    nativeTtsRef.current = null;
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+    setSpeechOutputPending(true);
+
+    if (nativeCapabilitiesRef.current?.ttsAvailable) {
       const operation = ++speechOperationRef.current;
       const activeSpeech = { responseId, operation, afterSpeech };
       nativeTtsRef.current = activeSpeech;
       updateGuideAudio(responseId, 'queued');
+      setSpeechUnavailable(false);
       speechStartTimerRef.current = setTimeout(() => {
         if (nativeTtsRef.current !== activeSpeech) return;
         nativeTtsRef.current = null;
         speechStartTimerRef.current = null;
+        setSpeechOutputPending(false);
         const detail = 'Android did not start spoken playback. The reply remains readable below.';
         setSpeechUnavailable(true);
         updateGuideAudio(responseId, 'failed');
@@ -332,6 +366,7 @@ export default function GuideConversation({
         if (speechStartTimerRef.current) clearTimeout(speechStartTimerRef.current);
         speechStartTimerRef.current = null;
         const detail = error instanceof Error ? error.message : 'Android could not play this response. The text remains available.';
+        setSpeechOutputPending(false);
         setSpeechUnavailable(true);
         updateGuideAudio(responseId, 'failed');
         transition('error', detail);
@@ -341,76 +376,190 @@ export default function GuideConversation({
       return;
     }
 
-    if (typeof window === 'undefined' || !('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') {
+    const operation = ++speechOperationRef.current;
+    const controller = new AbortController();
+    localTtsRequestRef.current = controller;
+    updateGuideAudio(responseId, 'queued');
+    setSpeechUnavailable(false);
+
+    let localTimeout: ReturnType<typeof setTimeout> | null = null;
+    const clearLocalTimeout = () => {
+      if (localTimeout) clearTimeout(localTimeout);
+      localTimeout = null;
+    };
+    const failUnavailable = (detail: string) => {
+      if (speechOperationRef.current !== operation) return;
+      clearLocalTimeout();
+      setSpeechOutputPending(false);
+      if (speechStartTimerRef.current) clearTimeout(speechStartTimerRef.current);
+      speechStartTimerRef.current = null;
       setSpeechUnavailable(true);
       updateGuideAudio(responseId, 'unavailable');
-      transition('error', 'Browser speech output is unavailable. The reply remains readable below; you can continue by typing.');
+      transition('error', detail);
       onRuntimeEventRef.current?.({ type: 'speech_unavailable', responseId });
       afterSpeech();
-      return;
-    }
+    };
+    const failBrowser = (detail: string) => {
+      if (speechOperationRef.current !== operation) return;
+      if (speechStartTimerRef.current) clearTimeout(speechStartTimerRef.current);
+      speechStartTimerRef.current = null;
+      utteranceRef.current = null;
+      setSpeechOutputPending(false);
+      setSpeechUnavailable(true);
+      updateGuideAudio(responseId, 'failed');
+      transition('error', detail);
+      onRuntimeEventRef.current?.({ type: 'speech_failed', responseId, detail });
+      afterSpeech();
+    };
+    const speakBrowser = (localFailure: string) => {
+      clearLocalTimeout();
+      if (!browserTtsConsentRef.current) {
+        failUnavailable(localFailure + ' Browser-managed voice fallback is disabled; enable it below if you want that fallback.');
+        return;
+      }
+      if (typeof window === 'undefined' || !('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') {
+        failUnavailable(localFailure + ' This browser also has no speech output service. The response remains readable.');
+        return;
+      }
 
-    const synthesis = window.speechSynthesis;
-    synthesis.cancel();
+      const synthesis = window.speechSynthesis;
+      synthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = languageRef.current === 'English' ? 'en-IN' : 'hi-IN';
+      utterance.rate = 0.97;
+      utterance.pitch = 1.02;
+      const voice = selectGuideSpeechVoice(synthesis.getVoices(), languageRef.current);
+      if (voice) utterance.voice = voice;
+
+      utterance.onstart = () => {
+        if (speechOperationRef.current !== operation || utteranceRef.current !== utterance) return;
+        if (speechStartTimerRef.current) clearTimeout(speechStartTimerRef.current);
+        speechStartTimerRef.current = null;
+        updateGuideAudio(responseId, 'speaking');
+        setSpeechOutputPending(false);
+        setSpeechUnavailable(false);
+        transition('speaking');
+        onRuntimeEventRef.current?.({ type: 'speech_started', responseId });
+      };
+      utterance.onend = () => {
+        if (speechOperationRef.current !== operation || utteranceRef.current !== utterance) return;
+        if (speechStartTimerRef.current) clearTimeout(speechStartTimerRef.current);
+        speechStartTimerRef.current = null;
+        utteranceRef.current = null;
+        setSpeechOutputPending(false);
+        updateGuideAudio(responseId, 'spoken');
+        onRuntimeEventRef.current?.({ type: 'speech_finished', responseId });
+        afterSpeech();
+      };
+      utterance.onerror = (event) => {
+        if (speechOperationRef.current !== operation || utteranceRef.current !== utterance) return;
+        const detail = event.error === 'not-allowed'
+          ? 'Your browser blocked spoken replies. The text remains available below.'
+          : 'The browser could not play this reply. The text remains available below.';
+        failBrowser(detail);
+      };
+
+      utteranceRef.current = utterance;
+      updateGuideAudio(responseId, 'queued');
+      speechStartTimerRef.current = setTimeout(() => {
+        if (speechOperationRef.current !== operation || utteranceRef.current !== utterance) return;
+        synthesis.cancel();
+        failBrowser('The browser did not start spoken playback. The reply remains readable below.');
+      }, 7000);
+      try {
+        synthesis.speak(utterance);
+      } catch {
+        failBrowser('The browser could not start spoken playback. The reply remains readable below.');
+      }
+    };
+
+    const speechLanguage = languageRef.current === 'English'
+      ? 'english'
+      : languageRef.current === 'Hinglish'
+        ? 'hinglish'
+        : 'hindi';
+
+    localTimeout = setTimeout(() => {
+      if (speechOperationRef.current !== operation) return;
+      controller.abort();
+      localTtsRequestRef.current = null;
+      speakBrowser('Local speech generation timed out.');
+    }, 20000);
+
+    const playLocalSpeech = async () => {
+      let player: HTMLAudioElement | null = null;
+      try {
+        const blob = await synthesizeVoiceSpeech(text, speechLanguage, controller.signal);
+        clearLocalTimeout();
+        if (speechOperationRef.current !== operation || controller.signal.aborted) return;
+        localTtsRequestRef.current = null;
+        if (!blob.size) throw new Error('The local speech provider returned an empty audio file.');
+
+        const url = URL.createObjectURL(blob);
+        player = new Audio(url);
+        localAudioRef.current = player;
+        localAudioUrlRef.current = url;
+
+        player.onplay = () => {
+          if (speechOperationRef.current !== operation || localAudioRef.current !== player) return;
+          updateGuideAudio(responseId, 'speaking');
+          setSpeechOutputPending(false);
+          setSpeechUnavailable(false);
+          transition('speaking');
+          onRuntimeEventRef.current?.({ type: 'speech_started', responseId });
+        };
+        player.onended = () => {
+          if (speechOperationRef.current !== operation || localAudioRef.current !== player) return;
+          releaseLocalAudio();
+          setSpeechOutputPending(false);
+          updateGuideAudio(responseId, 'spoken');
+          onRuntimeEventRef.current?.({ type: 'speech_finished', responseId });
+          afterSpeech();
+        };
+        player.onerror = () => {
+          if (speechOperationRef.current !== operation || localAudioRef.current !== player) return;
+          releaseLocalAudio();
+          speakBrowser('Local audio playback failed.');
+        };
+        await player.play();
+      } catch (error) {
+        clearLocalTimeout();
+        if (speechOperationRef.current !== operation || controller.signal.aborted) return;
+        if (player && localAudioRef.current !== player) return;
+        localTtsRequestRef.current = null;
+        releaseLocalAudio();
+        speakBrowser(error instanceof Error ? error.message : 'The local speech provider is unavailable.');
+      }
+    };
+
+    void playLocalSpeech();
+  }, [releaseLocalAudio, transition, updateGuideAudio]);
+
+  const stopSpeech = useCallback(() => {
+    const responseId = lastResponseRef.current?.id;
+    const active = speechOutputPending
+      || presentation.status === 'speaking'
+      || Boolean(localAudioRef.current || localTtsRequestRef.current || utteranceRef.current || nativeTtsRef.current);
+    if (!active) return;
+
+    speechOperationRef.current += 1;
     if (speechStartTimerRef.current) clearTimeout(speechStartTimerRef.current);
     speechStartTimerRef.current = null;
-    const operation = ++speechOperationRef.current;
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = languageRef.current === 'English' ? 'en-IN' : 'hi-IN';
-    utterance.rate = 0.97;
-    utterance.pitch = 1.02;
-    const voice = selectGuideSpeechVoice(synthesis.getVoices(), languageRef.current);
-    if (voice) utterance.voice = voice;
+    releaseLocalAudio();
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+    utteranceRef.current = null;
+    const nativeSpeech = nativeTtsRef.current;
+    nativeTtsRef.current = null;
+    if (nativeSpeech) void requestNativeGuideAudio('stopSpeaking').catch(() => undefined);
 
-    utterance.onstart = () => {
-      if (speechOperationRef.current !== operation || utteranceRef.current !== utterance) return;
-      if (speechStartTimerRef.current) clearTimeout(speechStartTimerRef.current);
-      speechStartTimerRef.current = null;
-      updateGuideAudio(responseId, 'speaking');
-      setSpeechUnavailable(false);
-      transition('speaking');
-      onRuntimeEventRef.current?.({ type: 'speech_started', responseId });
-    };
-    utterance.onend = () => {
-      if (speechOperationRef.current !== operation || utteranceRef.current !== utterance) return;
-      if (speechStartTimerRef.current) clearTimeout(speechStartTimerRef.current);
-      speechStartTimerRef.current = null;
-      utteranceRef.current = null;
-      updateGuideAudio(responseId, 'spoken');
-      onRuntimeEventRef.current?.({ type: 'speech_finished', responseId });
-      afterSpeech();
-    };
-    utterance.onerror = (event) => {
-      if (speechOperationRef.current !== operation || utteranceRef.current !== utterance) return;
-      if (speechStartTimerRef.current) clearTimeout(speechStartTimerRef.current);
-      speechStartTimerRef.current = null;
-      utteranceRef.current = null;
-      const detail = event.error === 'not-allowed'
-        ? 'Your browser blocked spoken replies. The text remains available below.'
-        : 'The browser could not play this reply. The text remains available below.';
-      setSpeechUnavailable(true);
-      updateGuideAudio(responseId, 'failed');
-      transition('error', detail);
-      onRuntimeEventRef.current?.({ type: 'speech_failed', responseId, detail });
-      afterSpeech();
-    };
-
-    utteranceRef.current = utterance;
-    updateGuideAudio(responseId, 'queued');
-    speechStartTimerRef.current = setTimeout(() => {
-      if (speechOperationRef.current !== operation || utteranceRef.current !== utterance) return;
-      synthesis.cancel();
-      utteranceRef.current = null;
-      speechStartTimerRef.current = null;
-      const detail = 'The browser did not start spoken playback. The reply remains readable below.';
-      setSpeechUnavailable(true);
-      updateGuideAudio(responseId, 'failed');
-      transition('error', detail);
-      onRuntimeEventRef.current?.({ type: 'speech_failed', responseId, detail });
-      afterSpeech();
-    }, 7000);
-    synthesis.speak(utterance);
-  }, [transition, updateGuideAudio]);
+    setSpeechOutputPending(false);
+    setSpeechUnavailable(false);
+    if (responseId) {
+      updateGuideAudio(responseId, 'cancelled');
+      onRuntimeEventRef.current?.({ type: 'speech_cancelled', responseId });
+    }
+    transition('paused', 'Spoken reply stopped. The response remains available as text.');
+  }, [presentation.status, releaseLocalAudio, speechOutputPending, transition, updateGuideAudio]);
 
   const receiveTurn = useCallback(async (text: string, inputMethod: 'voice' | 'text') => {
     const statement = text.trim();
@@ -759,8 +908,10 @@ export default function GuideConversation({
     releaseStream();
     if (speechStartTimerRef.current) clearTimeout(speechStartTimerRef.current);
     speechStartTimerRef.current = null;
-    const wasSpeaking = Boolean(utteranceRef.current || nativeTtsRef.current);
+    const wasSpeaking = Boolean(speechOutputPending || localAudioRef.current || localTtsRequestRef.current || utteranceRef.current || nativeTtsRef.current);
     speechOperationRef.current += 1;
+    releaseLocalAudio();
+    setSpeechOutputPending(false);
     utteranceRef.current = null;
     nativeTtsRef.current = null;
     if (nativeCapabilitiesRef.current) {
@@ -769,24 +920,28 @@ export default function GuideConversation({
     }
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
     const responseId = lastResponseRef.current?.id;
-    if (wasSpeaking && responseId) onRuntimeEventRef.current?.({ type: 'speech_cancelled', responseId });
+    if (wasSpeaking && responseId) {
+      updateGuideAudio(responseId, 'cancelled');
+      onRuntimeEventRef.current?.({ type: 'speech_cancelled', responseId });
+    }
     transition('ended');
-  }, [presentation.status, releaseStream, transition, updateTranscriptDraft]);
+  }, [presentation.status, releaseLocalAudio, releaseStream, speechOutputPending, transition, updateGuideAudio, updateTranscriptDraft]);
 
   const repeatResponse = useCallback(() => {
     const response = lastResponseRef.current;
     if (!response || transcriptDraftRef.current || presentation.status === 'listening' || presentation.status === 'processing' || presentation.status === 'speaking') return;
-    speakResponse(response.text, response.id, () => transition(callActiveRef.current ? 'paused' : 'idle', 'Reply ready. Tap “Speak to Guide” when you want to record another turn, or type below.'));
+    speakResponse(response.text, response.id, () => transition(callActiveRef.current ? 'paused' : 'idle', 'Reply ready. Start another voice turn or type below.'));
   }, [presentation.status, speakResponse, transition]);
 
   const sendTypedMessage = useCallback((event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const message = typedMessage.trim();
-    if (!message || disabled || ['requesting_permission', 'processing', 'speaking'].includes(presentation.status)) return;
+    if (!message || disabled || captureBusy || presentation.status === 'requesting_permission' || (presentation.status === 'processing' && !speechOutputPending)) return;
+    if (speechOutputPending || presentation.status === 'speaking') stopSpeech();
     if (presentation.status === 'listening') pauseListening();
     setTypedMessage('');
     void receiveTurn(message, 'text');
-  }, [disabled, pauseListening, presentation.status, receiveTurn, typedMessage]);
+  }, [captureBusy, disabled, pauseListening, presentation.status, receiveTurn, speechOutputPending, stopSpeech, typedMessage]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -795,6 +950,7 @@ export default function GuideConversation({
       callActiveRef.current = false;
       shouldListenRef.current = false;
       speechOperationRef.current += 1;
+      releaseLocalAudio();
       if (speechStartTimerRef.current) clearTimeout(speechStartTimerRef.current);
       speechStartTimerRef.current = null;
       const recognition = recognitionRef.current;
@@ -812,12 +968,20 @@ export default function GuideConversation({
       }
       if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
     };
-  }, [releaseStream]);
+  }, [releaseLocalAudio, releaseStream]);
 
-  const canSubmitText = !disabled;
-  const textSubmissionBusy = ['requesting_permission', 'processing', 'speaking'].includes(presentation.status);
+  const canSubmitText = !disabled && !captureBusy;
+  const textSubmissionBusy = captureBusy || presentation.status === 'requesting_permission' || (presentation.status === 'processing' && !speechOutputPending);
   const active = callActive || presentation.status === 'requesting_permission';
-  const statusLabel = presentation.status === 'requesting_permission'
+  const caseProgressActions = availableActions.filter((action) =>
+    action.type === 'OPEN_LEGAL_ADVISORY' ||
+    action.type === 'OPEN_JOURNEY' ||
+    action.type === 'OPEN_DRAFTING'
+  );
+
+  const statusLabel = speechOutputPending
+    ? 'Preparing spoken reply'
+    : presentation.status === 'requesting_permission'
     ? 'Requesting microphone permission'
     : presentation.status === 'listening'
       ? 'Listening'
@@ -855,6 +1019,47 @@ export default function GuideConversation({
       </div>
       <GuideModelStatusBanner />
 
+      {caseState && (
+        <details className="ls-guide-call__caseProgress" aria-label="Case progress">
+          <summary className="ls-guide-call__caseProgressSummary">
+            <span>Case progress</span>
+            <span>{caseState.facts.length} facts · {caseState.unknowns.length} open questions</span>
+          </summary>
+          <div className="ls-guide-call__caseProgressBody">
+            <div className="ls-guide-call__caseProgressGrid">
+              <div><strong>{caseState.facts.length}</strong><span>Recorded facts</span></div>
+              <div><strong>{caseState.evidence.length}</strong><span>Evidence items</span></div>
+              <div><strong>{caseState.documents.length}</strong><span>Documents</span></div>
+              <div><strong>{caseState.legalIssues.length}</strong><span>Legal issues</span></div>
+              <div><strong>{caseState.unknowns.length}</strong><span>Open questions</span></div>
+              <div><strong>{caseState.conflicts.length}</strong><span>Conflicts</span></div>
+            </div>
+            {caseState.unknowns.length > 0 && (
+              <div className="ls-guide-call__caseProgressSection">
+                <h3>Still to clarify</h3>
+                <ul>{caseState.unknowns.slice(0, 3).map((question, index) => <li key={index}>{question}</li>)}</ul>
+              </div>
+            )}
+            {caseState.conflicts.length > 0 && (
+              <div className="ls-guide-call__caseProgressSection">
+                <h3>Conflicting information</h3>
+                <ul>{caseState.conflicts.slice(0, 2).map((conflict, index) => <li key={index}>{conflict}</li>)}</ul>
+              </div>
+            )}
+            <p className="ls-guide-call__caseProgressNote">These counts reflect the saved case record. They do not mean every fact is independently verified or that a legal conclusion is final.</p>
+            {caseProgressActions.length > 0 && (
+              <div className="ls-guide-call__caseProgressActions" aria-label="Case destinations">
+                {caseProgressActions.map((action) => (
+                  <button key={action.type} type="button" disabled={actionRunning} onClick={() => onRunAction(action)}>
+                    {action.type === 'OPEN_LEGAL_ADVISORY' ? 'Decision so far' : action.type === 'OPEN_JOURNEY' ? 'Legal journey' : 'Document studio'}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </details>
+      )}
+
       <p className="ls-guide-call__conversationDetail" aria-live="polite">{presentation.detail}</p>
 
       <div className="ls-guide-call__conversationLog" role="log" aria-label="Voice conversation transcript" aria-live="polite" aria-relevant="additions text">
@@ -870,7 +1075,7 @@ export default function GuideConversation({
               <p className="ls-guide-call__turnText">{turn.content}</p>
               {turn.role === 'assistant' && (
                 <p className="ls-guide-call__turnAudio" role="status">
-                  {turn.audio === 'spoken' ? 'Spoken aloud' : turn.audio === 'speaking' ? 'Speaking now' : turn.audio === 'queued' ? 'Preparing spoken reply' : turn.audio === 'failed' ? 'Could not play aloud · text remains available' : turn.audio === 'unavailable' ? 'Speech output unavailable · text remains available' : ''}
+                  {turn.audio === 'spoken' ? 'Spoken aloud' : turn.audio === 'speaking' ? 'Speaking now' : turn.audio === 'queued' ? 'Preparing spoken reply' : turn.audio === 'failed' ? 'Could not play aloud · text remains available' : turn.audio === 'unavailable' ? 'Speech output unavailable · text remains available' : turn.audio === 'cancelled' ? 'Playback stopped · text remains available' : ''}
                 </p>
               )}
               {proposedAction && (
@@ -943,7 +1148,76 @@ export default function GuideConversation({
       )}
 
       <div className="ls-guide-call__conversationControls" aria-label="Voice turn controls">
-        {!active && presentation.status !== 'unsupported' && (
+        {!nativeCapabilities?.recognitionAvailable && (
+          <VoiceCapture
+            language={language}
+            requireLocalProvider
+            allowBrowserFallback={browserRecognitionConsent}
+            disabled={disabled || Boolean(transcriptDraft) || (presentation.status === 'processing' && !captureBusy && !speechOutputPending)}
+            onCaptureStateChange={(active) => {
+              if (active && (speechOutputPending || presentation.status === 'speaking')) stopSpeech();
+              setCaptureBusy(active);
+            }}
+            onCaptureStatusChange={(status) => {
+              if (status === 'listening') {
+                if (speechOutputPending || presentation.status === 'speaking') stopSpeech();
+                transition('listening');
+              }
+              else if (status === 'processing') transition('processing', 'Preparing your voice transcript…');
+              else if (transcriptDraftRef.current) transition('paused', 'Transcript ready for review.');
+            }}
+            onCaptureEvent={(event: VoiceCaptureEvent) => {
+              if (event.type === 'capture_started') {
+                currentCaptureIdRef.current = event.captureId;
+                currentCaptureProviderRef.current = event.provider;
+                onRuntimeEventRef.current?.({
+                  type: 'capture_started',
+                  draftId: draftIdRef.current,
+                  captureId: event.captureId,
+                  provider: event.provider,
+                  language: asVoiceLanguage(event.language),
+                });
+              } else if (event.type === 'capture_cancelled') {
+                transition(transcriptDraftRef.current ? 'paused' : 'idle', transcriptDraftRef.current ? 'Transcript retained for review.' : 'Voice capture cancelled.');
+                onRuntimeEventRef.current?.({
+                  type: 'capture_cancelled',
+                  draftId: draftIdRef.current,
+                  captureId: event.captureId,
+                  transcriptRetained: Boolean(transcriptDraftRef.current),
+                });
+              } else {
+                transition('error', event.detail);
+                onRuntimeEventRef.current?.({
+                  type: 'capture_failed',
+                  draftId: draftIdRef.current,
+                  captureId: event.captureId,
+                  detail: event.detail,
+                });
+              }
+            }}
+            onTranscript={(transcript) => {
+              const finalText = transcript.trim();
+              if (!finalText) return;
+              updateTranscriptDraft(finalText);
+              setInterimTranscript('');
+              transition('paused', 'Review your transcript before sending it to the Guide.');
+              onRuntimeEventRef.current?.({
+                type: 'transcript_received',
+                draftId: draftIdRef.current,
+                captureId: currentCaptureIdRef.current || createId('capture'),
+                transcript: finalText,
+                provider: currentCaptureProviderRef.current,
+                language: asVoiceLanguage(languageRef.current),
+              });
+            }}
+          />
+        )}
+        {(speechOutputPending || presentation.status === 'speaking') && (
+          <button type="button" className="ls-guide-call__callControlButton" onClick={stopSpeech}>
+            Stop speaking
+          </button>
+        )}
+        {!active && nativeCapabilities?.recognitionAvailable && presentation.status !== 'unsupported' && (
           <button type="button" className="ls-guide-call__startCallButton" onClick={() => void startCall()} disabled={disabled}>
             <Mic aria-hidden="true" />{presentation.status === 'ended' || presentation.status === 'permission_denied' || presentation.status === 'error' ? 'Tap to speak again' : 'Tap to speak'}
           </button>
@@ -971,8 +1245,34 @@ export default function GuideConversation({
       </div>
 
       <p className="ls-guide-call__conversationPrivacy">
-        On Android, speech recognition and spoken replies use installed on-device Android services only; the app will report if an offline service is unavailable. Desktop browser speech may use that browser’s configured provider. Guide replies use the configured LawSense server’s local Ollama model. Audio is not added to the case, and recognized words stay editable until you confirm them.
+        On Android, available on-device speech services are preferred. LawSense uses local Whisper and local speech synthesis when configured. Browser speech recognition or spoken replies may use your browser’s configured provider and are disabled until you opt in below. Guide replies use the configured LawSense server’s local Ollama model. Audio is not added to the case, and recognized words stay editable until you confirm them.
       </p>
+      {!nativeCapabilities?.recognitionAvailable && (
+        <label className="ls-guide-call__speechConsent">
+          <input
+            type="checkbox"
+            checked={browserRecognitionConsent}
+            onChange={(event) => {
+              setBrowserRecognitionConsent(event.target.checked);
+            }}
+          />
+          <span>Allow browser-managed speech recognition only when local Whisper is unavailable</span>
+        </label>
+      )}
+      {!nativeCapabilities?.ttsAvailable && (
+        <label className="ls-guide-call__speechConsent">
+          <input
+            type="checkbox"
+            checked={browserTtsConsent}
+            onChange={(event) => {
+              browserTtsConsentRef.current = event.target.checked;
+              setBrowserTtsConsent(event.target.checked);
+              if (!event.target.checked && utteranceRef.current) stopSpeech();
+            }}
+          />
+          <span>Allow browser-managed spoken replies only when local LawSense voice output is unavailable</span>
+        </label>
+      )}
     </section>
   );
 }

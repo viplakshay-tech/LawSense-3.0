@@ -79,6 +79,8 @@ export class BrowserSpeechRecognitionProvider implements SpeechRecognitionProvid
 interface VoiceCaptureProps {
   language: RecognitionLanguage;
   disabled?: boolean;
+  allowBrowserFallback?: boolean;
+  requireLocalProvider?: boolean;
   onTranscript: (transcript: string) => void;
   onCaptureStateChange?: (active: boolean) => void;
   onCaptureStatusChange?: (status: 'idle' | 'listening' | 'processing') => void;
@@ -103,7 +105,7 @@ function errorMessage(code: string): string {
   return 'Speech recognition stopped before a transcript was available. You can try again or type your statement.';
 }
 
-export default function VoiceCapture({ language, disabled = false, onTranscript, onCaptureStateChange, onCaptureStatusChange, onCaptureEvent }: VoiceCaptureProps) {
+export default function VoiceCapture({ language, disabled = false, allowBrowserFallback = true, requireLocalProvider = false, onTranscript, onCaptureStateChange, onCaptureStatusChange, onCaptureEvent }: VoiceCaptureProps) {
   const provider = useRef(new BrowserSpeechRecognitionProvider());
   const session = useRef<BrowserRecognitionSession | null>(null);
   const mediaRecorder = useRef<MediaRecorder | null>(null);
@@ -196,31 +198,39 @@ export default function VoiceCapture({ language, disabled = false, onTranscript,
     getVoiceProviderAvailability()
       .then((availability) => {
         if (!active) return;
-        if (canRecordAudio && availability.speechToTextAvailable && availability.languageDetectorAvailable) {
+        const speechProviderReady = availability.speechToTextAvailable && availability.languageDetectorAvailable;
+        const providerIsLocal = availability.processingLocation === 'local';
+        if (canRecordAudio && speechProviderReady && (!requireLocalProvider || providerIsLocal)) {
           setProviderMode('server');
           setServerProcessingLabel(
-            availability.processingLocation === 'local'
+            providerIsLocal
               ? `Audio is processed locally by ${availability.speechToTextProvider || 'the configured speech provider'}.`
               : 'Audio is sent to LawSense for the configured speech provider.',
           );
-        } else if (browserAvailable) {
+        } else if (browserAvailable && allowBrowserFallback) {
           setProviderMode('browser');
         } else {
           setProviderMode('unavailable');
           setUnavailableDetail(
             !canRecordAudio
               ? 'This browser has no microphone recording API.'
-              : availability.detail || 'No compatible speech provider is available.',
+              : requireLocalProvider && speechProviderReady && !providerIsLocal
+                ? 'A non-local speech provider is configured. This consultation will not send audio to it. Enable browser speech fallback or configure local Whisper.'
+                : browserAvailable && !allowBrowserFallback
+                  ? 'Browser-managed speech recognition is off. Enable the browser fallback option or type your statement.'
+                  : availability.detail || 'No compatible speech provider is available.',
           );
         }
       })
       .catch((cause) => {
         if (!active) return;
-        if (browserAvailable) {
+        if (browserAvailable && allowBrowserFallback) {
           setProviderMode('browser');
         } else {
           setProviderMode('unavailable');
-          setUnavailableDetail(cause instanceof Error ? cause.message : 'Speech provider status is unavailable.');
+          setUnavailableDetail(browserAvailable && !allowBrowserFallback
+            ? 'Browser-managed speech recognition is off. Enable the browser fallback option or type your statement.'
+            : cause instanceof Error ? cause.message : 'Speech provider status is unavailable.');
         }
       });
 
@@ -246,7 +256,7 @@ export default function VoiceCapture({ language, disabled = false, onTranscript,
       stopMeter(true, false);
     };
     // This effect owns provider detection and the capture resources for this mount.
-  }, []);
+  }, [allowBrowserFallback, requireLocalProvider]);
 
   const finishBrowserCapture = (recognition: BrowserRecognitionSession, candidate: string) => {
     setRecording(false);
@@ -440,6 +450,11 @@ export default function VoiceCapture({ language, disabled = false, onTranscript,
 
   const start = () => {
     if (disabled || recording || processing || permissionPending || providerMode === 'checking' || providerMode === 'unavailable') return;
+    if (providerMode === 'browser' && !allowBrowserFallback) {
+      setProviderMode('unavailable');
+      setUnavailableDetail('Browser-managed speech recognition is off. Enable the browser fallback option or type your statement.');
+      return;
+    }
     const id = typeof crypto !== 'undefined' && 'randomUUID' in crypto
       ? crypto.randomUUID()
       : `capture-${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -497,9 +512,11 @@ export default function VoiceCapture({ language, disabled = false, onTranscript,
 
   const busy = recording || stopping || processing || permissionPending;
   const captureStatus = recording ? 'listening' : busy ? 'processing' : 'idle';
-  const modeLabel = providerMode === 'browser'
-    ? 'Speech recognition is provided by your browser.'
-    : serverProcessingLabel;
+  const modeLabel = providerMode === 'browser' && !allowBrowserFallback
+    ? 'Browser speech recognition is disabled until you opt in.'
+    : providerMode === 'browser'
+      ? 'Speech recognition is provided by your browser.'
+      : serverProcessingLabel;
 
   useEffect(() => {
     if (lastCaptureBusy.current === busy) return;
@@ -517,8 +534,8 @@ export default function VoiceCapture({ language, disabled = false, onTranscript,
         <button
           type="button"
           onClick={busy ? stop : start}
-          disabled={disabled || processing || stopping || permissionPending || providerMode === 'checking' || (providerMode === 'unavailable' && !recording)}
-          aria-label={recording ? 'Stop voice input' : providerMode === 'unavailable' ? 'Voice input unavailable' : 'Start voice input'}
+          disabled={disabled || processing || stopping || permissionPending || providerMode === 'checking' || (providerMode === 'browser' && !allowBrowserFallback) || (providerMode === 'unavailable' && !recording)}
+          aria-label={recording ? 'Stop voice input' : providerMode === 'unavailable' || (providerMode === 'browser' && !allowBrowserFallback) ? 'Voice input unavailable' : 'Start voice input'}
           aria-pressed={recording}
           title={modeLabel}
           className={`inline-flex h-11 items-center justify-center gap-2 rounded-full border px-4 text-sm font-medium transition disabled:cursor-not-allowed disabled:text-zinc-400 dark:disabled:text-zinc-600 ${recording ? 'border-red-300 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200' : 'border-zinc-200 text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900'}`}

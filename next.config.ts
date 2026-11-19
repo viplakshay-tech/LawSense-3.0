@@ -8,6 +8,7 @@ const allowedDevOrigins = (process.env.LAWSENSE_DEV_ORIGINS ?? "")
   .filter(Boolean);
 
 const nextConfig: NextConfig = {
+  transpilePackages: ["humanforge"],
   /* config options here */
   distDir,
   allowedDevOrigins,

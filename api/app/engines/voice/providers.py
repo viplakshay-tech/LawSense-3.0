@@ -242,6 +242,109 @@ class EspeakNGTextToSpeechProvider:
         return result.stdout
 
 
+class PiperLocalTextToSpeechProvider:
+    """Optional natural-speech TTS through an already-installed local Piper CLI.
+
+    Voice models are user-installed files. This adapter never downloads models,
+    contacts a hosted service, or retains generated audio after the request.
+    Configure one or more model paths with LAWSENSE_PIPER_MODEL_ENGLISH,
+    LAWSENSE_PIPER_MODEL_HINDI, and LAWSENSE_PIPER_MODEL_HINGLISH.
+    """
+
+    provider_name = "piper-local"
+    processing_location = "local"
+    MAX_TEXT_CHARS = 6_000
+
+    def __init__(
+        self,
+        executable: str | None = None,
+        *,
+        model_paths: dict[VoiceLanguage, str | Path] | None = None,
+        timeout_seconds: int = 45,
+    ) -> None:
+        configured_executable = executable or os.getenv("LAWSENSE_PIPER_EXECUTABLE", "piper")
+        self._executable = (
+            configured_executable
+            if Path(configured_executable).is_file()
+            else shutil.which(configured_executable)
+        )
+        supplied = model_paths or {}
+        self._model_paths = {
+            VoiceLanguage.ENGLISH: self._resolve_model(supplied.get(VoiceLanguage.ENGLISH), "LAWSENSE_PIPER_MODEL_ENGLISH"),
+            VoiceLanguage.HINDI: self._resolve_model(supplied.get(VoiceLanguage.HINDI), "LAWSENSE_PIPER_MODEL_HINDI"),
+            VoiceLanguage.HINGLISH: self._resolve_model(supplied.get(VoiceLanguage.HINGLISH), "LAWSENSE_PIPER_MODEL_HINGLISH"),
+        }
+        self._timeout_seconds = timeout_seconds
+
+    @staticmethod
+    def _resolve_model(value: str | Path | None, env_name: str) -> Path | None:
+        configured = value if value is not None else os.getenv(env_name)
+        return Path(configured).expanduser() if configured else None
+
+    @staticmethod
+    def _model_ready(model_path: Path | None) -> bool:
+        return bool(
+            model_path
+            and model_path.is_file()
+            and model_path.suffix.casefold() == ".onnx"
+            and Path(f"{model_path}.json").is_file()
+        )
+
+    def supports_language(self, language: VoiceLanguage) -> bool:
+        model_path = self._model_paths.get(language)
+        if language is VoiceLanguage.HINGLISH and not self._model_ready(model_path):
+            model_path = self._model_paths.get(VoiceLanguage.HINDI)
+        return bool(self._executable and Path(self._executable).is_file() and self._model_ready(model_path))
+
+    @property
+    def is_available(self) -> bool:
+        return any(
+            self.supports_language(language)
+            for language in (VoiceLanguage.ENGLISH, VoiceLanguage.HINDI, VoiceLanguage.HINGLISH)
+        )
+
+    def synthesize(self, text: str, language: VoiceLanguage) -> bytes:
+        if not self.is_available or self._executable is None:
+            raise ProviderUnavailableError("Local Piper or a configured on-disk voice model is unavailable.")
+        if not isinstance(text, str) or not text.strip():
+            return b""
+        if len(text) > self.MAX_TEXT_CHARS:
+            raise ProviderUnavailableError("The text is too long for one local speech request.")
+
+        model_path = self._model_paths.get(language)
+        if language is VoiceLanguage.HINGLISH and not self._model_ready(model_path):
+            model_path = self._model_paths.get(VoiceLanguage.HINDI)
+        if not self._model_ready(model_path):
+            raise ProviderUnavailableError(f"No local Piper voice model is configured for {language.value}.")
+
+        try:
+            with tempfile.TemporaryDirectory(prefix="lawsense-piper-") as directory:
+                output_path = Path(directory) / "speech.wav"
+                result = subprocess.run(
+                    [
+                        self._executable,
+                        "--model",
+                        str(model_path),
+                        "--output_file",
+                        str(output_path),
+                    ],
+                    check=False,
+                    capture_output=True,
+                    input=text.encode("utf-8"),
+                    timeout=self._timeout_seconds,
+                )
+                if result.returncode != 0 or not output_path.is_file():
+                    raise ProviderUnavailableError("Local Piper could not synthesize this response.")
+                audio = output_path.read_bytes()
+                if not audio:
+                    raise ProviderUnavailableError("Local Piper returned an empty audio file.")
+                return audio
+        except ProviderUnavailableError:
+            raise
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            raise ProviderUnavailableError("Local Piper could not start or finish this request.") from exc
+
+
 _DEVANAGARI = re.compile(r"[\u0900-\u097f]")
 _LATIN = re.compile(r"[A-Za-z]")
 _HINGLISH_MARKERS = re.compile(

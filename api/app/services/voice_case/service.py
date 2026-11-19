@@ -18,6 +18,7 @@ from app.engines.voice import (
     EspeakNGTextToSpeechProvider,
     LocalLanguageDetector,
     LocalWhisperSpeechToTextProvider,
+    PiperLocalTextToSpeechProvider,
     ProviderUnavailableError,
     SpeechToTextProvider,
     TextToSpeechProvider,
@@ -347,7 +348,16 @@ def build_voice_case_service(
                 FasterWhisperLocalAdapter(model_path)
             )
     if text_to_speech_provider is None:
-        text_to_speech_provider = EspeakNGTextToSpeechProvider()
+        piper_provider = PiperLocalTextToSpeechProvider()
+        # Prefer Piper only when both primary language families are configured;
+        # Hinglish can use the Hindi model if no dedicated voice is installed.
+        piper_ready = (
+            piper_provider.supports_language(VoiceLanguage.ENGLISH)
+            and piper_provider.supports_language(VoiceLanguage.HINDI)
+        )
+        text_to_speech_provider = (
+            piper_provider if piper_ready else EspeakNGTextToSpeechProvider()
+        )
     return VoiceCaseService(
         speech_to_text_provider=speech_to_text_provider,
         language_detector=language_detector,

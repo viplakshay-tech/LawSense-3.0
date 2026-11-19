@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Loader2, Pause, Play, RotateCcw, Volume2, X } from 'lucide-react';
 import type { GuideVoiceEvent } from '@/components/guide-runtime/voice-adapter/events';
 import { getVoiceProviderAvailability, synthesizeVoiceSpeech } from '@/lib/api';
+import { splitSpeechIntoChunks } from '@/lib/voice-speech-chunks';
 
 type OutputState = 'checking' | 'ready' | 'starting' | 'speaking' | 'paused' | 'unavailable' | 'error';
 type OutputMode = 'local' | 'browser' | 'unavailable';
@@ -20,6 +21,7 @@ interface VoiceOutputProps {
   language?: string | null;
   responseId?: string;
   onEvent?: (event: GuideVoiceEvent) => void;
+  allowBrowserFallback?: boolean;
 }
 
 function speechLanguage(language: string | null | undefined): string {
@@ -32,10 +34,12 @@ function apiLanguage(language: string | null | undefined): 'english' | 'hindi' |
   return 'hindi';
 }
 
-export default function VoiceOutput({ text, language, responseId = 'guide-response', onEvent }: VoiceOutputProps) {
+export default function VoiceOutput({ text, language, responseId = 'guide-response', onEvent, allowBrowserFallback = false }: VoiceOutputProps) {
   const utterance = useRef<SpeechSynthesisUtterance | null>(null);
   const audio = useRef<HTMLAudioElement | null>(null);
   const audioUrl = useRef<string | null>(null);
+  const playbackResolve = useRef<(() => void) | null>(null);
+  const playbackReject = useRef<((reason?: unknown) => void) | null>(null);
   const request = useRef<AbortController | null>(null);
   const operation = useRef(0);
   const startTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -61,6 +65,10 @@ export default function VoiceOutput({ text, language, responseId = 'guide-respon
   };
 
   const releaseAudio = () => {
+    const settlePlayback = playbackResolve.current;
+    playbackResolve.current = null;
+    playbackReject.current = null;
+    settlePlayback?.();
     if (audio.current) {
       audio.current.onplay = null;
       audio.current.onpause = null;
@@ -74,7 +82,7 @@ export default function VoiceOutput({ text, language, responseId = 'guide-respon
   };
 
   const browserAvailable = () =>
-    typeof window !== 'undefined' && 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
+    typeof window !== 'undefined' && 'speechSynthesis' in window && typeof SpeechSynthesisUtterance !== 'undefined';
 
   useEffect(() => {
     let active = true;
@@ -96,7 +104,7 @@ export default function VoiceOutput({ text, language, responseId = 'guide-respon
           setMode('local');
           setActiveMode('local');
           setState('ready');
-        } else if (canSpeakInBrowser) {
+        } else if (canSpeakInBrowser && allowBrowserFallback) {
           setMode('browser');
           setActiveMode('browser');
           setState('ready');
@@ -109,7 +117,7 @@ export default function VoiceOutput({ text, language, responseId = 'guide-respon
       })
       .catch(() => {
         if (!active) return;
-        if (canSpeakInBrowser) {
+        if (canSpeakInBrowser && allowBrowserFallback) {
           setMode('browser');
           setActiveMode('browser');
           setState('ready');
@@ -134,9 +142,9 @@ export default function VoiceOutput({ text, language, responseId = 'guide-respon
       utterance.current = null;
       releaseAudio();
     };
-    // Voice capability is detected once for this mounted output control.
+    // Re-evaluate provider choice whenever the user changes browser fallback consent.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [allowBrowserFallback]);
 
   const cancel = () => {
     operation.current += 1;
@@ -152,7 +160,7 @@ export default function VoiceOutput({ text, language, responseId = 'guide-respon
   };
 
   const speakInBrowser = (operationId: number) => {
-    if (!browserAvailable()) return false;
+    if (!allowBrowserFallback || !browserAvailable()) return false;
     const synthesis = window.speechSynthesis;
     const nextUtterance = new SpeechSynthesisUtterance(text);
     nextUtterance.lang = speechLanguage(language);
@@ -200,6 +208,7 @@ export default function VoiceOutput({ text, language, responseId = 'guide-respon
     };
 
     utterance.current = nextUtterance;
+    setMode('browser');
     setActiveMode('browser');
     setState('starting');
     startTimer.current = setTimeout(() => {
@@ -217,7 +226,7 @@ export default function VoiceOutput({ text, language, responseId = 'guide-respon
   };
 
   const play = async () => {
-    if (!text.trim() || mode === 'unavailable' || state === 'checking') return;
+    if (!text.trim() || mode === 'unavailable' || state === 'checking' || (mode === 'browser' && !allowBrowserFallback)) return;
     const operationId = ++operation.current;
     request.current?.abort();
     request.current = null;
@@ -232,55 +241,79 @@ export default function VoiceOutput({ text, language, responseId = 'guide-respon
       request.current = controller;
       setActiveMode('local');
       setState('starting');
+      let localAudioStarted = false;
       try {
-        const audioBlob = await synthesizeVoiceSpeech(text, apiLanguage(language), controller.signal);
-        if (operation.current !== operationId) return;
+        const chunks = splitSpeechIntoChunks(text);
+        if (!chunks.length) throw new Error('There is no text to synthesize.');
+        for (const chunk of chunks) {
+          if (operation.current !== operationId || controller.signal.aborted) return;
+          const audioBlob = await synthesizeVoiceSpeech(chunk, apiLanguage(language), controller.signal);
+          if (operation.current !== operationId) return;
+          if (!audioBlob.size) throw new Error('The local speech provider returned an empty audio chunk.');
+
+          const url = URL.createObjectURL(audioBlob);
+          const player = new Audio(url);
+          audioUrl.current = url;
+          audio.current = player;
+          await new Promise<void>((resolve, reject) => {
+            playbackResolve.current = resolve;
+            playbackReject.current = reject;
+            player.onplay = () => {
+              if (operation.current !== operationId || audio.current !== player) return;
+              localAudioStarted = true;
+              setActiveMode('local');
+              setState('speaking');
+              emit({ type: 'speech_started' });
+            };
+            player.onpause = () => {
+              if (operation.current !== operationId || audio.current !== player || player.ended) return;
+              setState('paused');
+              emit({ type: 'speech_paused' });
+            };
+            player.onended = () => {
+              if (operation.current !== operationId || audio.current !== player) return;
+              releaseAudio();
+            };
+            const fail = (cause?: unknown) => {
+              if (operation.current !== operationId || audio.current !== player) return;
+              const rejectPlayback = playbackReject.current;
+              playbackResolve.current = null;
+              playbackReject.current = null;
+              if (audio.current === player) {
+                player.onplay = null;
+                player.onpause = null;
+                player.onended = null;
+                player.onerror = null;
+                player.pause();
+                audio.current = null;
+              }
+              if (audioUrl.current === url) {
+                URL.revokeObjectURL(url);
+                audioUrl.current = null;
+              }
+              rejectPlayback?.(cause ?? new Error('Local speech audio could not be played.'));
+            };
+            player.onerror = () => fail(new Error('Local speech audio could not be played.'));
+            void player.play().catch(fail);
+          });
+          if (operation.current !== operationId) return;
+        }
         request.current = null;
-        const url = URL.createObjectURL(audioBlob);
-        const player = new Audio(url);
-        audioUrl.current = url;
-        audio.current = player;
-        player.onplay = () => {
-          if (operation.current !== operationId || audio.current !== player) return;
-          setActiveMode('local');
-          setState('speaking');
-          emit({ type: 'speech_started' });
-        };
-        player.onpause = () => {
-          if (operation.current !== operationId || audio.current !== player || player.ended) return;
-          setState('paused');
-          emit({ type: 'speech_paused' });
-        };
-        player.onended = () => {
-          if (operation.current !== operationId || audio.current !== player) return;
-          releaseAudio();
-          setState('ready');
-          emit({ type: 'speech_finished' });
-        };
-        player.onerror = () => {
-          if (operation.current !== operationId || audio.current !== player) return;
-          releaseAudio();
-          const detail = 'Local speech audio could not be played.';
-          if (speakInBrowser(operationId)) {
-            setError(`${detail} Using your browser voice instead.`);
-          } else {
-            setError(detail);
-            setState('error');
-            emit({ type: 'speech_failed', detail });
-          }
-        };
-        await player.play();
+        setState('ready');
+        emit({ type: 'speech_finished' });
       } catch (cause) {
         if (operation.current !== operationId || controller.signal.aborted) return;
         request.current = null;
         releaseAudio();
         const detail = cause instanceof Error ? cause.message : 'Local speech output failed.';
-        if (speakInBrowser(operationId)) {
+        if (allowBrowserFallback && !localAudioStarted && speakInBrowser(operationId)) {
           setError(`${detail} Using your browser voice instead.`);
         } else {
-          setError(detail);
+          setError(localAudioStarted
+            ? `${detail} Some speech may already have played; read the complete response above.`
+            : allowBrowserFallback ? detail : 'Local speech is unavailable. Browser speech is off until you opt in.');
           setState('error');
-          emit({ type: 'speech_failed', detail });
+          emit(allowBrowserFallback ? { type: 'speech_failed', detail } : { type: 'speech_unavailable' });
         }
       }
       return;
@@ -313,7 +346,7 @@ export default function VoiceOutput({ text, language, responseId = 'guide-respon
           : state === 'unavailable'
             ? 'Speech output unavailable'
             : state === 'error'
-              ? 'Playback needs attention'
+              ? allowBrowserFallback ? 'Playback needs attention' : 'Local speech unavailable'
               : activeMode === 'local'
                 ? 'Ready · local speech'
                 : voiceListReady || voices.length > 0
@@ -358,8 +391,10 @@ export default function VoiceOutput({ text, language, responseId = 'guide-respon
         {activeMode === 'local'
           ? 'Spoken locally by LawSense. No audio is saved to the case.'
           : mode === 'local'
-            ? 'Local speech is preferred when available. Browser speech may use a browser managed service. No audio is saved to the case.'
-            : 'Spoken by your browser using its available voice. Browser speech synthesis may use a browser managed service. No audio is saved to the case.'}
+            ? 'Local speech is preferred when available. Browser speech remains off until you opt in. No audio is saved to the case.'
+            : mode === 'browser'
+              ? 'Spoken by your browser using its available voice. Browser speech synthesis may use a browser managed service. No audio is saved to the case.'
+              : 'No local speech provider is available. Browser speech remains off until you opt in. No audio is saved to the case.'}
       </p>
     </section>
   );

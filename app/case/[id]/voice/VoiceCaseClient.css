@@ -579,6 +579,22 @@
   font-size:.57rem;
   line-height:1.5
 }
+.ls-guide-call__speechConsent {
+  display:flex;
+  align-items:flex-start;
+  gap:.45rem;
+  margin:.42rem 0 0;
+  color:#a89b83;
+  font-size:.58rem;
+  line-height:1.5
+}
+.ls-guide-call__speechConsent input {
+  flex:0 0 auto;
+  width:.78rem;
+  height:.78rem;
+  margin:.1rem 0 0;
+  accent-color:#dda5b3
+}
 .ls-guide-call__backLink:focus-visible,.ls-guide-call__endCallLink:focus-visible,.ls-guide-call__legalGuideLink:focus-visible,.ls-guide-call__typeInsteadButton:focus-visible,.ls-guide-call__messageRow input:focus-visible,.ls-guide-call__messageRow button:focus-visible,.ls-guide-call__startCallButton:focus-visible,.ls-guide-call__callControlButton:focus-visible,.ls-guide-call__endCallButton:focus-visible,.ls-guide-call__transcriptReview textarea:focus-visible,.ls-guide-call__confirmTranscriptButton:focus-visible {
   outline-offset:3px;
   outline:2px solid #dda5b3
@@ -658,4 +674,209 @@
   animation:none
 }
 
+}
+
+
+/* Immersive consultation: keep the existing case providers and voice workflow,
+   but remove surrounding case-navigation chrome for the dedicated call route. */
+.ls-case-shell[data-consultation-mode="true"] {
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+.ls-case-shell[data-consultation-mode="true"] .ls-case-grid {
+  display: block !important;
+  min-height: 100dvh;
+}
+.ls-case-shell[data-consultation-mode="true"] .ls-case-rail,
+.ls-case-shell[data-consultation-mode="true"] .ls-case-topbar,
+.ls-case-shell[data-consultation-mode="true"] .ls-case-context,
+.ls-case-shell[data-consultation-mode="true"] .ls-case-mobile-dock {
+  display: none !important;
+}
+.ls-case-shell[data-consultation-mode="true"] .ls-case-main {
+  min-height: 100dvh;
+}
+.ls-case-shell[data-consultation-mode="true"] .ls-case-content {
+  min-height: 100dvh;
+  padding: 0 !important;
+}
+.ls-guide-call__callPage[data-immersive="true"] {
+  min-height: 100dvh;
+  padding: clamp(.8rem, 2vw, 1.8rem);
+  color: #eef5f7;
+  background:
+    radial-gradient(at 14% 8%, rgba(47, 126, 139, .18), transparent 36rem),
+    radial-gradient(at 90% 45%, rgba(195, 157, 98, .10), transparent 38rem),
+    #080e14;
+}
+.ls-guide-call__callPage[data-immersive="true"] .ls-guide-call__pageShell {
+  width: min(100%, 112rem);
+}
+.ls-guide-call__callPage[data-immersive="true"] .ls-guide-call__callExperience {
+  min-height: calc(100dvh - 3.6rem);
+  margin-top: .35rem;
+  border-color: rgba(126, 183, 190, .16);
+  background: linear-gradient(145deg, rgba(16, 28, 37, .98), rgba(8, 15, 22, .99) 68%);
+}
+.ls-guide-call__callPage[data-immersive="true"] .ls-guide-call__callHeader {
+  background: linear-gradient(120deg, rgba(24, 48, 58, .58), rgba(12, 22, 31, .28));
+  border-bottom-color: rgba(126, 183, 190, .13);
+}
+.ls-guide-call__callPage[data-immersive="true"] .ls-guide-call__eyebrow {
+  color: #9cc9c9;
+}
+.ls-guide-call__callPage[data-immersive="true"] .ls-guide-call__guideStage {
+  min-height: clamp(22rem, 54vh, 43rem);
+  background:
+    radial-gradient(at 50% 42%, rgba(44, 111, 123, .24), transparent 58%),
+    linear-gradient(150deg, #111e28, #09121b 78%);
+  border-color: rgba(126, 183, 190, .22);
+}
+.ls-guide-call__callPage[data-immersive="true"] .ls-guide-call__guideCard,
+.ls-guide-call__callPage[data-immersive="true"] .ls-guide-call__transcriptCard {
+  border-color: rgba(126, 183, 190, .14);
+  background: linear-gradient(158deg, rgba(17, 29, 39, .97), rgba(9, 17, 25, .98));
+}
+.ls-guide-call__callPage[data-immersive="true"] .ls-guide-call__endCallLink {
+  border-color: rgba(210, 126, 126, .30);
+  color: #f0caca;
+}
+@media (max-width: 54rem) {
+  .ls-guide-call__callPage[data-immersive="true"] {
+    padding: .5rem;
+  }
+  .ls-guide-call__callPage[data-immersive="true"] .ls-guide-call__callExperience {
+    min-height: calc(100dvh - 1rem);
+    border-radius: 1rem;
+  }
+  .ls-guide-call__callPage[data-immersive="true"] .ls-guide-call__guideStage {
+    min-height: 20rem;
+  }
+}
+
+
+/* Saved-case progress drawer inside the virtual consultation */
+.ls-guide-call__caseProgress {
+  margin: .85rem 0;
+  overflow: hidden;
+  border: 1px solid rgba(126, 183, 190, .18);
+  border-radius: .95rem;
+  background: linear-gradient(135deg, rgba(25, 43, 52, .72), rgba(11, 20, 29, .82));
+}
+.ls-guide-call__caseProgressSummary {
+  display: flex;
+  min-height: 3rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  padding: .75rem 1rem;
+  color: #d9e8e8;
+  cursor: pointer;
+  list-style: none;
+  font-size: .76rem;
+  font-weight: 680;
+}
+.ls-guide-call__caseProgressSummary::-webkit-details-marker {
+  display: none;
+}
+.ls-guide-call__caseProgressSummary span:last-child {
+  color: #91b9bc;
+  text-align: right;
+  font-size: .66rem;
+  font-weight: 560;
+}
+.ls-guide-call__caseProgress[open] .ls-guide-call__caseProgressSummary {
+  border-bottom: 1px solid rgba(126, 183, 190, .13);
+}
+.ls-guide-call__caseProgressBody {
+  padding: .85rem 1rem 1rem;
+}
+.ls-guide-call__caseProgressGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .55rem;
+}
+.ls-guide-call__caseProgressGrid > div {
+  min-width: 0;
+  padding: .65rem .7rem;
+  border: 1px solid rgba(255, 255, 255, .055);
+  border-radius: .7rem;
+  background: rgba(255, 255, 255, .025);
+}
+.ls-guide-call__caseProgressGrid strong {
+  display: block;
+  color: #e8f2ef;
+  font-size: 1.12rem;
+  font-weight: 650;
+  line-height: 1.15;
+}
+.ls-guide-call__caseProgressGrid span {
+  display: block;
+  margin-top: .25rem;
+  color: #8e9fa5;
+  font-size: .61rem;
+  line-height: 1.35;
+}
+.ls-guide-call__caseProgressSection {
+  margin-top: .9rem;
+}
+.ls-guide-call__caseProgressSection h3 {
+  margin: 0 0 .4rem;
+  color: #b7d3d2;
+  font-size: .68rem;
+  font-weight: 680;
+}
+.ls-guide-call__caseProgressSection ul {
+  display: grid;
+  gap: .35rem;
+  margin: 0;
+  padding-left: 1.1rem;
+  color: #c0c8ca;
+  font-size: .68rem;
+  line-height: 1.5;
+}
+.ls-guide-call__caseProgressNote {
+  margin: .85rem 0 0;
+  color: #7f9198;
+  font-size: .61rem;
+  line-height: 1.5;
+}
+.ls-guide-call__caseProgressActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  margin-top: .9rem;
+}
+.ls-guide-call__caseProgressActions button {
+  min-height: 2.25rem;
+  padding: .45rem .75rem;
+  border: 1px solid rgba(126, 183, 190, .24);
+  border-radius: .65rem;
+  background: rgba(126, 183, 190, .08);
+  color: #d6e8e7;
+  font-size: .67rem;
+  font-weight: 650;
+  transition: background .18s, border-color .18s, transform .18s;
+}
+.ls-guide-call__caseProgressActions button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: rgba(126, 183, 190, .48);
+  background: rgba(126, 183, 190, .15);
+}
+.ls-guide-call__caseProgressActions button:disabled {
+  cursor: not-allowed;
+  opacity: .5;
+}
+@media (max-width: 36rem) {
+  .ls-guide-call__caseProgressGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .ls-guide-call__caseProgressSummary {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: .2rem;
+  }
+  .ls-guide-call__caseProgressSummary span:last-child {
+    text-align: left;
+  }
 }

@@ -16,6 +16,7 @@ from .providers import (
     LocalLanguageDetector,
     LocalWhisperAdapter,
     LocalWhisperSpeechToTextProvider,
+    PiperLocalTextToSpeechProvider,
     SpeechToTextProvider,
     TextToSpeechProvider,
 )
@@ -29,6 +30,7 @@ __all__ = [
     "LocalLanguageDetector",
     "LocalWhisperAdapter",
     "LocalWhisperSpeechToTextProvider",
+    "PiperLocalTextToSpeechProvider",
     "ProviderUnavailableError",
     "SpeechToTextProvider",
     "TextToSpeechProvider",

@@ -10,7 +10,7 @@ export interface GuideSessionTurn {
   inputMode: 'text' | 'voice';
   status?: 'ok' | 'unavailable';
   proposedAction?: GuideActionName;
-  audio?: 'queued' | 'speaking' | 'spoken' | 'unavailable' | 'failed';
+  audio?: 'queued' | 'speaking' | 'spoken' | 'unavailable' | 'failed' | 'cancelled';
 }
 
 export interface GuideSessionSnapshot {

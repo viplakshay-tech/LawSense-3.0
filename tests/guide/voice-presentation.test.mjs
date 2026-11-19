@@ -5,6 +5,8 @@ import { validateGuideActionCommand } from '../../components/guide-actions/valid
 import { createGuideActionBridge } from '../../components/guide-actions/bridge.ts';
 import { beginGuideTurn, clearGuideSession, finishGuideTurn, getGuideSessionSnapshot, invalidateGuideTurn, isGuideTurnCurrent } from '../../lib/guide-session.ts';
 import { guideVoiceSnapshotForEvent } from '../../components/guide-runtime/voice-adapter/visual-state.ts';
+import { defaultGuideActionRegistry } from '../../components/guide-runtime/actions.ts';
+import { splitSpeechIntoChunks } from '../../lib/voice-speech-chunks.ts';
 import {
   createGuideConversationResponse,
   guideConversationPresentation,
@@ -29,6 +31,7 @@ const persistentLegalAdvisorySource = await readFile(new URL('../../components/c
 const guideSessionSource = await readFile(new URL('../../lib/guide-session.ts', import.meta.url), 'utf8');
 const guideApiSource = await readFile(new URL('../../lib/api.ts', import.meta.url), 'utf8');
 const voiceConversationSource = await readFile(new URL('../../components/voice/GuideConversation.tsx', import.meta.url), 'utf8');
+const voiceOutputSource = await readFile(new URL('../../components/voice/VoiceOutput.tsx', import.meta.url), 'utf8');
 const guideControlSurfaceSource = await readFile(new URL('../../components/guide-presence/GuideControlSurface.tsx', import.meta.url), 'utf8');
 const persistentLegalAdvisory = await readFile(new URL('../../components/case-shell/PersistentLegalAdvisory.tsx', import.meta.url), 'utf8');
 const guideModelStatusBanner = await readFile(new URL('../../components/guide-presence/GuideModelStatusBanner.tsx', import.meta.url), 'utf8');
@@ -122,6 +125,31 @@ test('voice Guide action proposals resolve only to actions currently available i
   assert.equal(resolveGuideActionProposal('OPEN_JOURNEY', availableActions), undefined);
   assert.equal(resolveGuideActionProposal(null, availableActions), undefined);
   assert.equal(resolveGuideActionProposal(undefined, []), undefined);
+});
+
+test('shared Guide actions cannot bypass local-first speech consent', () => {
+  const availableActions = defaultGuideActionRegistry.getAvailableActions({
+    caseState: null,
+    state: {
+      name: 'idle',
+      reason: 'no_case_loaded',
+      caseId: null,
+      information: {
+        unknowns: [],
+        assumptions: [],
+        conflicts: [],
+        facts: [],
+        claims: [],
+        evidence: [],
+        documents: [],
+      },
+    },
+    response: { id: 'response-1', text: 'A spoken response.' },
+  });
+  assert.equal(availableActions.some((action) => action.type === 'SPEAK_RESPONSE'), false);
+  assert.match(voiceConversationSource, /browserTtsConsentRef/);
+  assert.match(voiceOutputSource, /allowBrowserFallback = false/);
+  assert.match(voiceOutputSource, /if \(!allowBrowserFallback \|\| !browserAvailable\(\)\) return false/);
 });
 
 test('reduced motion keeps the Guide portrait still', () => {
@@ -342,4 +370,31 @@ test('Guide surfaces local model readiness without a cloud fallback', () => {
   assert.match(guideModelStatusBanner, /Guide chat does not fall back to a cloud model/);
   assert.match(guideControlSurfaceSource, /<GuideModelStatusBanner \/>/);
   assert.match(voiceConversationSource, /<GuideModelStatusBanner \/>/);
+});
+
+
+test('local TTS chunks preserve sentence text and bound synthesis payload size', () => {
+  assert.deepEqual(splitSpeechIntoChunks('First sentence. Second sentence.'), [
+    'First sentence. Second sentence.',
+  ]);
+  assert.deepEqual(splitSpeechIntoChunks('पहला वाक्य। दूसरा वाक्य।'), [
+    'पहला वाक्य। दूसरा वाक्य।',
+  ]);
+
+  const longWord = 'x'.repeat(80);
+  const chunks = splitSpeechIntoChunks(longWord, 32);
+  assert.deepEqual(chunks.map((chunk) => chunk.length), [32, 32, 16]);
+  assert.equal(chunks.join(''), longWord);
+  assert.ok(splitSpeechIntoChunks('Short. '.repeat(30), 64).every((chunk) => chunk.length <= 64));
+  assert.deepEqual(splitSpeechIntoChunks('   '), []);
+  assert.throws(() => splitSpeechIntoChunks('text', 0), RangeError);
+});
+
+test('local TTS playback sequences chunks and settles pending audio on cancellation', () => {
+  assert.ok(voiceOutputSource.includes('for (const chunk of chunks)'));
+  assert.ok(voiceOutputSource.includes('playbackResolve.current'));
+  assert.ok(voiceOutputSource.includes('controller.signal.aborted'));
+  assert.ok(voiceOutputSource.includes('request.current?.abort()'));
+  assert.ok(voiceOutputSource.includes("emit({ type: 'speech_finished' })"));
+  assert.ok(voiceOutputSource.includes('allowBrowserFallback && !localAudioStarted && speakInBrowser(operationId)'));
 });

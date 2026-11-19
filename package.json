@@ -9,9 +9,10 @@
     "lint": "eslint",
     "test:api": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test tests/api/legal-knowledge.test.mjs",
     "test:resources": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test tests/resources/official-resources.test.mjs",
-    "test:guide": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test tests/guide/voice-presentation.test.mjs",
+    "test:guide": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test tests/guide/voice-presentation.test.mjs tests/guide/human-avatar-adapter.test.mjs",
     "test:advisory": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test tests/case-shell/legal-advisory-refresh.test.mjs",
-    "test:session-restoration": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test tests/session-case-restoration.test.mjs"
+    "test:session-restoration": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test tests/session-case-restoration.test.mjs",
+    "setup:avatar": "node scripts/setup-human-avatar.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.3",
@@ -22,7 +23,9 @@
     "next": "16.4.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "tailwind-merge": "^3.7.0"
+    "tailwind-merge": "^3.7.0",
+    "humanforge": "github:abdulrehman043/humanforge#2226df1f50a04c5a8e1c02ea33780d28337dfbb1",
+    "three": "0.186.1"
   },
   "devDependencies": {
     "@capacitor/cli": "^8.5.3",
@@ -33,6 +36,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.4.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "@types/three": "^0.186.0"
   }
 }

@@ -153,12 +153,6 @@ const guideActionDefinitions: readonly GuideActionDefinition[] = [
       : [],
   },
   {
-    type: 'SPEAK_RESPONSE',
-    resolve: ({ response }) => response?.text.trim()
-      ? [{ type: 'SPEAK_RESPONSE', payload: { response } }]
-      : [],
-  },
-  {
     type: 'OPEN_SAFETY',
     resolve: ({ caseState }) => {
       const context = caseState?.analysis?.safetyContext;

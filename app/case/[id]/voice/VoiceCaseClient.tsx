@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import Link from 'next/link';
 import { ArrowLeft, BookOpen, CheckCircle2, Loader2, Mic, ShieldAlert } from 'lucide-react';
 import { GuidePresence } from '@/components/guide-presence';
+import { humanAvatarAdapter } from '@/components/guide-presence/avatar/AvatarSurface';
 import './VoiceCaseClient.css';
 import { createGuideVoiceRuntimeAdapter } from '@/components/guide-runtime/voice-adapter/runtime';
 import type { GuideVoiceEvent, VoiceInputMethod, VoiceLanguage } from '@/components/guide-runtime/voice-adapter/events';
@@ -48,7 +49,7 @@ function describeLanguage(value: string | null | undefined): string {
   return value || 'Not detected';
 }
 
-export default function VoiceCaseClient({ id }: { id: string }) {
+export default function VoiceCaseClient({ id, immersive = false }: { id: string; immersive?: boolean }) {
   const { caseState: caseData, loading, error: caseError, revision, replaceCaseState, refreshCaseState } = useCaseState();
   const { snapshot: guideRuntimeSnapshot, dispatch: dispatchCaseGuideEvent, runAction: runGuideAction, actionRunning: guideActionRunning } = useGuideRuntime();
   const { language: sessionLanguage, setLanguage: setSessionLanguage } = useGuideSession(id);
@@ -60,6 +61,8 @@ export default function VoiceCaseClient({ id }: { id: string }) {
   const [requestWorking, setRequestWorking] = useState(false);
   const [captureBusy, setCaptureBusy] = useState(false);
   const [captureStatus, setCaptureStatus] = useState<'idle' | 'listening' | 'processing'>('idle');
+  const [browserRecognitionConsent, setBrowserRecognitionConsent] = useState(false);
+  const [browserTtsConsent, setBrowserTtsConsent] = useState(false);
   const [confirmationOpen, setConfirmationOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingCommit, setPendingCommit] = useState<PendingCommit | null>(null);
@@ -346,7 +349,7 @@ export default function VoiceCaseClient({ id }: { id: string }) {
   }
 
   return (
-    <main className={"ls-guide-call__callPage"}>
+    <main className={"ls-guide-call__callPage"} data-immersive={immersive ? "true" : undefined}>
       <div className={"ls-guide-call__pageShell"}>
         <nav aria-label="Guide navigation" className={"ls-guide-call__callNav"}>
           <Link href={`/case/${encodeURIComponent(id)}`} className={"ls-guide-call__backLink"}>
@@ -357,9 +360,9 @@ export default function VoiceCaseClient({ id }: { id: string }) {
         <section className={"ls-guide-call__callExperience"}>
           <header className={"ls-guide-call__callHeader"}>
             <div className={"ls-guide-call__callHeading"}>
-              <p className={"ls-guide-call__eyebrow"}><Mic aria-hidden="true" />Clarify · Guide conversation · Case {id}</p>
-              <h1>Speak with your Guide</h1>
-              <p className={"ls-guide-call__intro"}>A guided space to tell your story in your own words. You can review every detail before it changes your case.</p>
+              <p className={"ls-guide-call__eyebrow"}><Mic aria-hidden="true" />{immersive ? "PRIVATE CONSULTATION" : "CLARIFY · GUIDE CONVERSATION"} · CASE {id}</p>
+              <h1>{immersive ? "Talk to your AI lawyer" : "Speak with your Guide"}</h1>
+              <p className={"ls-guide-call__intro"}>{immersive ? "Tell me what happened in your own words. We can speak or type, and you can switch whenever you like." : "A guided space to tell your story in your own words. You can review every detail before it changes your case."}</p>
             </div>
             <Link href={`/case/${encodeURIComponent(id)}/guide`} className={"ls-guide-call__legalGuideLink"}>
               <BookOpen aria-hidden="true" />Open legal guide
@@ -374,12 +377,13 @@ export default function VoiceCaseClient({ id }: { id: string }) {
               data-speech-state={callSpeechState}
             >
               <div className={"ls-guide-call__stageHeading"}>
-                <span>YOUR GUIDE</span>
+                <span>{immersive ? "YOUR AI LAWYER" : "YOUR GUIDE"}</span>
                 <span className={"ls-guide-call__caseReference"}>LAW SENSE · CASE {id}</span>
               </div>
 
               <div className={"ls-guide-call__guideStage"}>
                 <GuidePresence
+                  avatarAdapter={immersive ? humanAvatarAdapter : undefined}
                   state={callPresenceState}
                   speechState={callSpeechState}
                   detail={callDetail}
@@ -391,6 +395,7 @@ export default function VoiceCaseClient({ id }: { id: string }) {
               <GuideConversation
                 draftId={draftId}
                 caseId={caseData.id}
+                caseState={caseData}
                 language={language}
                 openQuestions={caseData.unknowns}
                 hasDraft={Boolean(transcript.trim())}
@@ -444,6 +449,8 @@ export default function VoiceCaseClient({ id }: { id: string }) {
             </label>
             <VoiceCapture
               language={language}
+              requireLocalProvider
+              allowBrowserFallback={browserRecognitionConsent}
               disabled={working || committed || callBusy}
               onCaptureStateChange={setCaptureBusy}
               onCaptureStatusChange={setCaptureStatus}
@@ -451,6 +458,15 @@ export default function VoiceCaseClient({ id }: { id: string }) {
               onTranscript={receiveTranscript}
             />
           </div>
+          <label className="mt-3 flex items-start gap-2 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+            <input
+              type="checkbox"
+              checked={browserRecognitionConsent}
+              onChange={(event) => setBrowserRecognitionConsent(event.target.checked)}
+              className="mt-0.5 accent-violet-600"
+            />
+            <span>Allow browser-managed speech recognition only when local Whisper is unavailable.</span>
+          </label>
 
           <label className="mt-5 block text-sm font-medium text-slate-200" htmlFor="voice-transcript">
             {committed ? 'Confirmed transcript · saved to this case' : 'Live transcript · edit anything that was misheard'}
@@ -575,13 +591,25 @@ export default function VoiceCaseClient({ id }: { id: string }) {
           )}
 
           {guideResponse && (
+            <>
+              <label className="mt-5 flex items-start gap-2 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+                <input
+                  type="checkbox"
+                  checked={browserTtsConsent}
+                  onChange={(event) => setBrowserTtsConsent(event.target.checked)}
+                  className="mt-0.5 accent-violet-600"
+                />
+                <span>Allow browser-managed spoken replies only when local LawSense voice output is unavailable.</span>
+              </label>
             <VoiceOutput
               key={guideResponse.id}
               text={guideResponse.text}
               language={guideResponse.language}
               responseId={guideResponse.id}
               onEvent={emitVoiceEvent}
+              allowBrowserFallback={browserTtsConsent}
             />
+            </>
           )}
             </section>
           </div>

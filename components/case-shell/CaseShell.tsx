@@ -271,6 +271,7 @@ export function CaseShell({ caseId, children }: { caseId: string; children: Reac
 
   const activeSafetyTone = getSafetyTone(caseState?.analysis?.safetyContext.context);
   const safetyMode = pathname.startsWith(`${basePath}/safety`);
+  const isConsultationRoute = pathname.startsWith(`${basePath}/consultation`);
   const sections: CaseSection[] = [
     { id: 'understand', name: 'UNDERSTAND', label: 'Understand', mobileLabel: 'Understand', href: basePath, icon: ClipboardList },
     { id: 'clarify', name: 'CLARIFY', label: 'Clarify', mobileLabel: 'Clarify', href: `${basePath}#clarification`, icon: CircleHelp },
@@ -367,7 +368,7 @@ export function CaseShell({ caseId, children }: { caseId: string; children: Reac
   const contextualAction = safetyMode || activeSection === 'monitor_update' ? 'Return to case journey' : 'Continue to next step';
 
   return (
-    <div className="ls-case-shell min-h-screen bg-[#090d13] text-slate-100 selection:bg-[#e7c99c]/40">
+    <div className="ls-case-shell min-h-screen bg-[#090d13] text-slate-100 selection:bg-[#e7c99c]/40" data-consultation-mode={isConsultationRoute ? "true" : undefined}>
       <div className="ls-case-grid min-h-screen lg:grid lg:grid-cols-[280px_minmax(0,1fr)]">
         <aside className="ls-case-rail sticky top-0 z-40 hidden h-dvh flex-col border-r border-white/[0.06] bg-[#101722] px-4 pb-5 pt-5 text-slate-100 lg:flex">
           <Link href="/" className="group mb-6 flex items-center gap-3 rounded-lg px-1 py-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e9bd7b]">
@@ -535,9 +536,9 @@ export function CaseShell({ caseId, children }: { caseId: string; children: Reac
           Legal source records have not been returned for this case.
         </span>
       )}
-      <GuideControlSurface />
+      {!isConsultationRoute && <GuideControlSurface />}
       <PersistentLegalAdvisory caseId={caseId} />
-      <Suspense fallback={null}><CaseContextPanel caseId={caseId} /></Suspense>
+      {!isConsultationRoute && <Suspense fallback={null}><CaseContextPanel caseId={caseId} /></Suspense>}
     </div>
   );
 }

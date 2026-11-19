@@ -2,7 +2,7 @@
 
 import { useReducedMotion } from 'framer-motion';
 import './GuidePresence.css';
-import { AvatarSurface } from './avatar/AvatarSurface';
+import { AvatarSurface, defaultAvatarAdapter } from './avatar/AvatarSurface';
 import { GUIDE_PRESENCE_LABELS } from './types';
 import type { GuidePresenceProps } from './types';
 import { canonicalGuidePresenceState, getGuideStatePresentation } from './presentation-contract';
@@ -30,7 +30,8 @@ export function GuidePresence({
   const presentation = getGuideStatePresentation(canonicalState);
   const isUrgent = canonicalState === 'IMMEDIATE_DANGER';
   const rootClassName = ["ls-guide-presence__presence", className].filter(Boolean).join(' ');
-  const rendererIsIllustrated = (avatarAdapter?.kind ?? 'illustrated') === 'illustrated';
+  const resolvedAvatarAdapter = avatarAdapter ?? defaultAvatarAdapter;
+  const rendererIsIllustrated = resolvedAvatarAdapter.kind === 'illustrated';
 
   return (
     <section
@@ -47,7 +48,7 @@ export function GuidePresence({
         {visual ?? (
           <>
             <AvatarSurface
-              adapter={avatarAdapter}
+              adapter={resolvedAvatarAdapter}
               visualState={canonicalState}
               size={size}
               speechState={speechState ?? (canonicalState === 'SPEAKING' ? 'speaking' : 'idle')}
