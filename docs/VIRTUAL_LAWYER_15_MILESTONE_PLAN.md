@@ -61,7 +61,7 @@ Do not start a dependent milestone by bypassing a failed acceptance gate. Keep c
 - Existing Guide sessions are case-scoped in browser session storage; they are not durable across tabs/devices.
 - The current Android shell is not a standalone offline AI runtime. Do not represent it as one without on-device inference and real-device offline verification.
 
-## Current execution status — 18 November 2026
+## Current execution status — 19 November 2026
 
 This is an evidence-based progress snapshot, not a release sign-off.
 
@@ -71,19 +71,19 @@ This is an evidence-based progress snapshot, not a release sign-off.
 | 2 | Complete | Plain-language prompt and focused backend tests are in the feature branch. The current backend CI job passed. |
 | 3 | Complete | The existing case-scoped Guide session already shares turns across text/voice, persists the bounded transcript in session storage, and aborts superseded turns. Earlier merged regressions cover cross-mode cancellation and stale-response protection. |
 | 4 | Complete | `/case/[id]/consultation` is case-scoped and reuses existing case access and voice providers. The dedicated-route Playwright checks passed. |
-| 5 | In progress | Immersive workspace, transcript, language, text/voice controls and responsive call layout are wired. Case-progress drawer polish, full keyboard/screen-reader review and manual narrow-device checks remain. |
-| 6 | Implemented; acceptance pending | HumanForge 0.8.1 is pinned with MIT code / CC0 human assets; local asset setup script and realistic renderer adapter are committed. Run setup and verify the actual model, local-only requests and fallbacks on Windows/Android. |
-| 7 | Partial implementation | Guide expressions, viseme cues, subtle head/neck pose and blinks map to the 3D avatar. Full-body hand gestures and independent eye-ball gaze remain unsupported; reduced-motion behavior still needs device validation. |
-| 8 | Integrated; device acceptance pending | Local Faster-Whisper is selected from an on-disk model path; voice capture is local-first and browser recognition requires explicit opt-in. Playwright covers the local-provider path and consent boundary. Real Hindi/English models and Windows/Android transcription quality remain unverified. |
-| 9 | Integrated; quality acceptance pending | Local Piper/eSpeak is preferred; browser speech synthesis requires separate explicit consent. The shared Guide action registry no longer exposes a direct browser-speech bypass. Real Piper models, Hindi/English naturalness, latency and memory benchmarks remain. |
-| 10 | Partial implementation | Stop/cancel, abort cleanup, voice barge-in and preserved readable replies are implemented; the local Whisper barge-in Playwright test passes. Typed-message interruption is wired but still needs its own E2E assertion; chunked TTS streaming remains. |
+| 5 | Implemented; manual acceptance pending | Immersive workspace, transcript, language selector, text/voice controls and case-progress drawer are wired. Browser E2E now exercises the drawer and its Legal Advisory action with keyboard focus/Enter, plus a 390px viewport. Manual screen-reader and physical narrow-device review remain. |
+| 6 | Implemented; runtime acceptance pending | HumanForge is pinned; its setup script prepares assets into `public/lawsense-human`, the renderer requests same-origin assets only, and the illustrated fallback remains. The setup script and actual model still need to be run and visually checked on the target Windows/Android devices. |
+| 7 | Partial implementation | Guide expressions, viseme cues, subtle head/neck pose and blinks map to the 3D avatar. Full-body hand gestures and independent eye-ball gaze remain unsupported; reduced-motion behavior still needs device validation. No unverified gestures are presented as complete. |
+| 8 | Integrated; device acceptance pending | Local Faster-Whisper is selected from an on-disk model path; voice capture is local-first and browser recognition requires explicit opt-in. Backend tests cover injected providers, on-disk model readiness, temporary audio cleanup and provider-unavailable behavior. Real Hindi/English models and Windows/Android transcription quality remain unverified. |
+| 9 | Integrated; quality acceptance pending | Local Piper/eSpeak is preferred; browser speech synthesis requires separate explicit consent. Piper tests cover installed model/config pairing, Hindi synthesis, Hinglish fallback and fail-closed behavior. Real Piper models, Hindi/English naturalness, latency and memory benchmarks remain. |
+| 10 | Chunked playback implemented; acceptance pending | Local TTS now splits long replies into sentence-aware bounded chunks, synthesizes and plays them sequentially, aborts stale requests and settles pending playback on cancellation. Unit tests cover Hindi/English chunk boundaries; Playwright covers voice and typed-message interruption. Run the complete CI suite and validate real local audio continuity/latency on the Windows target. |
 | 11 | Partial implementation | Existing caller-owned viseme timing is mapped to HumanForge ARKit facial morphs. Validate actual Hindi/English audio alignment, pauses and interruption on-device before sign-off. |
 | 12 | Partial implementation with broad regression coverage | Voice transcripts remain editable and require explicit confirmation. Existing Guide actions route to Legal Advisory, journey and document studio; Playwright covers confirmed document proposals and legal-advisory refresh. A single end-to-end consultation-to-advisory/document journey with source uncertainty assertions remains. |
 | 13 | In progress | Audio cleanup, local provider boundaries and explicit browser-consent controls are implemented. Full auth/case-ownership, retention, request-size and local-network security review remains. |
 | 14 | Partial implementation | CI now passes backend, frontend, Playwright and Android debug APK jobs; an installable debug APK artifact is uploaded. Physical-device installation, Wi-Fi pairing without USB, permissions and verified offline behavior remain. |
 | 15 | Not started | Release regression and handoff must wait until all preceding acceptance gates pass. |
 
-### Latest CI evidence — 18 November 2026
+### Latest baseline CI evidence — 18 November 2026
 
 Latest completed run: [44263557845](https://github.com/viplakshay-tech/LawSense-3.0/actions/runs/44263557845)
 
@@ -96,12 +96,12 @@ The CI APK is a debug artifact, not a Play Store release. It does not bundle Oll
 
 ### Immediate next execution
 
-1. Add a dedicated Playwright test for typed-message interruption while a spoken reply is active.
+1. Run the new CI workflow after the chunked local-TTS implementation and keyboard consultation regression; fix any lint, type, unit, backend or Playwright failures before treating the code changes as accepted.
 2. Install and exercise actual Faster-Whisper and Piper Hindi/English models on the target Windows laptop; benchmark pronunciation, latency and memory rather than relying only on mocked-provider tests.
-3. Complete the consultation case-progress workspace and one end-to-end consultation-to-Legal-Advisory/document journey with source-status and uncertainty assertions.
-4. Run `npm ci` and `npm run setup:avatar`; visually validate the pinned HumanForge model and local-only asset requests. Keep the illustrated renderer as the fallback.
-5. Install the APK on a physical Android phone over Wi-Fi, verify permissions and USB-independent pairing, then validate only the offline capabilities that actually work.
-6. Continue through milestones 7–15 in dependency order; update this table only when each acceptance gate has evidence.
+3. Run `npm ci` and `npm run setup:avatar`; visually validate the pinned HumanForge model, local-only asset requests, fallback behavior and reduced-motion behavior.
+4. Install the APK on a physical Android phone over Wi-Fi, verify permissions and USB-independent pairing, then validate only the offline capabilities that actually work.
+5. Complete the remaining avatar gesture/gaze work only if the pinned rig exposes safe, supported controls; otherwise document the renderer limitation instead of faking gestures.
+6. Continue milestones 11–15 in dependency order; update each status only when its acceptance gate has evidence.
 
 No milestone should be marked complete solely because a UI exists or a build succeeds. The Android and offline milestones require real-device verification, which cannot be substituted by a hosted CI build.
 
